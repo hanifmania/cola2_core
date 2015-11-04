@@ -213,7 +213,7 @@ public:
 
 
         // Publish list of landmarks (Map)
-        pose_ekf_slam::Map map;
+        cola2_msgs::Map map;
         map.header.frame_id = "world";
         map.header.stamp = stamp;
 
