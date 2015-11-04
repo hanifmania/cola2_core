@@ -1,0 +1,4 @@
+float32 min_vel
+float32 max_vel
+---
+bool response

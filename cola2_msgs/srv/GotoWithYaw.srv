@@ -1,0 +1,10 @@
+float64 north_lat
+float64 east_lon
+float32 z
+# If true, z is relative to altitude, otherwise depth.
+bool altitude_mode
+float32 tolerance
+# Yaw is not used in most of the modes
+float32 yaw
+---
+bool attempted

@@ -43,6 +43,8 @@
   <run_depend>cola2_msgs</run_depend>
   <run_depend>cola2_safety</run_depend>
   <run_depend>cola2_sim</run_depend>
+  <run_depend>cola2_control</run_depend>
+  
 
   <!-- The export tag contains other, unspecified, tags -->
   <export>

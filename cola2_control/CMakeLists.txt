@@ -1,20 +1,25 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(cola2_msgs)
+project(cola2_control)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
-  roscpp
-  rospy
-  message_generation
+  actionlib
   actionlib_msgs
   auv_msgs
-  geometry_msgs
-  nav_msgs
-  std_msgs
-  sensor_msgs
+  cola2_lib
+  cola2_msgs
+  diagnostic_msgs
   dynamic_reconfigure
+  roscpp
+  rosparam
+  rospy
+  sensor_msgs
+  std_msgs
+  std_srvs
+  tf
+  visualization_msgs
 )
 
 ## System dependencies are found with CMake's conventions
@@ -51,51 +56,31 @@ find_package(catkin REQUIRED COMPONENTS
 ##   * add every package in MSG_DEP_SET to generate_messages(DEPENDENCIES ...)
 
 ## Generate messages in the 'msg' folder
- add_message_files(
-   FILES
-   ThrustersInfo.msg
-   Setpoints.msg
-   AdisImu.msg
-   ImuAngleEstimatorInfo.msg
-   PressureSensor.msg
-   FastraxIt500Gps.msg
-   LinkquestDvl.msg
-   TeledyneExplorerDvl.msg
-   EmusBms.msg
-   TotalTime.msg
-   ThrustersData.msg
-   MissionStatus.msg
-   ComputerData.msg
-   ValeportSoundVelocity.msg
- )
+# add_message_files(
+#   FILES
+#   Message1.msg
+#   Message2.msg
+# )
 
 ## Generate services in the 'srv' folder
-add_service_files(
-  FILES
-  DigitalOutput.srv
-  Submerge.srv
-  RecoveryAction.srv
-  SimulatedCurrents.srv
-  Goto.srv
-  GotoWithYaw.srv
-  String.srv
-  StringList.srv
-  MissionTimeout.srv
-  SetVelocitiesLOS.srv
-  MaxJoyVelocity.srv
-)
+# add_service_files(
+#   FILES
+#   Service1.srv
+#   Service2.srv
+# )
 
 ## Generate actions in the 'action' folder
-add_action_files(
-  FILES
-  WorldWaypointReq.action
-)
+# add_action_files(
+#   FILES
+#   Action1.action
+#   Action2.action
+# )
 
 ## Generate added messages and services with any dependencies listed here
-generate_messages(
-  DEPENDENCIES
-  auv_msgs   geometry_msgs   nav_msgs   std_msgs    actionlib_msgs
-)
+# generate_messages(
+#   DEPENDENCIES
+#   auv_msgs#   cola2_msgs#   diagnostic_msgs#   sensor_msgs#   std_msgs#   visualization_msgs
+# )
 
 ################################################
 ## Declare ROS dynamic reconfigure parameters ##
@@ -112,12 +97,10 @@ generate_messages(
 ##     and list every .cfg file to be processed
 
 ## Generate dynamic reconfigure parameters in the 'cfg' folder
-generate_dynamic_reconfigure_options(
-  cfg/SafeDepthAltitude.cfg
-  cfg/VirtualCageInfo.cfg
-  cfg/Safety.cfg
-  cfg/tritech_msis.cfg
-)
+# generate_dynamic_reconfigure_options(
+#   cfg/DynReconf1.cfg
+#   cfg/DynReconf2.cfg
+# )
 
 ###################################
 ## catkin specific configuration ##
@@ -130,8 +113,8 @@ generate_dynamic_reconfigure_options(
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
 #  INCLUDE_DIRS include
-#  LIBRARIES cola2_msgs
-#  CATKIN_DEPENDS auv_msgs geometry_msgs nav_msgs std_msgs
+#  LIBRARIES cola2_control
+#  CATKIN_DEPENDS actionlib auv_msgs cola2_lib cola2_msgs diagnostic_msgs dynamic_reconfigure roscpp rosparam rospy sensor_msgs std_msgs std_srvs tf visualization_msgs
 #  DEPENDS system_lib
 )
 
@@ -147,26 +130,30 @@ include_directories(
 )
 
 ## Declare a C++ library
-# add_library(cola2_msgs
-#   src/${PROJECT_NAME}/cola2_msgs.cpp
+# add_library(cola2_control
+#   src/${PROJECT_NAME}/cola2_control.cpp
 # )
 
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries
 ## either from message generation or dynamic reconfigure
-# add_dependencies(cola2_msgs ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+# add_dependencies(cola2_control ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Declare a C++ executable
-# add_executable(cola2_msgs_node src/cola2_msgs_node.cpp)
+# add_executable(cola2_control_node src/cola2_control_node.cpp)
 
 ## Add cmake target dependencies of the executable
 ## same as for the library above
-# add_dependencies(cola2_msgs_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+# add_dependencies(cola2_control_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
-# target_link_libraries(cola2_msgs_node
+# target_link_libraries(cola2_control_node
 #   ${catkin_LIBRARIES}
 # )
+
+add_executable(keyboard src/keyboard.cpp)
+target_link_libraries(keyboard ${catkin_LIBRARIES})
+add_dependencies(keyboard cola2_msgs_gencpp)
 
 #############
 ## Install ##
@@ -183,7 +170,7 @@ include_directories(
 # )
 
 ## Mark executables and/or libraries for installation
-# install(TARGETS cola2_msgs cola2_msgs_node
+# install(TARGETS cola2_control cola2_control_node
 #   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 #   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 #   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
@@ -208,7 +195,7 @@ include_directories(
 #############
 
 ## Add gtest based cpp test target and link libraries
-# catkin_add_gtest(${PROJECT_NAME}-test test/test_cola2_msgs.cpp)
+# catkin_add_gtest(${PROJECT_NAME}-test test/test_cola2_control.cpp)
 # if(TARGET ${PROJECT_NAME}-test)
 #   target_link_libraries(${PROJECT_NAME}-test ${PROJECT_NAME})
 # endif()

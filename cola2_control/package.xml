@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <package>
-  <name>cola2_msgs</name>
+  <name>cola2_control</name>
   <version>1.0.0</version>
-  <description>The cola2_msgs package</description>
+  <description>The cola2_control package</description>
 
   <!-- One maintainer tag required, multiple allowed, one person per tag --> 
   <!-- Example:  -->
@@ -19,7 +19,7 @@
   <!-- Url tags are optional, but mutiple are allowed, one per tag -->
   <!-- Optional attribute type can be: website, bugtracker, or repository -->
   <!-- Example: -->
-  <!-- <url type="website">http://wiki.ros.org/cola2_msgs</url> -->
+  <!-- <url type="website">http://wiki.ros.org/cola2_control</url> -->
 
 
   <!-- Author tags are optional, mutiple are allowed, one per tag -->
@@ -39,21 +39,38 @@
   <!--   <run_depend>message_runtime</run_depend> -->
   <!-- Use test_depend for packages you need only for testing: -->
   <!--   <test_depend>gtest</test_depend> -->
-  <build_depend>actionlib_msgs</build_depend>
   <buildtool_depend>catkin</buildtool_depend>
+  <build_depend>actionlib</build_depend>
+  <build_depend>actionlib_msgs</build_depend>
   <build_depend>auv_msgs</build_depend>
-  <build_depend>geometry_msgs</build_depend>
-  <build_depend>nav_msgs</build_depend>
-  <build_depend>std_msgs</build_depend>
-  <build_depend>sensor_msgs</build_depend>
+  <build_depend>cola2_lib</build_depend>
+  <build_depend>cola2_msgs</build_depend>
+  <build_depend>diagnostic_msgs</build_depend>
   <build_depend>dynamic_reconfigure</build_depend>
+  <build_depend>roscpp</build_depend>
+  <build_depend>rosparam</build_depend>
+  <build_depend>rospy</build_depend>
+  <build_depend>sensor_msgs</build_depend>
+  <build_depend>std_msgs</build_depend>
+  <build_depend>std_srvs</build_depend>
+  <build_depend>tf</build_depend>
+  <build_depend>visualization_msgs</build_depend>
+  <run_depend>actionlib</run_depend>
   <run_depend>actionlib_msgs</run_depend>
-  <run_depend>geometry_msgs</run_depend>
-  <run_depend>nav_msgs</run_depend>
-  <run_depend>std_msgs</run_depend>
   <run_depend>auv_msgs</run_depend>
-  <run_depend>sensor_msgs</run_depend>
+  <run_depend>cola2_lib</run_depend>
+  <run_depend>cola2_msgs</run_depend>
+  <run_depend>diagnostic_msgs</run_depend>
   <run_depend>dynamic_reconfigure</run_depend>
+  <run_depend>roscpp</run_depend>
+  <run_depend>rosparam</run_depend>
+  <run_depend>rospy</run_depend>
+  <run_depend>sensor_msgs</run_depend>
+  <run_depend>std_msgs</run_depend>
+  <run_depend>std_srvs</run_depend>
+  <run_depend>tf</run_depend>
+  <run_depend>visualization_msgs</run_depend>
+
 
   <!-- The export tag contains other, unspecified, tags -->
   <export>

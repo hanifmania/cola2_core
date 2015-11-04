@@ -1,0 +1,7 @@
+# start_mission = True --> mission starts, False --> mission finalizes
+bool start_mission
+
+# mission time out in minutes!
+int32 time_out
+---
+bool success
