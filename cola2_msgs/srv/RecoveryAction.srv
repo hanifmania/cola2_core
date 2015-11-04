@@ -1,0 +1,11 @@
+# ERROR LEVEL
+uint16 INFORMATIVE = 0
+uint16 ABORT_MISSION = 1
+uint16 ABORT_AND_SURFACE = 2
+uint16 EMERGENCY_SURFACE = 3
+uint16 STOP_THRUSTERS = 4
+
+
+uint8 error_level
+---
+bool attempted

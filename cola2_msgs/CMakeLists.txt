@@ -59,12 +59,18 @@ find_package(catkin REQUIRED COMPONENTS
    FastraxIt500Gps.msg
    TeledyneExplorerDvl.msg
    EmusBms.msg
+   TotalTime.msg
+   ThrustersData.msg
+   MissionStatus.msg
+   ComputerData.msg
  )
 
 ## Generate services in the 'srv' folder
 add_service_files(
   FILES
   DigitalOutput.srv
+  Submerge.srv
+  RecoveryAction.srv
 )
 
 ## Generate actions in the 'action' folder

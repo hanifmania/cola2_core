@@ -1,0 +1,5 @@
+float32 z
+# If true, z is relative to altitude, otherwise depth.
+bool altitude_mode
+---
+bool attempted
