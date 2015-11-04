@@ -13,20 +13,20 @@
 #include "ros/ros.h"
 #include <cola2_lib/cola2_io/SerialPort.h>
 #include "cola2_lib/cola2_rosutils/DiagnosticHelper.h"
-#include "cola2_safety/DigitalOutput.h"
+#include "cola2_msgs/DigitalOutput.h"
 
 namespace cola2{
-	namespace rosutil{
+    namespace rosutil{
 
 struct SpConfig {
-	// ------- Serial Port Config -------
-	std::string sp_path ;
-	int sp_baud_rate ;
-	int sp_char_size ;
-	int sp_stop_bits ;
-	std::string sp_parity ;
-	std::string sp_flow_control ;
-	int sp_timeout ;
+    // ------- Serial Port Config -------
+    std::string sp_path ;
+    int sp_baud_rate ;
+    int sp_char_size ;
+    int sp_stop_bits ;
+    std::string sp_parity ;
+    std::string sp_flow_control ;
+    int sp_timeout ;
 };
 
 
@@ -96,68 +96,68 @@ loadParam( std::string param_name, std::vector<std::string>& vector ) {
 
 bool
 initSensor(const std::string name,
-	   cola2::rosutils::DiagnosticHelper& diagnostic,
-	   ros::NodeHandle& n,
-	   int digital_output,
-	   float time_out = 0.0) 
+       cola2::rosutils::DiagnosticHelper& diagnostic,
+       ros::NodeHandle& n,
+       int digital_output,
+       float time_out = 0.0) 
 {
-	//Set up diagnostics
-	diagnostic.setLevel(diagnostic_msgs::DiagnosticStatus::WARN, "Initializing...");
-	diagnostic.publish();
-	
-	//Call service to enable valeport digital output
-	if(digital_output >= 0){
-		ros::Duration(5.0).sleep();
-		ROS_INFO("[%s]: Waiting for service digital_out", name.c_str());
-		if(ros::service::waitForService("digital_output", 5)){
-			ros::ServiceClient client = n.serviceClient<cola2_safety::DigitalOutput>("digital_output");
-			cola2_safety::DigitalOutput srv;
-			srv.request.digital_out = digital_output;
-			srv.request.value = true;
-			ROS_INFO("[%s]: Call service digital_out", name.c_str());
-			if (!client.call(srv)) {
-				ROS_ERROR("[%s] Failed to call service digital_output", name.c_str());
-				diagnostic.setLevel(diagnostic_msgs::DiagnosticStatus::ERROR, "Impossible to enable digital_output");
-				diagnostic.publish();
-				return false;
-			}
-		}
-		else {
-			ROS_ERROR("[%s] Failed to call service digital_output", name.c_str());
-			diagnostic.setLevel(diagnostic_msgs::DiagnosticStatus::ERROR, "Impossible to enable digital_output");
-			diagnostic.publish();
-			return false;
-		}
-	}
+    //Set up diagnostics
+    diagnostic.setLevel(diagnostic_msgs::DiagnosticStatus::WARN, "Initializing...");
+    diagnostic.publish();
+    
+    //Call service to enable valeport digital output
+    if(digital_output >= 0){
+        ros::Duration(5.0).sleep();
+        ROS_INFO("[%s]: Waiting for service digital_out", name.c_str());
+        if(ros::service::waitForService("digital_output", 5)){
+            ros::ServiceClient client = n.serviceClient<cola2_msgs::DigitalOutput>("digital_output");
+            cola2_msgs::DigitalOutput srv;
+            srv.request.digital_out = digital_output;
+            srv.request.value = true;
+            ROS_INFO("[%s]: Call service digital_out", name.c_str());
+            if (!client.call(srv)) {
+                ROS_ERROR("[%s] Failed to call service digital_output", name.c_str());
+                diagnostic.setLevel(diagnostic_msgs::DiagnosticStatus::ERROR, "Impossible to enable digital_output");
+                diagnostic.publish();
+                return false;
+            }
+        }
+        else {
+            ROS_ERROR("[%s] Failed to call service digital_output", name.c_str());
+            diagnostic.setLevel(diagnostic_msgs::DiagnosticStatus::ERROR, "Impossible to enable digital_output");
+            diagnostic.publish();
+            return false;
+        }
+    }
 
-	if(time_out > 0){
-		//Wait sensor to boot
-		ROS_INFO("[%s]: Wait until sensor starts", name.c_str());
-		ros::Duration(time_out).sleep();
-	}
-	return true;
+    if(time_out > 0){
+        //Wait sensor to boot
+        ROS_INFO("[%s]: Wait until sensor starts", name.c_str());
+        ros::Duration(time_out).sleep();
+    }
+    return true;
 }
 
 
 bool setUpSerialPort(cola2::io::SerialPort& serial_port,
-		     const cola2::rosutil::SpConfig& sp_config,
-		     cola2::rosutils::DiagnosticHelper& diagnostic)
+             const cola2::rosutil::SpConfig& sp_config,
+             cola2::rosutils::DiagnosticHelper& diagnostic)
 {
-	try {
-		serial_port.open(sp_config.sp_path);
-		serial_port.setBaudRate(cola2::io::SerialPort::baudRateFromInteger(sp_config.sp_baud_rate));
-		serial_port.setCharSize(cola2::io::SerialPort::charSizeFromInteger(sp_config.sp_char_size));
-		serial_port.setNumOfStopBits(cola2::io::SerialPort::numOfStopBitsFromInteger(sp_config.sp_stop_bits));
-		serial_port.setParity(cola2::io::SerialPort::parityFromString(sp_config.sp_parity));
-		serial_port.setFlowControl(cola2::io::SerialPort::flowControlFromString(sp_config.sp_flow_control));
-	}
-	catch( std::exception& e) {
-		diagnostic.setLevel(diagnostic_msgs::DiagnosticStatus::ERROR, "Error setting up the serial port!");
-		diagnostic.publish();
-		ROS_ERROR("Error setting up the serial port!");
-		return false;
-	}
-	return true;
+    try {
+        serial_port.open(sp_config.sp_path);
+        serial_port.setBaudRate(cola2::io::SerialPort::baudRateFromInteger(sp_config.sp_baud_rate));
+        serial_port.setCharSize(cola2::io::SerialPort::charSizeFromInteger(sp_config.sp_char_size));
+        serial_port.setNumOfStopBits(cola2::io::SerialPort::numOfStopBitsFromInteger(sp_config.sp_stop_bits));
+        serial_port.setParity(cola2::io::SerialPort::parityFromString(sp_config.sp_parity));
+        serial_port.setFlowControl(cola2::io::SerialPort::flowControlFromString(sp_config.sp_flow_control));
+    }
+    catch( std::exception& e) {
+        diagnostic.setLevel(diagnostic_msgs::DiagnosticStatus::ERROR, "Error setting up the serial port!");
+        diagnostic.publish();
+        ROS_ERROR("Error setting up the serial port!");
+        return false;
+    }
+    return true;
 }
 
 }; //rosutil
