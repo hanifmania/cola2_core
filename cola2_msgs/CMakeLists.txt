@@ -51,7 +51,6 @@ find_package(catkin REQUIRED COMPONENTS
 ## Generate messages in the 'msg' folder
  add_message_files(
    FILES
-   DigitalOutput.msg
    ThrustersInfo.msg
    Setpoints.msg
    AdisImu.msg
@@ -59,14 +58,14 @@ find_package(catkin REQUIRED COMPONENTS
    PressureSensor.msg
    FastraxIt500Gps.msg
    TeledyneExplorerDvl.msg
+   EmusBms.msg
  )
 
 ## Generate services in the 'srv' folder
-# add_service_files(
-#   FILES
-#   Service1.srv
-#   Service2.srv
-# )
+add_service_files(
+  FILES
+  DigitalOutput.srv
+)
 
 ## Generate actions in the 'action' folder
 # add_action_files(
