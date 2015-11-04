@@ -58,6 +58,7 @@ find_package(catkin REQUIRED COMPONENTS
    ImuAngleEstimatorInfo.msg
    PressureSensor.msg
    FastraxIt500Gps.msg
+   TeledyneExplorerDvl.msg
  )
 
 ## Generate services in the 'srv' folder
