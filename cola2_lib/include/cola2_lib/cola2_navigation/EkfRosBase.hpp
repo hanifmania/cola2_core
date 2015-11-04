@@ -219,7 +219,7 @@ public:
 
         // Check if there are landmarks in the state vector
         for( unsigned int i = 0; i < _ekf_slam_auv->getNumberOfLandmarks(); i++ ) {
-            pose_ekf_slam::Landmark landmark;
+            cola2_msgs::Landmark landmark;
             landmark.landmark_id = _ekf_slam_auv->getLandmarkId( i );
             landmark.last_update.fromSec( _ekf_slam_auv->getLandmarkLastUpdate( i ) );
             landmark.pose.pose.position.x = _ekf_slam_auv->getStateVector()( 6 + 6*i );
