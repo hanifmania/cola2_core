@@ -52,6 +52,12 @@ find_package(catkin REQUIRED COMPONENTS
  add_message_files(
    FILES
    DigitalOutput.msg
+   ThrustersInfo.msg
+   Setpoints.msg
+   AdisImu.msg
+   ImuAngleEstimatorInfo.msg
+   PressureSensor.msg
+   FastraxIt500Gps.msg
  )
 
 ## Generate services in the 'srv' folder

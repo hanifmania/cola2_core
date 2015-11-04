@@ -1,0 +1,13 @@
+Header header
+float64 latitude
+int32 latitude_hemisphere
+float64 longitude
+int32 longitude_hemisphere
+string time_utc
+int32 data_quality
+float64 north
+float64 east
+string utm_zone
+float32 h_dop
+float32 v_dop
+string[] raw_data

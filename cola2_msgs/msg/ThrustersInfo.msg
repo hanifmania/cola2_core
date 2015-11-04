@@ -1,0 +1,11 @@
+Header header
+float64[] thruster_voltages
+float64[] thruster_currents
+float64[] thruster_rpms
+float64[] thruster_controller_temperatures
+float64[] thruster_output_powers
+string[] thruster_warnings
+string[] thruster_errors
+float64 total_ms_in_driver
+float64[] setpoints
+float64[] processed_setpoints

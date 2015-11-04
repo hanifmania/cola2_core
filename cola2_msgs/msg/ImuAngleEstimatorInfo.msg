@@ -1,0 +1,81 @@
+Header header
+
+float64 period
+
+float64 ax
+float64 ay
+float64 az
+
+float64 mx
+float64 my
+float64 mz
+
+float64 gx
+float64 gy
+float64 gz
+
+float64 tilt_roll
+float64 tilt_pitch
+float64 tilt_yaw
+
+float64 rate_tilt_roll
+float64 rate_tilt_pitch
+float64 rate_tilt_yaw
+
+float64 tilt_angular_velocity_x
+float64 tilt_angular_velocity_y
+float64 tilt_angular_velocity_z
+
+float64 bias_roll_from_this_iteration
+float64 bias_pitch_from_this_iteration
+float64 bias_yaw_from_this_iteration
+
+float64 bias_roll
+float64 bias_pitch
+float64 bias_yaw
+
+int32 bias_buffer_size
+
+float64 corrected_angular_velocity_x
+float64 corrected_angular_velocity_y
+float64 corrected_angular_velocity_z
+
+int32 number_of_iterations
+
+float64 iteration_roll
+float64 iteration_pitch
+float64 iteration_yaw
+
+float64 corrected_rate_roll_from_tilt
+float64 corrected_rate_pitch_from_tilt
+float64 corrected_rate_yaw_from_tilt
+
+float64 corrected_rate_roll
+float64 corrected_rate_pitch
+float64 corrected_rate_yaw
+
+float64 merging_filter_coefficient
+
+float64 gyro_roll_innovation
+float64 gyro_pitch_innovation
+float64 gyro_yaw_innovation
+
+float64 tilt_roll_innovation
+float64 tilt_pitch_innovation
+float64 tilt_yaw_innovation
+
+float64 roll_innovation
+float64 pitch_innovation
+float64 yaw_innovation
+
+float64 merged_roll
+float64 merged_pitch
+float64 merged_yaw
+
+float64 merged_minus_tilt_roll
+float64 merged_minus_tilt_pitch
+float64 merged_minus_tilt_yaw
+
+string status
+
+float64 filter_elapsed_time

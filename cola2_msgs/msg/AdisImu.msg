@@ -1,0 +1,15 @@
+Header header
+float64 MX
+float64 MY
+float64 MZ
+float64 GX
+float64 GY
+float64 GZ
+float64 AX
+float64 AY
+float64 AZ
+float64 T
+float64 B
+string F
+float64 E
+float64 W
