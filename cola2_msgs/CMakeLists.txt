@@ -67,6 +67,8 @@ find_package(catkin REQUIRED COMPONENTS
    MissionStatus.msg
    ComputerData.msg
    ValeportSoundVelocity.msg
+   Landmark.msg
+   Map.msg
  )
 
 ## Generate services in the 'srv' folder

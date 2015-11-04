@@ -16,7 +16,7 @@
 #include "cola2_lib/cola2_rosutils/DiagnosticHelper.h"
 #include "Ned.hpp"
 
-#include "pose_ekf_slam/Map.h"
+#include "cola2_msgs/Map.h"
 #include "auv_msgs/NavSts.h"
 #include "cola2_lib/cola2_rosutils/RosUtil.h"
 
@@ -34,7 +34,7 @@ public:
     {
         // Publishers
         _pub_odom = _n.advertise<nav_msgs::Odometry>("/pose_ekf_slam/odometry", 1);
-        _pub_map = _n.advertise<pose_ekf_slam::Map>("/pose_ekf_slam/map", 1);
+        _pub_map = _n.advertise<cola2_msgs::Map>("/pose_ekf_slam/map", 1);
         _pub_nav_sts = _n.advertise< auv_msgs::NavSts >( "/cola2_navigation/nav_sts", 1);
         _pub_landmarks = _n.advertise<visualization_msgs::MarkerArray>("/pose_ekf_slam/landmarks", 1);
         _pub_gps_ned = _n.advertise<geometry_msgs::PoseStamped>("/cola2_navigation/gps_ned", 1);
