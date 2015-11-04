@@ -17,7 +17,7 @@ from auv_msgs.msg import GoalDescriptor
 from auv_msgs.msg import NavSts
 from cola2_lib import cola2_ros_lib
 from dynamic_reconfigure.server import Server
-from cola2_safety.cfg import SafeDepthAltitudeConfig
+from cola2_msgs.cfg import SafeDepthAltitudeConfig
 
 from cola2_lib.diagnostic_helper import DiagnosticHelper
 from diagnostic_msgs.msg import DiagnosticStatus

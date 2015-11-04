@@ -4,7 +4,8 @@ project(cola2_safety)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-find_package(catkin REQUIRED COMPONENTS rospy actionlib_msgs geometry_msgs sensor_msgs std_msgs auv_msgs cola2_msgs dynamic_reconfigure) 
+find_package(catkin REQUIRED COMPONENTS rospy actionlib_msgs geometry_msgs 
+             sensor_msgs std_msgs auv_msgs cola2_msgs dynamic_reconfigure) 
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -35,11 +36,6 @@ find_package(catkin REQUIRED COMPONENTS rospy actionlib_msgs geometry_msgs senso
 #   actionlib_msgs   geometry_msgs   sensor_msgs   std_msgs
 # )
 
-generate_dynamic_reconfigure_options(
-  cfg/SafeDepthAltitude.cfg
-  cfg/VirtualCageInfo.cfg
-  cfg/Safety.cfg
-)
 
 ###################################
 ## catkin specific configuration ##

@@ -17,7 +17,7 @@ from cola2_lib.diagnostic_helper import DiagnosticHelper
 from diagnostic_msgs.msg import DiagnosticStatus
 
 from dynamic_reconfigure.server import Server
-from cola2_safety.cfg import VirtualCageInfoConfig
+from cola2_msgs.cfg import VirtualCageInfoConfig
 
 class VirtualCage(object):
     """ @@This class prevents an AUV to move beyond a virtual limits.@@"""

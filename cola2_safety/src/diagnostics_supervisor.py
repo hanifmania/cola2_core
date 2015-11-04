@@ -16,13 +16,13 @@ from dynamic_reconfigure.server import Server
 from std_srvs.srv import Empty, EmptyRequest
 from std_msgs.msg import Int16
 from diagnostic_msgs.msg import DiagnosticArray
-from cola2_lib.diagnostic_helper import DiagnosticHelper
 from diagnostic_msgs.msg import DiagnosticStatus
 
 from cola2_msgs.msg import MissionStatus
 from cola2_msgs.srv import RecoveryAction, RecoveryActionRequest
-from cola2_safety.cfg import SafetyConfig
+from cola2_msgs.cfg import SafetyConfig
 
+from cola2_lib.diagnostic_helper import DiagnosticHelper
 from cola2_lib import cola2_ros_lib
 from cola2_lib import cola2_lib
 
