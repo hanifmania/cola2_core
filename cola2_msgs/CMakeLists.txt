@@ -72,6 +72,7 @@ find_package(catkin REQUIRED COMPONENTS
    BatteryLevel.msg
    InternalSensors.msg
    TritechIGCGyro.msg
+   SeaEyeData.msg
  )
 
 ## Generate services in the 'srv' folder
