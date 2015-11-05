@@ -69,6 +69,9 @@ find_package(catkin REQUIRED COMPONENTS
    ValeportSoundVelocity.msg
    Landmark.msg
    Map.msg
+   BatteryLevel.msg
+   InternalSensors.msg
+   TritechIGCGyro.msg
  )
 
 ## Generate services in the 'srv' folder
