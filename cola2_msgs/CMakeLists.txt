@@ -90,6 +90,7 @@ add_service_files(
   SetVelocitiesLOS.srv
   MaxJoyVelocity.srv
   PantiltAngle.srv
+  SetRotativePayloadAngle.srv
 )
 
 ## Generate actions in the 'action' folder
