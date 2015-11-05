@@ -13,7 +13,7 @@
 #include <algorithm>
 #include <cmath>
 
-#define MORPH_ENABLED // Comment or uncomment this line to disable/enable MORPH water speed reference
+// #define MORPH_ENABLED // Comment or uncomment this line to disable/enable MORPH water speed reference
 
 class IAUVROSController
 {
@@ -55,10 +55,9 @@ public:
         _sub_bv_req = _n.subscribe( "/cola2_control/body_velocity_req", 10, &IAUVROSController::updateBVR, this );
         _sub_bf_req = _n.subscribe( "/cola2_control/body_force_req", 10, &IAUVROSController::updateBFR, this );
 
-
+        _are_thrusters_killed = false;
+        
 #ifdef MORPH_ENABLED
-            _are_thrusters_killed = false;
-
             // Publish water_speed
             _pub_water_velocity = _n.advertise<std_msgs::Float64>( "/water_velocity", 1);
 
@@ -666,10 +665,11 @@ private:
     ros::Publisher _pub_water_velocity;
     double _last_wspeed_reference;
     double _speed_force;
-    bool _are_thrusters_killed;
     ros::ServiceServer _kill_some_thrusters_srv;
 #endif//MORPH_ENABLED
 
+    bool _are_thrusters_killed;
+        
     // Timers
     ros::Timer _timer;
     ros::Timer _check_diagnostics;
