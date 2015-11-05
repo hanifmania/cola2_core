@@ -89,6 +89,7 @@ add_service_files(
   MissionTimeout.srv
   SetVelocitiesLOS.srv
   MaxJoyVelocity.srv
+  PantiltAngle.srv
 )
 
 ## Generate actions in the 'action' folder
