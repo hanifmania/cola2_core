@@ -70,7 +70,6 @@ class Cola2Safety(object):
         self.working_area_east_length = 100.0
         self.min_mission_handler_heartbeat_update = 5.0
         self.timeout = 600
-        self.min_reference_commands = 30
         
         self.timeout_reset = 10
         
@@ -381,19 +380,6 @@ class Cola2Safety(object):
                 else:
                     rospy.loginfo("%s: up_time (%s) < timeout (%s)", self.name, up_time, self.timeout)
                     self.timeout_reset = self.timeout_reset - 1
-                    
-            # Rule: No MOPRH reference commands for X seconds since vehicle submerged
-            #if __getDiagnostic__( status, '/Other/ g500_wrapper'):
-            #    last_reference_command = float(__getDiagnostic__(status, '/Other/ g500_wrapper', 'last_reference_command', '0.0') )
-            #    
-            #    self.diagnostic.add('last_reference_command', str(last_reference_command))             
-            #    if last_reference_command > self.min_reference_commands:
-            #        self.call_recovery_action( "No MORPH commands",
-            #                                   RecoveryActionRequest.ABORT_AND_SURFACE )
-            #        self.diagnostic.add('reference_command', 'Error')     
-            #    else:
-            #        rospy.loginfo("%s: last_reference_command: %s", self.name, last_reference_command)
-                    
 
         # Publish error code
         self.publishErrorCode()
@@ -429,8 +415,7 @@ class Cola2Safety(object):
                       'working_area_north_length': 'virtual_cage/north_longitude',
                       'working_area_east_length': 'virtual_cage/east_longitude',
                       'timeout': 'diagnostics_supervisor/timeout',
-                      'min_modem_update': 'safety/min_modem_update',
-                      'min_reference_commands': 'MORPH/min_reference_commands'}
+                      'min_modem_update': 'safety/min_modem_update'}
 
         cola2_ros_lib.getRosParams(self, param_dict, self.name)
                          
