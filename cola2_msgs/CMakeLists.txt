@@ -73,6 +73,7 @@ find_package(catkin REQUIRED COMPONENTS
    InternalSensors.msg
    TritechIGCGyro.msg
    SeaEyeData.msg
+   SonarInfo.msg
  )
 
 ## Generate services in the 'srv' folder
@@ -91,6 +92,7 @@ add_service_files(
   MaxJoyVelocity.srv
   PantiltAngle.srv
   SetRotativePayloadAngle.srv
+  ArisConfig.srv
 )
 
 ## Generate actions in the 'action' folder

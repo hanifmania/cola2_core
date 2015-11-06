@@ -1,0 +1,11 @@
+float32 frame_period_sec
+float32 gain
+bool frequancy_hi
+uint32 focus
+uint32 pulse_width
+float32 window_start
+float32 window_length
+uint32 samples_per_beam 
+---
+bool attempted
+
