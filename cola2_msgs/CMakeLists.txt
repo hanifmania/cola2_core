@@ -74,6 +74,8 @@ find_package(catkin REQUIRED COMPONENTS
    TritechIGCGyro.msg
    SeaEyeData.msg
    SonarInfo.msg
+   ImagenexSSS.msg
+   RangeImageBeam.msg
  )
 
 ## Generate services in the 'srv' folder
@@ -93,6 +95,7 @@ add_service_files(
   PantiltAngle.srv
   SetRotativePayloadAngle.srv
   ArisConfig.srv
+  ImagenexSSSConfig.srv
 )
 
 ## Generate actions in the 'action' folder
