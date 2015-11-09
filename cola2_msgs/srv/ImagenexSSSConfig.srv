@@ -1,0 +1,7 @@
+uint8 range
+uint8 frequency
+uint8 data_gain
+uint8 balance_gain
+---
+bool attempted
+
