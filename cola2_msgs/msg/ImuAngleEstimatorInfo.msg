@@ -36,25 +36,15 @@ float64 bias_yaw
 
 int32 bias_buffer_size
 
+float64 merging_filter_coefficient
+
 float64 corrected_angular_velocity_x
 float64 corrected_angular_velocity_y
 float64 corrected_angular_velocity_z
 
-int32 number_of_iterations
-
-float64 iteration_roll
-float64 iteration_pitch
-float64 iteration_yaw
-
-float64 corrected_rate_roll_from_tilt
-float64 corrected_rate_pitch_from_tilt
-float64 corrected_rate_yaw_from_tilt
-
-float64 corrected_rate_roll
-float64 corrected_rate_pitch
-float64 corrected_rate_yaw
-
-float64 merging_filter_coefficient
+float64 gyro_integrated_roll
+float64 gyro_integrated_pitch
+float64 gyro_integrated_yaw
 
 float64 gyro_roll_innovation
 float64 gyro_pitch_innovation
