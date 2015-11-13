@@ -120,6 +120,16 @@ class Captain:
                                         String,
                                         self.load_trajectory)
 
+        self.load_trajectory_str_srv = rospy.Service(
+                                        '/cola2_control/load_trajectory_str',
+                                        String,
+                                        self.load_trajectory_str)
+
+        self.load_trajectory_config_srv = rospy.Service(
+                                        '/cola2_control/load_trajectory_config',
+                                        Empty,
+                                        self.load_trajectory_config)
+
         self.enable_trajectory_srv = rospy.Service(
                                         '/cola2_control/enable_trajectory',
                                         Empty,
@@ -371,11 +381,11 @@ class Captain:
     def disable_keep_z(self, req):
         self.init_keep_z = False
         return EmptyResponse()
-            
+
     def load_trajectory(self, req):
         """ This method parses a trajectory from ros param server. Input is
             the absolute path of the yaml file of the trajectory """
-            
+
         # Delete all prevoius params
         __delete_param__('/trajectory/north')
         __delete_param__('/trajectory/east')
@@ -387,7 +397,7 @@ class Captain:
         __delete_param__('/trajectory/time_out')
         __delete_param__('/trajectory/wait')
         __delete_param__('/trajectory/actions')
-        
+
         # Load file if given
         if req.mystring != '':
             # Check if file exists
@@ -457,7 +467,7 @@ class Captain:
             param_dict['actions'] = 'trajectory/actions'
         else:
             config.actions=[]
-        
+
         # print "---> Trajectory params to load: \n", param_dict
 
         # Get trajectory
@@ -517,7 +527,241 @@ class Captain:
             return StringResponse('Inital and final waypoints must be at surface')
 
 
+    def load_trajectory_str(self, req):
+        """ This method parses a trajectory from ros param server. Input is
+            an string with all the values in a yaml format"""
 
+        #WORK AROUND Since in python the \n in a string is not consider as a
+        # newline it thinks is the same value. For this reason the yaml library
+        # doesn't load the correctly the yaml string.
+        # To aboid this problem We can create a temp file with the string and\
+        # load as like the same service . Since is a service it needs a special
+        # message to call it so its easier coyp it again.
+        #
+        #ifile = open("/tmp/mission.yaml","w")
+        lines = req.mystring.split('\\n')
+        for line in lines:
+            if (line != '' ) :
+                arguments = line.split(':')
+                rosparam.upload_params(arguments[0], eval(arguments[1]))
+            else:
+                rospy.loginfo('Skiped empty line')
+        #file.close()
+
+        # Check for timeout
+        if rospy.has_param("trajectory/time_out"):
+            self.trajectory_time_out = rospy.get_param("trajectory/time_out")
+        else:
+            rospy.logerr("%s: unsafe to load. Missing trajectory/time_out", self.name)
+            return StringResponse('Missing trajectory/time_out')
+
+        # Config container
+        config = cola2_ros_lib.Config()
+
+        # Check for trajectory type (absolute or relative)
+        if rospy.has_param("trajectory/north") and rospy.has_param("trajectory/east"):
+            config.trajectory_type = 'relative'
+        elif rospy.has_param("trajectory/latitude") and rospy.has_param("trajectory/longitude"):
+            config.trajectory_type = 'absolute'
+        else:
+            rospy.logerr("%s: invalid trajectory!", self.name)
+            return StringResponse('Invalid trajectory')
+
+        # Define correct parameters
+        param_dict = {'z': 'trajectory/z',
+                      'altitude_mode': 'trajectory/altitude_mode',
+                      'mode': 'trajectory/mode'}
+
+        if (config.trajectory_type == 'absolute'):
+            param_dict['lat'] = 'trajectory/latitude'
+            param_dict['lon'] = 'trajectory/longitude'
+        elif (config.trajectory_type == 'relative'):
+            param_dict['north'] = 'trajectory/north'
+            param_dict['east'] = 'trajectory/east'
+        else:
+            rospy.logerr("%s: invalid trajectory type!", self.name)
+            return StringResponse()
+
+        if rospy.has_param("trajectory/wait"):
+            param_dict['wait'] = 'trajectory/wait'
+        else:
+            config.wait=[]
+
+        if rospy.has_param("trajectory/actions"):
+            param_dict['actions'] = 'trajectory/actions'
+        else:
+            config.actions=[]
+
+        # Get trajectory
+        if not cola2_ros_lib.getRosParams(config, param_dict, 'Trajectory'):
+            rospy.logerr("%s: some trajectory parameters not found!", self.name)
+            return StringResponse('Some trajectory parameters not found')
+
+        # Set a trajectory class from config through cola2_lib method
+        if (config.trajectory_type == 'absolute'):
+            self.trajectory.load(config.trajectory_type,
+                                 config.lat,
+                                 config.lon,
+                                 config.z,
+                                 config.altitude_mode,
+                                 config.mode,
+                                 config.wait,
+                                 config.actions)
+        else:
+            self.trajectory.load(config.trajectory_type,
+                                 config.north,
+                                 config.east,
+                                 config.z,
+                                 config.altitude_mode,
+                                 config.mode,
+                                 config.wait,
+                                 config.actions)
+
+        # Generate path and publish
+        self.path = self.generate_trajectory_path()
+        self.pub_trajectory.publish(self.path)
+
+        # Check services
+        if not self.check_trajectory_services():
+            rospy.logerr("%s: some trajectory services are not ready!", self.name)
+            return StringResponse('Some trajectory services are not ready')
+
+        # Get distance between first waypoint and current position
+        wp_0 = self.trajectory.getWaypointNed(0)  # Get first waypoint
+        distance = ((wp_0[NED.NORTH] - self.mission_status.current_north) ** 2 +
+                    (wp_0[NED.EAST] - self.mission_status.current_east) ** 2) ** 0.5
+
+        # Show distance
+        rospy.loginfo("%s: the distance to the first waypoint is: %s m",
+                      self.name, distance)  # Show distance
+        # Check distance
+        if distance > 300:  # Check distance to avoid loading wrong trajectories
+            rospy.logerr("%s: distance to the first waypoint too large! Distance: %s m", self.name, distance)
+            return StringResponse('Distance to firts waypoint too large')
+
+        # Check first last waypoint at surface
+        if (config.z[0] == 0.0 and config.altitude_mode[0] == False and
+             config.z[-1] == 0.0 and config.altitude_mode[-1] == False):
+            self.trajectory_loaded = True
+            return StringResponse('Trajectory loaded')
+        else:
+            rospy.logerr("%s: Inital and final waypoints must be at surface! %s(%s), %s(%s)",
+                         self.name, config.z[0], config.altitude_mode[0], config.z[-1], config.altitude_mode[-1])
+            return StringResponse('Inital and final waypoints must be at surface')
+
+    def load_trajectory_config(self, req):
+        """
+        This method suppose that some other node has already loaded the mission
+        in the configuration server so it only need to load
+        """
+        print "!!!!!!!!!!!!!!!!!!!! Load Trajectory Config !!!!!!!!!!!"
+        # Check for timeout
+        if rospy.has_param("trajectory/time_out"):
+            self.trajectory_time_out = rospy.get_param("trajectory/time_out")
+        else:
+            rospy.logerr("%s: unsafe to load. Missing trajectory/time_out", self.name)
+            #return StringResponse('Missing trajectory/time_out')
+            return EmptyResponse()
+
+        # Config container
+        config = cola2_ros_lib.Config()
+
+        # Check for trajectory type (absolute or relative)
+        if rospy.has_param("trajectory/north") and rospy.has_param("trajectory/east"):
+            config.trajectory_type = 'relative'
+        elif rospy.has_param("trajectory/latitude") and rospy.has_param("trajectory/longitude"):
+            config.trajectory_type = 'absolute'
+        else:
+            rospy.logerr("%s: invalid trajectory!", self.name)
+            #return StringResponse('Invalid trajectory')
+            return EmptyResponse()
+
+        # Define correct parameters
+        param_dict = {'z': 'trajectory/z',
+                      'altitude_mode': 'trajectory/altitude_mode',
+                      'mode': 'trajectory/mode'}
+
+        if (config.trajectory_type == 'absolute'):
+            param_dict['lat'] = 'trajectory/latitude'
+            param_dict['lon'] = 'trajectory/longitude'
+        elif (config.trajectory_type == 'relative'):
+            param_dict['north'] = 'trajectory/north'
+            param_dict['east'] = 'trajectory/east'
+        else:
+            rospy.logerr("%s: invalid trajectory type!", self.name)
+            return EmptyResponse()
+            #return StringResponse()
+
+        if rospy.has_param("trajectory/wait"):
+            param_dict['wait'] = 'trajectory/wait'
+        else:
+            config.wait=[]
+
+        if rospy.has_param("trajectory/actions"):
+            param_dict['actions'] = 'trajectory/actions'
+        else:
+            config.actions=[]
+
+        # Get trajectory
+        if not cola2_ros_lib.getRosParams(config, param_dict, 'Trajectory'):
+            rospy.logerr("%s: some trajectory parameters not found!", self.name)
+            return StringResponse('Some trajectory parameters not found')
+
+        # Set a trajectory class from config through cola2_lib method
+        if (config.trajectory_type == 'absolute'):
+            self.trajectory.load(config.trajectory_type,
+                                 config.lat,
+                                 config.lon,
+                                 config.z,
+                                 config.altitude_mode,
+                                 config.mode,
+                                 config.wait,
+                                 config.actions)
+        else:
+            self.trajectory.load(config.trajectory_type,
+                                 config.north,
+                                 config.east,
+                                 config.z,
+                                 config.altitude_mode,
+                                 config.mode,
+                                 config.wait,
+                                 config.actions)
+
+        # Generate path and publish
+        self.path = self.generate_trajectory_path()
+        self.pub_trajectory.publish(self.path)
+
+        # Check services
+        if not self.check_trajectory_services():
+            rospy.logerr("%s: some trajectory services are not ready!", self.name)
+            #return StringResponse('Some trajectory services are not ready')
+            return EmptyResponse()
+
+        # Get distance between first waypoint and current position
+        wp_0 = self.trajectory.getWaypointNed(0)  # Get first waypoint
+        distance = ((wp_0[NED.NORTH] - self.mission_status.current_north) ** 2 +
+                    (wp_0[NED.EAST] - self.mission_status.current_east) ** 2) ** 0.5
+
+        # Show distance
+        rospy.loginfo("%s: the distance to the first waypoint is: %s m",
+                      self.name, distance)  # Show distance
+        # Check distance
+        if distance > 300:  # Check distance to avoid loading wrong trajectories
+            rospy.logerr("%s: distance to the first waypoint too large! Distance: %s m", self.name, distance)
+            #return StringResponse('Distance to firts waypoint too large')
+            return EmptyResponse()
+
+        # Check first last waypoint at surface
+        if (config.z[0] == 0.0 and config.altitude_mode[0] == False and
+             config.z[-1] == 0.0 and config.altitude_mode[-1] == False):
+            self.trajectory_loaded = True
+            #return StringResponse('Trajectory loaded')
+            return EmptyResponse()
+        else:
+            rospy.logerr("%s: Inital and final waypoints must be at surface! %s(%s), %s(%s)",
+                         self.name, config.z[0], config.altitude_mode[0], config.z[-1], config.altitude_mode[-1])
+            #return StringResponse('Inital and final waypoints must be at surface')
+            return EmptyResponse()
 
     def enable_trajectory(self, req):
         """ Follows a list of way-points using the LOS algorithm.
@@ -1478,7 +1722,6 @@ def __delete_param__( param_name ):
             rospy.delete_param(param_name)
         except KeyError:
             pass #print param_name, " value not set"
-            
 if __name__ == '__main__':
     try:
         rospy.init_node('captain', log_level=rospy.INFO) #log_level=rospy.DEBUG)
