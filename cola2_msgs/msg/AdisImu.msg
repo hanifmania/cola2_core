@@ -1,4 +1,5 @@
 Header header
+string raw
 float64 MX
 float64 MY
 float64 MZ
