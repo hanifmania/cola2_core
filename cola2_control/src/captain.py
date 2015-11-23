@@ -800,7 +800,7 @@ class Captain:
                     rospy.sleep(1.0)
                     # Update MissionStatus topic
                     self.mission_status.wp_remaining_time = self.trajectory.wait[i] - w
-                    self.diagnostic("wp_remaining_time", str(self.mission_status.wp_remaining_time))
+                    self.diagnostic.add("wp_remaining_time", str(self.mission_status.wp_remaining_time))
 
                     # Check if the trajectory is aborted while waiting
                     if not self.init_trajectory:
@@ -1477,7 +1477,7 @@ def __delete_param__( param_name ):
         try:
             rospy.delete_param(param_name)
         except KeyError:
-            print param_name, " value not set"
+            pass #print param_name, " value not set"
             
 if __name__ == '__main__':
     try:
