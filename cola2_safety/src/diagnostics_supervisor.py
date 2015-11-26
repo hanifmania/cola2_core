@@ -63,6 +63,8 @@ class Cola2Safety(object):
         self.min_wifi_update = 20
         self.min_acomms_update = 30
         self.min_distance_to_wall = 5.0
+        self.min_dvl_good_data = 30
+        
         self.water_leacks = True
         self.working_area_north_origin = -50.0
         self.working_area_east_origin = -50.0
@@ -311,6 +313,21 @@ class Cola2Safety(object):
                 else:
                     rospy.loginfo("%s: Last Modem data %s", self.name, str(last_modem))
                     
+                    
+            # Rule: No DVL good data
+            if __getDiagnostic__( status, '/navigation/ teledyne_explorer_dvl'):
+                last_good_dvl_data = float(__getDiagnostic__(status, '/navigation/ teledyne_explorer_dvl', 'last_good_data', 0.0))
+                if last_good_dvl_data > 100000.0: last_good_dvl_data = 0.0
+                
+                self.diagnostic.add('last_dvl_good_data', str(last_good_dvl_data))
+                if last_good_dvl_data > self.min_dvl_good_data:
+                    self.error_code[cola2_lib.ErrorCode.INTERNAL_SENSORS_WARNING] = '0'
+                    self.call_recovery_action(
+                                    "No DVL good data!",
+                                     RecoveryActionRequest.ABORT_AND_SURFACE)
+                else:
+                    rospy.loginfo("%s: No DVL good data %s", self.name, str(last_modem))
+                    
 
             # Rule: Water Leack --> G500
             if __getDiagnostic__( status, '/safety/ internal_sensors'):
@@ -415,7 +432,8 @@ class Cola2Safety(object):
                       'working_area_north_length': 'virtual_cage/north_longitude',
                       'working_area_east_length': 'virtual_cage/east_longitude',
                       'timeout': 'diagnostics_supervisor/timeout',
-                      'min_modem_update': 'safety/min_modem_update'}
+                      'min_modem_update': 'safety/min_modem_update',
+                      'min_dvl_good_data': 'safety/min_dvl_good_data'}
 
         cola2_ros_lib.getRosParams(self, param_dict, self.name)
                          
