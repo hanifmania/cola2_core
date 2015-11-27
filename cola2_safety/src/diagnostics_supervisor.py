@@ -64,7 +64,7 @@ class Cola2Safety(object):
         self.min_acomms_update = 30
         self.min_distance_to_wall = 5.0
         self.min_dvl_good_data = 30
-        
+
         self.water_leacks = True
         self.working_area_north_origin = -50.0
         self.working_area_east_origin = -50.0
@@ -72,9 +72,9 @@ class Cola2Safety(object):
         self.working_area_east_length = 100.0
         self.min_mission_handler_heartbeat_update = 5.0
         self.timeout = 600
-        
+
         self.timeout_reset = 10
-        
+
         # Get config parameters
         self.get_config()
 
@@ -110,17 +110,17 @@ class Cola2Safety(object):
             rospy.wait_for_service('/cola2_safety/reset_timeout', 20)
             self.reset_timeout_srv = rospy.ServiceProxy(
                         '/cola2_safety/reset_timeout', Empty)
-                        
+
         except rospy.exceptions.ROSException:
             rospy.logerr('%s, Error creating client to reset timeout.',
                          self.name)
             rospy.signal_shutdown('Error creating reset timeout client')
 
         # Create dynamic reconfigure servoce
-        self.dynamic_reconfigure_srv = Server( SafetyConfig, 
+        self.dynamic_reconfigure_srv = Server( SafetyConfig,
                                                self.dynamic_reconfigure_callback )
                                                # Define mission timeout
-                                               
+
 
     def dynamic_reconfigure_callback(self, config, level):
         rospy.loginfo("""Reconfigure Request: {timeout}""".format(**config))
@@ -128,8 +128,8 @@ class Cola2Safety(object):
         self.timeout = config.timeout
         self.reset_timeout_srv( EmptyRequest() )
         return config
-        
-        
+
+
     def updateMissionStatus(self, mission_status):
         """ Update ERROR CODE with the mission status information. """
 
@@ -156,7 +156,7 @@ class Cola2Safety(object):
             # Rule: Battery Level
             if __getDiagnostic__( status, '/safety/ battery'):
                 battery_charge = float(__getDiagnostic__(status, '/safety/ battery', 'charge', 100.0))
-                
+
                 self.diagnostic.add('battery_charge', str(battery_charge))
                 if battery_charge < self.min_battery_charge:
                     self.error_code[cola2_lib.ErrorCode.BAT_ERROR] = '1'
@@ -172,7 +172,7 @@ class Cola2Safety(object):
                                      RecoveryActionRequest.INFORMATIVE)
                 else:
                     rospy.loginfo("%s: Battery charge %s", self.name, str(battery_charge))
-                    
+
 
 
             # Rule: No IMU data
@@ -180,7 +180,7 @@ class Cola2Safety(object):
                 last_imu = float(__getDiagnostic__(status, '/navigation/ navigator', 'last_imu_data', 0.0))
                 if last_imu > 10000.0: # To avoid initialization problems
                     last_imu = 0.0
-                
+
                 self.diagnostic.add('last_imu_data', str(last_imu))
                 if last_imu > self.min_imu_update:
                     rospy.logerr("%s: No IMU data since %s", self.name, str(last_imu))
@@ -190,7 +190,7 @@ class Cola2Safety(object):
                                      RecoveryActionRequest.ABORT_AND_SURFACE)
                 else:
                     rospy.loginfo("%s: Last IMU data %s", self.name, str(last_imu))
-                    
+
 
 
             # Rule: No Depth data
@@ -198,7 +198,7 @@ class Cola2Safety(object):
                 last_depth = float(__getDiagnostic__(status, '/navigation/ navigator', 'last_depth_data', 0.0))
                 if last_depth > 10000.0: # To avoid initialization problems
                     last_depth = 0.0
-                
+
                 self.diagnostic.add('last_depth_data', str(last_depth))
                 if last_depth > self.min_depth_update:
                     self.error_code[cola2_lib.ErrorCode.NAV_STS_ERROR] = '1'
@@ -207,14 +207,14 @@ class Cola2Safety(object):
                                      RecoveryActionRequest.EMERGENCY_SURFACE)
                 else:
                     rospy.loginfo("%s: Last DEPTH data %s", self.name, str(last_depth))
-                    
+
 
             # Rule: No Altitude data
             if __getDiagnostic__( status, '/navigation/ navigator'):
                 last_altitude = float(__getDiagnostic__(status, '/navigation/ navigator', 'last_altitude_data', 0.0))
                 if last_altitude > 10000.0: # To avoid initialization problems
                     last_altitude = 0.0
-                
+
                 self.diagnostic.add('last_altitude_data', str(last_altitude))
                 if last_altitude > self.min_altitude_update:
                     rospy.logerr("%s: last_altiude %s/%s", self.name, str(last_altitude), str(self.min_altitude_update) )
@@ -224,7 +224,7 @@ class Cola2Safety(object):
                                      RecoveryActionRequest.ABORT_AND_SURFACE)
                 else:
                     rospy.loginfo("%s: Last ALTITUDE data %s", self.name, str(last_altitude))
-                    
+
 
             # Rule: No DVL data
             if __getDiagnostic__( status, '/navigation/ navigator'):
@@ -240,7 +240,7 @@ class Cola2Safety(object):
                                      RecoveryActionRequest.ABORT_AND_SURFACE)
                 else:
                     rospy.loginfo("%s: Last DVL data %s", self.name, str(last_dvl))
-                    
+
 
             # Rule: No GPS data
             if __getDiagnostic__( status, '/navigation/ navigator'):
@@ -256,7 +256,7 @@ class Cola2Safety(object):
                                      RecoveryActionRequest.INFORMATIVE)
                 else:
                     rospy.loginfo("%s: Last GPS data %s", self.name, str(last_gps))
-                    
+
 
             # Rule: No Navigation data
             if __getDiagnostic__( status, '/safety/ up_time'):
@@ -272,13 +272,13 @@ class Cola2Safety(object):
                                      RecoveryActionRequest.EMERGENCY_SURFACE)
                 else:
                     rospy.loginfo("%s: Last Nav data %s", self.name, str(last_nav))
-                    
+
 
             # Rule: No WIFI data and not in a mission
             if __getDiagnostic__( status, '/control/ teleoperation'):
                 last_ack = float(__getDiagnostic__(status, '/control/ teleoperation', 'last_ack', 0.0))
                 if last_ack > 100000.0: last_ack = 0.0
-                
+
                 # Check if trajectory is enabled
                 trajectory_enabled = 'False'
                 for status_2 in diagnostics.status:
@@ -303,7 +303,7 @@ class Cola2Safety(object):
             if __getDiagnostic__( status, '/safety/ evologics_modem'):
                 last_modem = float(__getDiagnostic__(status, '/safety/ evologics_modem', 'last_modem_data', 0.0))
                 if last_modem > 100000.0: last_modem = 0.0
-                
+
                 self.diagnostic.add('last_modem_data', str(last_modem))
                 if last_modem > self.min_modem_update:
                     self.error_code[cola2_lib.ErrorCode.INTERNAL_SENSORS_WARNING] = '0'
@@ -312,13 +312,13 @@ class Cola2Safety(object):
                                      RecoveryActionRequest.ABORT_AND_SURFACE)
                 else:
                     rospy.loginfo("%s: Last Modem data %s", self.name, str(last_modem))
-                    
-                    
+
+
             # Rule: No DVL good data
             if __getDiagnostic__( status, '/navigation/ teledyne_explorer_dvl'):
                 last_good_dvl_data = float(__getDiagnostic__(status, '/navigation/ teledyne_explorer_dvl', 'last_good_data', 0.0))
                 if last_good_dvl_data > 100000.0: last_good_dvl_data = 0.0
-                
+
                 self.diagnostic.add('last_dvl_good_data', str(last_good_dvl_data))
                 if last_good_dvl_data > self.min_dvl_good_data:
                     self.error_code[cola2_lib.ErrorCode.INTERNAL_SENSORS_WARNING] = '0'
@@ -326,8 +326,8 @@ class Cola2Safety(object):
                                     "No DVL good data!",
                                      RecoveryActionRequest.ABORT_AND_SURFACE)
                 else:
-                    rospy.loginfo("%s: No DVL good data %s", self.name, str(last_modem))
-                    
+                    rospy.loginfo("%s: No DVL good data %s", self.name, str(last_good_dvl_data))
+
 
             # Rule: Water Leack --> G500
             if __getDiagnostic__( status, '/safety/ internal_sensors'):
@@ -361,8 +361,8 @@ class Cola2Safety(object):
                 else:
                     rospy.loginfo("%s: S2 no water", self.name)
                     self.diagnostic.add('s2_water', 'False')
-                    
-                    
+
+
 
             # Rule: High Temperature
             if __getDiagnostic__( status, '/safety/ internal_sensors'):
@@ -393,7 +393,7 @@ class Cola2Safety(object):
                     self.call_recovery_action(
                                     "Absolute Timeout reached!",
                                      RecoveryActionRequest.ABORT_AND_SURFACE)
-                            
+
                 else:
                     rospy.loginfo("%s: up_time (%s) < timeout (%s)", self.name, up_time, self.timeout)
                     self.timeout_reset = self.timeout_reset - 1
@@ -436,7 +436,7 @@ class Cola2Safety(object):
                       'min_dvl_good_data': 'safety/min_dvl_good_data'}
 
         cola2_ros_lib.getRosParams(self, param_dict, self.name)
-                         
+
         # Define min altitude and max depth
         try:
             client2 = dynamic_reconfigure.client.Client("safe_depth_altitude",
