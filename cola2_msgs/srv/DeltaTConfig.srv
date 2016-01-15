@@ -1,0 +1,6 @@
+float32 range    # 5-100 meters
+int16 nbeams     # 480, 240, 120
+int8 gain        # 0-20 dB
+float32 soundvel # m/s
+---
+bool valid

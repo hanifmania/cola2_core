@@ -96,6 +96,7 @@ add_service_files(
   SetRotativePayloadAngle.srv
   ArisConfig.srv
   ImagenexSSSConfig.srv
+  DeltaTConfig.srv
 )
 
 ## Generate actions in the 'action' folder

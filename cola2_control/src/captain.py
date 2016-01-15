@@ -1354,7 +1354,7 @@ class Captain:
             tolerance = 4.0
             goal.position_tolerance.x = tolerance
             goal.position_tolerance.y = tolerance
-            goal.position_tolerance.z = 0.2
+            goal.position_tolerance.z = 1.0
             goal.orientation_tolerance.roll = tolerance
             goal.orientation_tolerance.pitch = tolerance
             goal.orientation_tolerance.yaw = tolerance
