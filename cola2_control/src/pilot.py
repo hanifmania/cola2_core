@@ -311,22 +311,26 @@ class Pilot:
                       'min_velocity_los': 'move_mode/min_velocity_los',
                       'max_angle_error': 'move_mode/max_angle_error'}
 
-        sparus_los_param_dict = {'acceptance_radius': 'move_mode/sparus_los/acceptance_radius',
-                                 'los_radius': 'move_mode/sparus_los/los_radius',
-                                 'low_surge': 'move_mode/sparus_los/low_surge',
-                                 'high_surge': 'move_mode/sparus_los/high_surge',
-                                 'sway_correction': 'move_mode/sparus_los/sway_correction',
-                                 'heave_mode_in_3D': 'move_mode/sparus_los/heave_mode_in_3D',
-                                 'safety_max_distance_btw_waypoints': 'move_mode/sparus_los/safety_max_distance_btw_waypoints'}
-
         self.parameters = cola2_ros_lib.Config()
-        self.parameters.sparus_los = cola2_ros_lib.Config()
 
         valid_config = True
         if not cola2_ros_lib.getRosParams(self.parameters, param_dict, self.name):
             valid_config = False
-        if not cola2_ros_lib.getRosParams(self.parameters.sparus_los, sparus_los_param_dict, self.name):
-            valid_config = False
+
+        # Check if sparus_los params are defined. If they are then load these params
+        if rospy.has_param('move_mode/sparus_los/acceptance_radius'):
+            sparus_los_param_dict = {'acceptance_radius': 'move_mode/sparus_los/acceptance_radius',
+                                     'los_radius': 'move_mode/sparus_los/los_radius',
+                                     'low_surge': 'move_mode/sparus_los/low_surge',
+                                     'high_surge': 'move_mode/sparus_los/high_surge',
+                                     'sway_correction': 'move_mode/sparus_los/sway_correction',
+                                     'heave_mode_in_3D': 'move_mode/sparus_los/heave_mode_in_3D',
+                                     'safety_max_distance_btw_waypoints': 'move_mode/sparus_los/safety_max_distance_btw_waypoints'}
+
+            self.parameters.sparus_los = cola2_ros_lib.Config()
+        
+            if not cola2_ros_lib.getRosParams(self.parameters.sparus_los, sparus_los_param_dict, self.name):
+                valid_config = False
 
         if not valid_config:
             rospy.logfatal("%s: shutdown due to invalid config parameters!", self.name)
