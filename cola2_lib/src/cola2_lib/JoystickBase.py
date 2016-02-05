@@ -13,7 +13,14 @@ import numpy as np
 class JoystickBase(object):
     """ This is a base class required to transform the joy messages 
     that comes from a joystick to be defined to the messages required 
-    by the teleoperation node """
+    by the teleoperation node.
+    
+    The joy message for the teleoperation node always have the same 
+    structure. The axis field contains the values for pose and twist:
+    --> axis: [x][y][z][roll][pitch][yaw][u][v][w][p][q][r]
+    While the buttons decide if an axis is controlled in pose or in twist:
+    --> buttons: [x][y][z][roll][pitch][yaw][u][v][w][p][q][r]
+    """
 
     # 12 AXIS OUTPUT DEFINITION
     AXIS_POSE_X = 0
@@ -29,24 +36,19 @@ class JoystickBase(object):
     AXIS_TWIST_Q = 10
     AXIS_TWIST_R = 11
     
-    # 16 BUTTON OUTPUT DEFINITION
-    BUTTON_ALL_TO_ZERO = 0
-    BUTTON_POSE_X = 1
-    BUTTON_POSE_Y = 2
-    BUTTON_POSE_Z = 3
-    BUTTON_POSE_ROLL = 4
-    BUTTON_POSE_PITCH = 5
-    BUTTON_POSE_YAW = 6
-    BUTTON_TWIST_U = 7
-    BUTTON_TWIST_V = 8
-    BUTTON_TWIST_W = 9
-    BUTTON_TWIST_P = 10
-    BUTTON_TWIST_Q = 11
-    BUTTON_TWIST_R = 12
-    BUTTON_TO_BE_DEFINED_1 = 13
-    BUTTON_TO_BE_DEFINED_2 = 14
-    BUTTON_MANUAL_PITCHMODE = 15
-    BUTTON_AUTO_PITCH_MODE = 16
+    # 12 BUTTON OUTPUT DEFINITION
+    BUTTON_POSE_X = 0
+    BUTTON_POSE_Y = 1
+    BUTTON_POSE_Z = 2
+    BUTTON_POSE_ROLL = 3
+    BUTTON_POSE_PITCH = 4
+    BUTTON_POSE_YAW = 5
+    BUTTON_TWIST_U = 6
+    BUTTON_TWIST_V = 7
+    BUTTON_TWIST_W = 8
+    BUTTON_TWIST_P = 9
+    BUTTON_TWIST_Q = 10
+    BUTTON_TWIST_R = 11
     
     def __init__(self, name):
         """ Constructor """
@@ -55,7 +57,7 @@ class JoystickBase(object):
         self.name = name
         self.joy_msg = Joy()
         self.joy_msg.axes = [0]*12 # 6 pose + 6 twist 
-        self.joy_msg.buttons = [0]*16 # 6 pose + 6 twist + others
+        self.joy_msg.buttons = [0]*12 # 6 pose + 6 twist
         
         # Create publisher
         self.pub_map_ack_data = rospy.Publisher(
@@ -92,7 +94,6 @@ class JoystickBase(object):
         else:
             rospy.logerr("%s: received invalid teleoperation heart beat!",
                                                                      self.name)
-
 
     def update_joy(self, joy):
         """ This method must be overloaded!"""
