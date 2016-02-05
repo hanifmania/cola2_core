@@ -19,13 +19,21 @@ from cola2_lib import cola2_lib, cola2_ros_lib
 
 class Teleoperation(object):
     """ This class recieves a joy message and generates a world_waypoint_req
-        or a body_velocity_req """
+        or a body_velocity_req.
+        
+        The joy message always have the same structure. The axis contain 
+        the value for pose and twist:
+        --> axis: [x][y][z][roll][pitch][yaw][u][v][w][p][q][r]
+        While the buttons decide if an axis is controlled in pose or in twist:
+        --> buttons: [x][y][z][roll][pitch][yaw][u][v][w][p][q][r]
+    """
 
     def __init__(self, name):
         """ Constructor """
         self.name = name
         self.last_map_ack = 0.0
         self.robot_name = ''
+        
         # Set up diagnostics
         self.diagnostic = DiagnosticHelper(self.name, "soft")
 
@@ -33,29 +41,33 @@ class Teleoperation(object):
         self.actualize_base_pose = True  # Default
         self.get_config()
 
-        # Create publisher
+        # Create publishers
         self.pub_body_velocity_req = rospy.Publisher(
-                                        '/cola2_control/body_velocity_req',
-                                        BodyVelocityReq,
-                                        queue_size=2)
+            '/cola2_control/body_velocity_req',
+            BodyVelocityReq,
+            queue_size=2)
+        
         self.pub_world_waypoint_req = rospy.Publisher(
-                                        '/cola2_control/world_waypoint_req',
-                                        WorldWaypointReq,
-                                        queue_size=2)
+            '/cola2_control/world_waypoint_req',
+            WorldWaypointReq,
+            queue_size=2)
+        
         self.pub_check_joystick = rospy.Publisher(
-                                        '/cola2_control/map_ack_ok',
-                                        String,
-                                        queue_size=2)
+            '/cola2_control/map_ack_ok',
+            String,
+            queue_size=2)
 
-        # Create subscriber
+        # Create subscribers
         rospy.Subscriber("cola2_control/map_ack_ack",
                          String,
                          self.map_ack_ack_callback,
                          queue_size = 1)
+        
         rospy.Subscriber("/cola2_control/map_ack_data",
                          Joy,
                          self.map_ack_data_callback,
                          queue_size = 1)
+        
         rospy.Subscriber("/cola2_navigation/nav_sts",
                          NavSts,
                          self.nav_sts_update,
@@ -63,9 +75,9 @@ class Teleoperation(object):
 
         # Create services
         self.load_trajectory_srv = rospy.Service(
-                                        '/cola2_control/set_max_joy_velocity',
-                                        MaxJoyVelocity,
-                                        self.set_max_joy_vel)
+            '/cola2_control/set_max_joy_velocity',
+            MaxJoyVelocity,
+            self.set_max_joy_vel)
 
         # Some vars
         self.map_ack_init = False
@@ -92,7 +104,7 @@ class Teleoperation(object):
 
 
     def map_ack_ack_callback(self, ack_msg):
-        """ This is the callback of the ack safety message """
+        """ This is the callback for the ack safety message """
         data = ack_msg.data.split(' ')
         if data[1] == 'ack' and data[0] == str(self.seq + 1):
             self.map_ack_alive = True
@@ -102,7 +114,7 @@ class Teleoperation(object):
 
 
     def check_map_ack(self, event):
-        """ This is a callback of a timer. This publishes ack safety message
+        """ This is a callback for a timer. It publishes ack safety message
             and pose and velocity safety messages if map_ack is lost """
         if self.map_ack_init:
             self.diagnostic.add("last_ack", str(rospy.Time.now().to_sec() - self.last_map_ack))
@@ -111,8 +123,9 @@ class Teleoperation(object):
                 self.diagnostic.setLevel(DiagnosticStatus.OK)
             else:
                 rospy.loginfo("%s: we have lost map_ack!", self.name)
-                self.diagnostic.setLevel(DiagnosticStatus.WARN,
-                                         'Communication with map_ack lost!')
+                self.diagnostic.setLevel(
+                        DiagnosticStatus.WARN,
+                        'Communication with map_ack lost!')
                 body_velocity_req = BodyVelocityReq()
                 body_velocity_req.goal.priority = GoalDescriptor.PRIORITY_LOW
                 body_velocity_req.goal.requester = self.name + '_vel'
@@ -173,19 +186,20 @@ class Teleoperation(object):
                 desired[i] = data.axes[i] * self.max_vel[i - 6]
 
         # Check if pose controller is enabled
-        for b in range(1, 7):
+        for b in range(6):
             if data.buttons[b] == 1:
-                self.pose_controlled_axis[b - 1] = True
+                self.pose_controlled_axis[b] = True
                 if self.actualize_base_pose:
-                    self.base_pose[b - 1] = self.last_pose[b - 1]
-                rospy.loginfo("%s: axis %s now is pose", self.name, str(b-1))
+                    self.base_pose[b] = self.last_pose[b - 1]
+                rospy.loginfo("%s: axis %s now is pose", self.name, str(b))
 
         # Check if velocity controller is enabled
-        for b in range(7, 13):
+        for b in range(6, 12):
             if data.buttons[b] == 1:
-                self.pose_controlled_axis[b - 7] = False
-                rospy.loginfo("%s: axis %s now is velocity", self.name, str(b-7))
+                self.pose_controlled_axis[b - 6] = False
+                rospy.loginfo("%s: axis %s now is velocity", self.name, str(b-6))
 
+        """
         if self.robot_name == '/sparus':
             if self.pose_controlled_axis[2] == True:
                 # Manual pitch mode
@@ -205,9 +219,9 @@ class Teleoperation(object):
                 self.pose_controlled_axis[4] = True
             else:
                 self.pose_controlled_axis[4] = False
-
         #self.pose_controlled_axis[4] = True     # *** to be able to control the fins always
-
+        """
+        
         if self.nav_init:
             # Positions
             world_waypoint_req = WorldWaypointReq()
