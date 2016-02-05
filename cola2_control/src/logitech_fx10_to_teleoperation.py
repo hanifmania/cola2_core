@@ -1,7 +1,6 @@
 #! /usr/bin/env python
 import rospy
-from cola2_lib import JoystickBase
-from JoystickBase import JoystickBase
+from cola2_lib.JoystickBase import JoystickBase
 
 class LogitechFX10(JoystickBase):
     """ This class inherent from JoystickBase. It has to overload the 
@@ -27,19 +26,30 @@ class LogitechFX10(JoystickBase):
         and sets the buttons that especify if position or velocity 
         commands are used in the teleoperation."""
 
-        # rospy.loginfo("%s: Received:\n %s", self.name, joy)
-        
-        # JOYSTICK BUTTONS DEFINITION:
-        # left joy Up -> +1
-        # left joy Down -> -1
-        # left joy right -> -0
-        # left joy left -> +0
-        # right joy Up -> +4
-        # right joy Down -> -4
-        # right joy right -> -3
-        # right joy left -> +3
-        # cross up_down --> 7
-        # cross left_right --> 6
+        # JOYSTICK  DEFINITION:
+        LEFT_JOY_HORIZONTAL = 0     # LEFT+, RIGHT-
+        LEFT_JOY_VERTICAL = 1       # UP+, DOWN-
+        LEFT_TRIGGER = 2            # NOT PRESS 1, PRESS -1
+        RIGHT_JOY_HORIZONTAL = 3    # LEFT+, RIGHT-
+        RIGHT_JOY_VERTICAL = 4      # UP+, DOWN-
+        RIGHT_TRIGGER = 5           # NOT PRESS 1, PRESS -1
+        CROSS_HORIZONTAL = 6        # LEFT+, RIGHT-
+        CROSS_VERTICAL = 7          # UP+, DOWN-
+        BUTTON_A = 0
+        BUTTON_B = 1
+        BUTTON_X = 2
+        BUTTON_Y = 3
+        BUTTON_LEFT = 4
+        BUTTON_RIGHT = 5
+        BUTTON_BACK = 6
+        BUTTON_START = 7
+        BUTTON_LOGITECH = 8 
+        BUTTON_LEFT_JOY = 9
+        BUTTON_RIGHT_JOY = 10
+        MOVE_UP = 1
+        MOVE_DOWN = -1
+        MOVE_LEFT = 1
+        MOVE_RIGHT = -1
         
         self.joy_msg.header = joy.header
         
@@ -47,49 +57,50 @@ class LogitechFX10(JoystickBase):
         # depth and yaw in position.
         
         # up-down (depth control pose)
-        if(joy.axes[7]== -1.0):
+        if(joy.axes[CROSS_VERTICAL] == MOVE_DOWN):
             self.up_down = self.up_down + 0.1
             if self.up_down > 1.0:
                 self.up_down = 1.0
-        elif(joy.axes[7]==1.0):
+        elif(joy.axes[CROSS_VERTICAL] == MOVE_UP):
             self.up_down = self.up_down - 0.1
             if self.up_down < -1.0:
                 self.up_down = -1.0
                 
         # left-right (yaw control pose)
-        if(joy.axes[6]== -1.0):
+        if(joy.axes[CROSS_HORIZONTAL] == MOVE_RIGHT):
             self.left_right = self.left_right + 0.1
             if self.left_right > 1.0:
                 self.left_right = 1.0
-        elif(joy.axes[6]==1.0):
+        elif(joy.axes[CROSS_HORIZONTAL] == MOVE_LEFT):
             self.left_right = self.left_right - 0.1
             if self.left_right < -1.0:
                 self.left_right = -1.0
                 
         self.joy_msg.axes[JoystickBase.AXIS_POSE_Z] = self.up_down
         self.joy_msg.axes[JoystickBase.AXIS_POSE_YAW] = self.left_right
-        self.joy_msg.axes[JoystickBase.AXIS_TWIST_U] = joy.axes[4]
-        self.joy_msg.axes[JoystickBase.AXIS_TWIST_V] = -joy.axes[3]
-        self.joy_msg.axes[JoystickBase.AXIS_TWIST_W] = -joy.axes[1]
-        self.joy_msg.axes[JoystickBase.AXIS_TWIST_R] = -joy.axes[0]
+        self.joy_msg.axes[JoystickBase.AXIS_TWIST_U] = joy.axes[RIGHT_JOY_VERTICAL]
+        self.joy_msg.axes[JoystickBase.AXIS_TWIST_V] = -joy.axes[RIGHT_JOY_HORIZONTAL]
+        self.joy_msg.axes[JoystickBase.AXIS_TWIST_W] = -joy.axes[LEFT_JOY_VERTICAL]
+        self.joy_msg.axes[JoystickBase.AXIS_TWIST_R] = -joy.axes[LEFT_JOY_HORIZONTAL]
 
         # We always publish the desired pose and the desired twist. 
         # However, using the buttons we decide which ones we use
          
         # enable/disable z control position
-        self.joy_msg.buttons[JoystickBase.BUTTON_POSE_Z] = joy.buttons[0]
-        self.joy_msg.buttons[JoystickBase.BUTTON_TWIST_W] = joy.buttons[3]
-        if joy.buttons[0] == 1.0: 
+        self.joy_msg.buttons[JoystickBase.BUTTON_POSE_Z] = joy.buttons[BUTTON_A]
+        self.joy_msg.buttons[JoystickBase.BUTTON_TWIST_W] = joy.buttons[BUTTON_Y]
+        if joy.buttons[BUTTON_A] == 1.0: 
             self.up_down = 0.0
             rospy.loginfo("%s: Reset up_down counter", self.name)
 
         # enable/disable yaw control position
-        self.joy_msg.buttons[JoystickBase.BUTTON_POSE_YAW] = joy.buttons[1]
-        self.joy_msg.buttons[JoystickBase.BUTTON_TWIST_R] = joy.buttons[2]
-        if joy.buttons[1] == 1.0: 
+        self.joy_msg.buttons[JoystickBase.BUTTON_POSE_YAW] = joy.buttons[BUTTON_B]
+        self.joy_msg.buttons[JoystickBase.BUTTON_TWIST_R] = joy.buttons[BUTTON_X]
+        if joy.buttons[BUTTON_B] == 1.0: 
             self.left_right = 0.0
             rospy.loginfo("%s: Reset left_right counter", self.name)
 
+        print 'JoystickBase.BUTTON_POSE_Z: ', JoystickBase.BUTTON_POSE_Z
 if __name__ == '__main__':
     """ Initialize the logitech_fx10 node. """
     try:

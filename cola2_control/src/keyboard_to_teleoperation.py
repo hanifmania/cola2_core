@@ -1,7 +1,6 @@
 #! /usr/bin/env python
 import rospy
-from cola2_lib import JoystickBase
-from JoystickBase import JoystickBase
+from cola2_lib.JoystickBase import JoystickBase
 
 class KeyboardToTeleoperation(JoystickBase):
     """ This class inherent from JoystickBase. It has to overload the 
@@ -12,9 +11,9 @@ class KeyboardToTeleoperation(JoystickBase):
     else reading the buttons in the update_joy method."""
     
     # BUTTONS DEFINITION:
-    # [SPACE] [W][S] [A] [D] [UP_ARROW][DOWN_ARROW][RIGTH_ARROW][LEFT_ARROW]...
-    # [  0  ] [1][2] [3] [4] [    5   ][    6     ][     7     ][    8     ]...
-    # [ZERO ][u+][u-][r-][r+][w-]      [w+]        [v+]         [v-]
+    # [SPACE] [W] [S] [A] [D] [UP_ARROW][DOWN_ARROW][RIGTH_ARROW][LEFT_ARROW]...
+    # [  0  ] [1] [2] [3] [4] [    5   ][    6     ][     7     ][    8     ]...
+    # [ZERO ] [u+][u-][r-][r+][w-]      [w+]        [v+]         [v-]
         
     
     def __init__(self, name):
