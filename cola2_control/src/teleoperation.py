@@ -87,7 +87,8 @@ class Teleoperation(object):
         self.nav_init = False
         self.base_pose = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
         self.last_pose = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-
+        self.nav_init = False
+        
         # Init periodic check timer
         rospy.Timer(rospy.Duration(1.0), self.check_map_ack)
 
