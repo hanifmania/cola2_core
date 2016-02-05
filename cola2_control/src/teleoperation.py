@@ -25,12 +25,12 @@ class Teleoperation(object):
         """ Constructor """
         self.name = name
         self.last_map_ack = 0.0
-        self.robot_name = '/girona500'
+        self.robot_name = ''
         # Set up diagnostics
         self.diagnostic = DiagnosticHelper(self.name, "soft")
 
         # Get config
-        self.actualize_base_pose = True  # Default for g500
+        self.actualize_base_pose = True  # Default
         self.get_config()
 
         # Create publisher
@@ -81,7 +81,7 @@ class Teleoperation(object):
 
 
     def nav_sts_update(self, data):
-        """ This is the callback of the navigation message """
+        """ This is the callback for the navigation message """
         self.nav_init = True
         self.last_pose[0] = data.position.north
         self.last_pose[1] = data.position.east
