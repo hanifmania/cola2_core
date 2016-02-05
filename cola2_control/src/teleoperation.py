@@ -1,6 +1,6 @@
 #!/usr/bin/env python
-"""@@This node is subscribed to the map_ack output message. It is used to compute
-position and velocity setpoints out of the input joy message.@@"""
+"""@@This node is subscribed to the map_ack output message. It is used to
+   compute position and velocity setpoints out of the input joy message.@@"""
 
 # ROS imports
 import rospy
@@ -17,11 +17,12 @@ from cola2_msgs.srv import MaxJoyVelocity, MaxJoyVelocityResponse
 from cola2_lib.diagnostic_helper import DiagnosticHelper
 from cola2_lib import cola2_lib, cola2_ros_lib
 
+
 class Teleoperation(object):
     """ This class recieves a joy message and generates a world_waypoint_req
         or a body_velocity_req.
-        
-        The joy message always have the same structure. The axis contain 
+
+        The joy message always have the same structure. The axis contain
         the value for pose and twist:
         --> axis: [x][y][z][roll][pitch][yaw][u][v][w][p][q][r]
         While the buttons decide if an axis is controlled in pose or in twist:
@@ -33,51 +34,9 @@ class Teleoperation(object):
         self.name = name
         self.last_map_ack = 0.0
         self.robot_name = ''
-        
+
         # Set up diagnostics
         self.diagnostic = DiagnosticHelper(self.name, "soft")
-
-        # Get config
-        self.actualize_base_pose = True  # Default
-        self.get_config()
-
-        # Create publishers
-        self.pub_body_velocity_req = rospy.Publisher(
-            '/cola2_control/body_velocity_req',
-            BodyVelocityReq,
-            queue_size=2)
-        
-        self.pub_world_waypoint_req = rospy.Publisher(
-            '/cola2_control/world_waypoint_req',
-            WorldWaypointReq,
-            queue_size=2)
-        
-        self.pub_check_joystick = rospy.Publisher(
-            '/cola2_control/map_ack_ok',
-            String,
-            queue_size=2)
-
-        # Create subscribers
-        rospy.Subscriber("cola2_control/map_ack_ack",
-                         String,
-                         self.map_ack_ack_callback,
-                         queue_size = 1)
-        
-        rospy.Subscriber("/cola2_control/map_ack_data",
-                         Joy,
-                         self.map_ack_data_callback,
-                         queue_size = 1)
-        
-        rospy.Subscriber("/cola2_navigation/nav_sts",
-                         NavSts,
-                         self.nav_sts_update,
-                         queue_size = 1)
-
-        # Create services
-        self.load_trajectory_srv = rospy.Service(
-            '/cola2_control/set_max_joy_velocity',
-            MaxJoyVelocity,
-            self.set_max_joy_vel)
 
         # Some vars
         self.map_ack_init = False
@@ -88,10 +47,51 @@ class Teleoperation(object):
         self.base_pose = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
         self.last_pose = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
         self.nav_init = False
-        
+
+        # Get config
+        self.actualize_base_pose = True  # Default
+        self.get_config()
+
+        # Create publishers
+        self.pub_body_velocity_req = rospy.Publisher(
+            '/cola2_control/body_velocity_req',
+            BodyVelocityReq,
+            queue_size=2)
+
+        self.pub_world_waypoint_req = rospy.Publisher(
+            '/cola2_control/world_waypoint_req',
+            WorldWaypointReq,
+            queue_size=2)
+
+        self.pub_check_joystick = rospy.Publisher(
+            '/cola2_control/map_ack_ok',
+            String,
+            queue_size=2)
+
+        # Create subscribers
+        rospy.Subscriber("cola2_control/map_ack_ack",
+                         String,
+                         self.map_ack_ack_callback,
+                         queue_size=1)
+
+        rospy.Subscriber("/cola2_control/map_ack_data",
+                         Joy,
+                         self.map_ack_data_callback,
+                         queue_size=1)
+
+        rospy.Subscriber("/cola2_navigation/nav_sts",
+                         NavSts,
+                         self.nav_sts_update,
+                         queue_size=1)
+
+        # Create services
+        self.load_trajectory_srv = rospy.Service(
+            '/cola2_control/set_max_joy_velocity',
+            MaxJoyVelocity,
+            self.set_max_joy_vel)
+
         # Init periodic check timer
         rospy.Timer(rospy.Duration(1.0), self.check_map_ack)
-
 
     def nav_sts_update(self, data):
         """ This is the callback for the navigation message """
@@ -103,7 +103,6 @@ class Teleoperation(object):
         self.last_pose[4] = data.orientation.pitch
         self.last_pose[5] = data.orientation.yaw
 
-
     def map_ack_ack_callback(self, ack_msg):
         """ This is the callback for the ack safety message """
         data = ack_msg.data.split(' ')
@@ -113,20 +112,21 @@ class Teleoperation(object):
             self.seq = self.seq + 1
             self.last_map_ack = rospy.Time.now().to_sec()
 
-
     def check_map_ack(self, event):
         """ This is a callback for a timer. It publishes ack safety message
             and pose and velocity safety messages if map_ack is lost """
         if self.map_ack_init:
-            self.diagnostic.add("last_ack", str(rospy.Time.now().to_sec() - self.last_map_ack))
+            self.diagnostic.add(
+                "last_ack",
+                str(rospy.Time.now().to_sec() - self.last_map_ack))
             if self.map_ack_alive:
                 self.map_ack_alive = False
                 self.diagnostic.setLevel(DiagnosticStatus.OK)
             else:
                 rospy.loginfo("%s: we have lost map_ack!", self.name)
                 self.diagnostic.setLevel(
-                        DiagnosticStatus.WARN,
-                        'Communication with map_ack lost!')
+                    DiagnosticStatus.WARN,
+                    'Communication with map_ack lost!')
                 body_velocity_req = BodyVelocityReq()
                 body_velocity_req.goal.priority = GoalDescriptor.PRIORITY_LOW
                 body_velocity_req.goal.requester = self.name + '_vel'
@@ -164,7 +164,6 @@ class Teleoperation(object):
         msg.data = str(self.seq) + ' ok'
         self.pub_check_joystick.publish(msg)
 
-
     def map_ack_data_callback(self, data):
         """ This is the main callback. Data is recieved, processed and sent
             to pose and velocity controllers """
@@ -200,29 +199,6 @@ class Teleoperation(object):
                 self.pose_controlled_axis[b - 6] = False
                 rospy.loginfo("%s: axis %s now is velocity", self.name, str(b-6))
 
-        """
-        if self.robot_name == '/sparus':
-            if self.pose_controlled_axis[2] == True:
-                # Manual pitch mode
-                if data.buttons[15] == 1:
-                    self.manual_pitch = True
-                    rospy.loginfo("%s: *********** manual pitch mode ***********", self.name)
-                # Auto pitch mode
-                if data.buttons[16] == 1:
-                    self.manual_pitch = False
-                    rospy.loginfo("%s: *********** automatic pitch mode **********", self.name)
-            else:
-                # With velocity control the pitch control is automatic
-                self.manual_pitch = False
-
-            # Modify pose axis depending on pitch mode
-            if self.manual_pitch:
-                self.pose_controlled_axis[4] = True
-            else:
-                self.pose_controlled_axis[4] = False
-        #self.pose_controlled_axis[4] = True     # *** to be able to control the fins always
-        """
-        
         if self.nav_init:
             # Positions
             world_waypoint_req = WorldWaypointReq()
@@ -284,17 +260,16 @@ class Teleoperation(object):
 
             # If all DoF are disabled set priority to LOW
             if (body_velocity_req.disable_axis.x and
-                 body_velocity_req.disable_axis.y and
-                 body_velocity_req.disable_axis.z and
-                 body_velocity_req.disable_axis.roll and
-                 body_velocity_req.disable_axis.pitch and
-                 body_velocity_req.disable_axis.yaw):
+                    body_velocity_req.disable_axis.y and
+                    body_velocity_req.disable_axis.z and
+                    body_velocity_req.disable_axis.roll and
+                    body_velocity_req.disable_axis.pitch and
+                    body_velocity_req.disable_axis.yaw):
                 body_velocity_req.goal.priority = GoalDescriptor.PRIORITY_LOW
 
             # Publish message
             body_velocity_req.header.stamp = rospy.Time().now()
             self.pub_body_velocity_req.publish(body_velocity_req)
-
 
     def get_config(self):
         """ Get config from param server """
@@ -311,14 +286,13 @@ class Teleoperation(object):
             rospy.logfatal("%s: shutdown due to invalid config parameters!", self.name)
             exit(0)  # TODO: find a better way
 
-
     def set_max_joy_vel(self, req):
         rospy.loginfo("%s: change max/min joy velocity", self.name)
         for i in range(6):
             self.max_vel[i] = req.max_joy_velocity[i]
             self.min_vel[i] = -req.max_joy_velocity[i]
 
-        return(MaxJoyVelocityResponse( True ))
+        return(MaxJoyVelocityResponse(True))
 
 if __name__ == '__main__':
     try:

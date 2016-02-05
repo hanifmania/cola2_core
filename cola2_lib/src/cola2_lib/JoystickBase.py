@@ -11,11 +11,11 @@ import numpy as np
 # from cola2_lib import cola2_lib, cola2_ros_lib
 
 class JoystickBase(object):
-    """ This is a base class required to transform the joy messages 
-    that comes from a joystick to be defined to the messages required 
+    """ This is a base class required to transform the joy messages
+    that comes from a joystick to be defined to the messages required
     by the teleoperation node.
-    
-    The joy message for the teleoperation node always have the same 
+
+    The joy message for the teleoperation node always have the same
     structure. The axis field contains the values for pose and twist:
     --> axis: [x][y][z][roll][pitch][yaw][u][v][w][p][q][r]
     While the buttons decide if an axis is controlled in pose or in twist:
@@ -35,7 +35,7 @@ class JoystickBase(object):
     AXIS_TWIST_P = 9
     AXIS_TWIST_Q = 10
     AXIS_TWIST_R = 11
-    
+
     # 12 BUTTON OUTPUT DEFINITION
     BUTTON_POSE_X = 0
     BUTTON_POSE_Y = 1
@@ -49,24 +49,24 @@ class JoystickBase(object):
     BUTTON_TWIST_P = 9
     BUTTON_TWIST_Q = 10
     BUTTON_TWIST_R = 11
-    
+
     def __init__(self, name):
         """ Constructor """
         # rospy.loginfo("%s: JoystickBase constructor", name)
-        
+
         self.name = name
         self.joy_msg = Joy()
-        self.joy_msg.axes = [0]*12 # 6 pose + 6 twist 
+        self.joy_msg.axes = [0]*12 # 6 pose + 6 twist
         self.joy_msg.buttons = [0]*12 # 6 pose + 6 twist
-        
+
         # Create publisher
         self.pub_map_ack_data = rospy.Publisher(
-            "/cola2_control/map_ack_data", 
+            "/cola2_control/map_ack_data",
             Joy,
             queue_size = 1)
-                                                
+
         self.pub_map_ack_ack_teleop = rospy.Publisher(
-            "/cola2_control/map_ack_ack", 
+            "/cola2_control/map_ack_ack",
             String,
             queue_size = 1)
 
@@ -75,16 +75,16 @@ class JoystickBase(object):
                          String,
                          self.update_ack,
                          queue_size = 4)
-                         
+
         rospy.Subscriber("/joy",
                          Joy,
                          self.update_joy,
                          queue_size = 4)
-                         
+
         # Timer for the publish method
         rospy.Timer(rospy.Duration(0.1), self.iterate)
-        
-                         
+
+
     def update_ack(self, ack):
         """ Ack safety method """
         ack_list = ack.data.split()
@@ -103,7 +103,7 @@ class JoystickBase(object):
     def iterate(self, event):
         """ This method is a callback of a timer. This is used to publish the
             output joy message """
-            
+
         # Publish message
         self.pub_map_ack_data.publish(self.joy_msg)
 
