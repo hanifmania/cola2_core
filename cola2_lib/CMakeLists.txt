@@ -89,7 +89,7 @@ catkin_package(
 ## Mark executable scripts (Python etc.) for installation
 ## in contrast to setup.py, you can choose the destination
 install(PROGRAMS
-  src/cola2_lib/cola2_lib.py src/cola2_lib/cola2_ros_lib.py src/cola2_lib/diagnostic_helper.py src/cola2_lib/NED.py
+  src/cola2_lib/cola2_lib.py src/cola2_lib/cola2_ros_lib.py src/cola2_lib/diagnostic_helper.py src/cola2_lib/NED.py src/cola2_lib/JoystickBase.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
