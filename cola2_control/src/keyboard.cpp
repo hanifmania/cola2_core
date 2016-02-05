@@ -54,7 +54,8 @@ public:
         NBUTTONS = 19 ;
 
         // Publishers
-        pub = n.advertise<sensor_msgs::Joy>( "/cola2_control/keyboard_data", 1 ) ;
+        
+        pub = n.advertise<sensor_msgs::Joy>( "/keyboard", 1 ) ;
 
         // Init thread
         shutdownThread = false ;
@@ -224,6 +225,7 @@ public:
                 msg.buttons[iter] = 0 ;
             }
             pub.publish(msg) ; // Everything to 0
+            ros::Duration(0.1).sleep();
         }
 
         tcsetattr(STDIN_FILENO, TCSANOW, &oldt) ;
