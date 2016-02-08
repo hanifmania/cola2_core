@@ -40,9 +40,9 @@ public:
         // std::cout << "orientation: " << orientation.x() << ", " << orientation.y() << ", " << orientation.z() << ", " << orientation.w() << "\n";
         Eigen::Vector3d angle = getRPY( orientation.toRotationMatrix() );
         // std::cout << "Yaw: " << angle[0] << ", declination: " << rad2Deg( declination ) << "\n";
-        angle[0] = normalizeAngle( angle[0] - declination );
-        // std::cout << "Yaw with declination: " << angle[0] << "\n";
-        Eigen::Quaterniond orientation_dev = euler2Quaternion( angle[2], angle[1], angle[0] );
+        angle[2] = normalizeAngle( angle[2] - declination );
+        // std::cout << "Yaw with declination: " << angle[2] << "\n";
+        Eigen::Quaterniond orientation_dev = euler2Quaternion( angle[0], angle[1], angle[2] );
         // std::cout << "orientation with declination: " << orientation_dev.x() << ", " << orientation_dev.y() << ", " << orientation_dev.z() << ", " << orientation_dev.w() << "\n";
         // ------------------------------------------------------------------
 
@@ -252,7 +252,7 @@ public:
 
             // Compose landmark orienation with vehicle orientation to obtain
             // the landmark orientation in the inertial frame (world frame)
-            // std::cout << "Compute Angle (YPR) in I frame...\n";
+            // std::cout << "Compute Angle (RPY) in I frame...\n";
             Eigen::Vector3d angle = getRPY( _auv_orientation.toRotationMatrix() *
                                             landmark_orientation_tmp.toRotationMatrix() );
             // std::cout << "Angle (YPR) in I frame:\n" << angle << "\n";
@@ -267,7 +267,7 @@ public:
                                                                            Eigen::Vector3d( _x(0), _x(1), _x(2) ) );
                 std::cout << "Landmark position in I:\n" << landmark_position_tmp << "\n";
                 Eigen::VectorXd candidate = Eigen::MatrixXd::Zero(6, 1);
-                candidate << landmark_position_tmp(0), landmark_position_tmp(1), landmark_position_tmp(2), angle(2), angle(1), angle(0);
+                candidate << landmark_position_tmp(0), landmark_position_tmp(1), landmark_position_tmp(2), angle(0), angle(1), angle(2);
                 std::cout << "candidate:\n" << candidate << "\n";
                 // If candidate has been seen before
                 if( _candidate_landmarks.find( landmark_id ) != _candidate_landmarks.end() ) {
@@ -365,7 +365,7 @@ public:
 
     void
     createLandmarkMeasure( const Eigen::Vector3d landmark_position,
-                           const Eigen::Vector3d landmark_orientation_YPR,
+                           const Eigen::Vector3d landmark_orientation_RPY,
                            const unsigned int landmark_id,
                            const Eigen::Matrix3d rot,
                            const Eigen::MatrixXd covariance,
@@ -379,9 +379,9 @@ public:
         z(0) = landmark_position(0);
         z(1) = landmark_position(1);
         z(2) = landmark_position(2);
-        z(3) = landmark_orientation_YPR(2);
-        z(4) = landmark_orientation_YPR(1);
-        z(5) = landmark_orientation_YPR(0);
+        z(3) = landmark_orientation_RPY(0);
+        z(4) = landmark_orientation_RPY(1);
+        z(5) = landmark_orientation_RPY(2);
 
         h.resize( 6, 6 + 6*_number_of_landmarks );
         h = Eigen::MatrixXd::Zero( 6, 6 + 6*_number_of_landmarks );
@@ -512,7 +512,7 @@ public:
     computeU() const
     {
         Eigen::Vector3d tmp = getRPY( _auv_orientation.toRotationMatrix() );
-        Eigen::Vector3d u( tmp(2), tmp(1), tmp(0) ); //TODO: En Patrick ho va girar!
+        Eigen::Vector3d u( tmp(0), tmp(1), tmp(2) );
         return u;
     }
 

@@ -149,9 +149,9 @@ public:
         nav_sts.global_position.longitude = lon;
 
         Eigen::Vector3d euler = getRPY( orientation.toRotationMatrix() );
-        nav_sts.orientation.roll = euler(2);
+        nav_sts.orientation.roll = euler(0);
         nav_sts.orientation.pitch = euler(1);
-        nav_sts.orientation.yaw = euler(0);
+        nav_sts.orientation.yaw = euler(2);
 
         nav_sts.orientation_rate.roll = angular_velocity(0);
         nav_sts.orientation_rate.pitch = angular_velocity(1);
@@ -385,7 +385,7 @@ protected:
     ros::Publisher _pub_covariance_marker;
     ros::Publisher _pub_altitude_range;
 
-   
+
     // NED ptr
     Ned *_ned;
     double _init_latitude;
@@ -403,7 +403,7 @@ protected:
     double _altitude;
     ros::Timer _timer;
     std::vector< std::string > _frame_ids;
-    
+
      // Tf
     tf::TransformListener _tf_listener;
 
@@ -413,4 +413,3 @@ protected:
 };
 
 #endif // __EKF_ROS_BASE__
-

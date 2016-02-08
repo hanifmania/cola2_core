@@ -125,9 +125,9 @@ namespace transformations
     {
         Eigen::Vector3d angle = getRPY( origen_orientation.toRotationMatrix() );
 
-        double r = angle(2);
+        double r = angle(0);
         double p = angle(1);
-        double y = angle(0);
+        double y = angle(2);
 
         double dx = translation_from_origin(0);
         double dy = translation_from_origin(1);
@@ -236,5 +236,3 @@ namespace transformations
 }
 
 #endif // __TRANSFORMATIONS__
-
-

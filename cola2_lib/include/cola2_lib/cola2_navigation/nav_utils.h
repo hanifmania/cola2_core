@@ -3,6 +3,7 @@
 
 #include <Eigen/Geometry>
 #include <math.h>
+#include <iostream>
 
 Eigen::Vector3d getRPY( const Eigen::Matrix3d& rotation )
 {
@@ -58,15 +59,15 @@ Eigen::Vector3d getRPY( const Eigen::Matrix3d& rotation )
     }
     if (solution_number == 1)
     {
-        rpy(0) = euler_out.yaw;
+        rpy(0) = euler_out.roll;
         rpy(1) = euler_out.pitch;
-        rpy(2) = euler_out.roll;
+        rpy(2) = euler_out.yaw;
     }
     else
     {
-        rpy(0) = euler_out2.yaw;
+        rpy(0) = euler_out2.roll;
         rpy(1) = euler_out2.pitch;
-        rpy(2) = euler_out2.roll;
+        rpy(2) = euler_out2.yaw;
     }
 
     return rpy;
