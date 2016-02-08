@@ -13,23 +13,18 @@
 #include <algorithm>
 #include <cmath>
 
-// #define MORPH_ENABLED // Comment or uncomment this line to disable/enable MORPH water speed reference
-
 class IAUVROSController
 {
 public:
 
     IAUVROSController( const std::string name,
-                       const std::string frame_id,
-                       const double morph_model = 15.0 ):
+                       const std::string frame_id ):
         _name( name ),
         _frame_id( frame_id ),
         _diagnostic( _n, name, "soft" ),
         _last_altitude( 0.5 ),
         _last_altitude_age( 0.0 ),
-        _last_depth( 0.0 ),
-        _morph_model( morph_model ),
-        _morph_running( false )
+        _last_depth( 0.0 )
     { }
 
     void
@@ -56,22 +51,6 @@ public:
         _sub_bf_req = _n.subscribe( "/cola2_control/body_force_req", 10, &IAUVROSController::updateBFR, this );
 
         _are_thrusters_killed = false;
-        
-#ifdef MORPH_ENABLED
-            // Publish water_speed
-            _pub_water_velocity = _n.advertise<std_msgs::Float64>( "/water_velocity", 1);
-
-            // Subscriber to wspeed reference
-            _sub_wspeed_reference = _n.subscribe( "/wspeed_reference", 2, &IAUVROSController::updateWspeedReference, this );
-
-            _last_wspeed_reference = 0.0;
-            _speed_force = 0.0;
-
-            _kill_some_thrusters_srv = _n.advertiseService( "/cola2_control/gently_abort",
-                                                        &IAUVROSController::killSomeThrusters,
-                                                        this );
-#endif //MORPH_ENABLED
-
 
         // Services
         _enable_pose_controller_srv = _n.advertiseService( "/cola2_control/enable_pose_controller",
@@ -209,16 +188,6 @@ public:
         }
     }
 
-#ifdef MORPH_ENABLED
-    bool
-    killSomeThrusters( std_srvs::Empty::Request &req,
-                       std_srvs::Empty::Response &res )
-    {
-        std::cout << "GENTLY ABORT\n";
-        _are_thrusters_killed = true;
-        return true;
-    }
-#endif // MORPH_ENABLED
 
     void
     timerCallback( const ros::TimerEvent& event )
@@ -228,33 +197,6 @@ public:
 
         // Iterate controller
         _auv_controller->iteration( now.toSec() );
-
-
-#ifdef MORPH_ENABLED
-        Request wrench = _auv_controller->getMergedWrench();
-        if( ( wrench.getPriority() < 20 ) && ( now.toSec() - _last_wspeed_reference ) < 2.0 ) {
-            // Overwrite Surge force for MORPH model
-            _morph_running = true;
-            std::vector< double > values = wrench.getValues();
-            values.at(0) = _speed_force;
-            wrench.setValues( values );
-            std::vector< bool > axis = wrench.getDisabledAxis();
-            axis.at(0) = false;
-            wrench.setDisabledAxis( axis );
-            wrench.setPriority( 10 );
-            _auv_controller->setMergedWrench( wrench );
-        }
-        else {
-            // If MORPH not running ..
-            if( _morph_running ) {
-                // ..if last iteration was running reset controller.
-                _morph_running = false;
-                std::cout << "Exit MORPH mode. Resetting velocity controller\n";
-                _auv_controller->reset();
-            }
-        }
-#endif // MORPH_ENABLED
-
 
         // Compute thruster setpoints
         _auv_controller->computeThrusterAllocator();
@@ -269,50 +211,13 @@ public:
 
         // Publish thruster setpoint if enabled
         if( _auv_controller->isThrusterAllocatorEnable() ) {
-
             Eigen::VectorXd setpoint = _auv_controller->getThrusterSetpoints();
-
-#ifdef MORPH_ENABLED
-            if ( setpoint.size() == 5 ) { // If it is Girona500 ...
-                setpoint(4) = 0.0; // ... set horizontal thruster to zero
-                if ( _are_thrusters_killed ) {
-                    setpoint(0) = 0.0; // Gently abort
-                    setpoint(1) = 0.0;
-                }
-            }
-            else {
-                if ( _are_thrusters_killed ) {
-                    setpoint(0) = 0.0; // Gently abort
-                }
-            }
-#endif
             publishThrusterSetpoint( setpoint, now );
         }
 
         // Publish fins setpoint. If disabled the setpoint is set to an appropiate angle
         publishFinSetpoint( _auv_controller->getFinSetpoints(), now );
     }
-
-
-#ifdef MORPH_ENABLED
-    void
-    updateWspeedReference(const ros::MessageEvent<std_msgs::Float32 const> & msg) {
-        _speed_force = msg.getMessage()->data; // G500 model
-        if( _speed_force > 1.0 ) _speed_force = 1.0;
-        if( _speed_force < -1.0 ) _speed_force = -1.0;
-        _speed_force = _speed_force * _morph_model;
-
-        // Model quadratic, beta!!!
-        //_speed_force = ( _speed_force * 8.6 ) + ( _speed_force*_speed_force*48.9);
-        std_msgs::Float64 wspeed;
-        double w(msg.getMessage()->data);
-        if (w>0.45) w = 0.45;
-        wspeed.data = w;
-        _last_wspeed_reference = ros::Time::now().toSec();
-        _pub_water_velocity.publish( wspeed );
-    }
-#endif // MORPH_ENABLED
-
 
     void
     updateNav(const ros::MessageEvent<auv_msgs::NavSts const> & msg) {
@@ -335,15 +240,6 @@ public:
         twist_feedback.push_back( msg.getMessage()->orientation_rate.pitch );
         twist_feedback.push_back( msg.getMessage()->orientation_rate.yaw );
         _auv_controller->updateTwistFeedback( twist_feedback );
-
-#ifdef MORPH_ENABLED
-        if (ros::Time::now().toSec() - _last_wspeed_reference > 2.0) {
-            std_msgs::Float64 wspeed;
-            wspeed.data = msg.getMessage()->body_velocity.x;
-            _pub_water_velocity.publish( wspeed );
-        }
-#endif // MORPH_ENABLED
-
 
         // Stores last altitude. If altitude is invalid, during 5 seconds estimate it wrt last altitude and delta depth.
         // If more than 5 seconds put it a 0.5.
@@ -659,17 +555,8 @@ private:
     ros::Subscriber _sub_ww_req;
     ros::Subscriber _sub_bv_req;
     ros::Subscriber _sub_bf_req;
-
-#ifdef MORPH_ENABLED
-    ros::Subscriber _sub_wspeed_reference;
-    ros::Publisher _pub_water_velocity;
-    double _last_wspeed_reference;
-    double _speed_force;
-    ros::ServiceServer _kill_some_thrusters_srv;
-#endif//MORPH_ENABLED
-
     bool _are_thrusters_killed;
-        
+
     // Timers
     ros::Timer _timer;
     ros::Timer _check_diagnostics;
@@ -691,8 +578,4 @@ private:
     double _last_altitude;
     double _last_altitude_age;
     double _last_depth;
-
-    // ONLY FOR MORPH STUFF !!!
-    double _morph_model;
-    bool _morph_running;
 };
