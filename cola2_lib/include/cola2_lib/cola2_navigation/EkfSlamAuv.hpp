@@ -33,12 +33,23 @@ public:
                  const Eigen::Quaterniond orientation,
                  const Eigen::Matrix3d orientation_cov,
                  const Eigen::Vector3d angular_velocity,
-                 const Eigen::Matrix3d angular_velocity_cov )
+                 const Eigen::Matrix3d angular_velocity_cov,
+                 const double declination=0.0 )
     {
+        // ---- TODO: Apply declination. Check if it is correct! ----------
+        // std::cout << "orientation: " << orientation.x() << ", " << orientation.y() << ", " << orientation.z() << ", " << orientation.w() << "\n";
+        Eigen::Vector3d angle = getRPY( orientation.toRotationMatrix() );
+        // std::cout << "Yaw: " << angle[0] << ", declination: " << rad2Deg( declination ) << "\n";
+        angle[0] = normalizeAngle( angle[0] - declination );
+        // std::cout << "Yaw with declination: " << angle[0] << "\n";
+        Eigen::Quaterniond orientation_dev = euler2Quaternion( angle[2], angle[1], angle[0] );
+        // std::cout << "orientation with declination: " << orientation_dev.x() << ", " << orientation_dev.y() << ", " << orientation_dev.z() << ", " << orientation_dev.w() << "\n";
+        // ------------------------------------------------------------------
+
         // TODO: WARNING! COVARIANCE INFORMATION IS NOT ROTATED AS THE TF INDICATES!!!
         if( _transformations.find(sensor_id) != _transformations.end() ) {
             // Save imu data
-            _auv_orientation = transformations::orientation( orientation, _transformations[ sensor_id ].first );
+            _auv_orientation = transformations::orientation( orientation_dev, _transformations[ sensor_id ].first );
             _auv_orientation_cov = orientation_cov;
             _auv_angular_velocity =  transformations::angularVelocity( angular_velocity, _transformations[ sensor_id ].first );
             _auv_angular_velocity_cov = angular_velocity_cov;
@@ -46,13 +57,13 @@ public:
         }
         else {
             // Save imu data
-            _auv_orientation = orientation;
+            _auv_orientation = orientation_dev;
             _auv_orientation_cov = orientation_cov;
             _auv_angular_velocity =  angular_velocity;
             _auv_angular_velocity_cov = angular_velocity_cov;
             _is_imu_init = true;
         }
-        
+
         if ( makePrediction( time_stamp, computeU() ) ) {
             updatePrediction();
             // showStateVector();
@@ -628,4 +639,3 @@ public:
 };
 
 #endif // __EKF_SLAM_AUV__
-
