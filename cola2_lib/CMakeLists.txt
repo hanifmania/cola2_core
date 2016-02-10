@@ -4,11 +4,25 @@ project(cola2_lib)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-find_package(catkin REQUIRED COMPONENTS genmsg rospy)
+find_package(catkin REQUIRED COMPONENTS
+                  genmsg
+                  rospy
+                  auv_msgs
+                  cola2_msgs
+                  diagnostic_msgs
+                  geometry_msgs
+                  nav_msgs
+                  roscpp
+                  sensor_msgs
+                  std_msgs
+                  std_srvs
+                  tf
+                  tf_conversions
+                  visualization_msgs)
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
-
+find_package(Eigen3 REQUIRED)
 
 ## Uncomment this if the package has a setup.py. This macro ensures
 ## modules and global scripts declared therein get installed
@@ -49,9 +63,20 @@ catkin_python_setup()
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
    INCLUDE_DIRS include
-#  LIBRARIES cola2_lib
-#  CATKIN_DEPENDS other_catkin_pkg
-#  DEPENDS system_lib
+   LIBRARIES cola2_lib
+   CATKIN_DEPENDS auv_msgs
+                  cola2_msgs
+                  diagnostic_msgs
+                  geometry_msgs
+                  nav_msgs
+                  roscpp
+                  sensor_msgs
+                  std_msgs
+                  std_srvs
+                  tf
+                  tf_conversions
+                  visualization_msgs
+   DEPENDS Eigen3
 )
 
 ###########
@@ -60,12 +85,37 @@ catkin_package(
 
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
-# include_directories(include ${catkin_INCLUDE_DIRS} ${Boost_INCLUDE_DIRS})
+include_directories(include ${catkin_INCLUDE_DIRS} ${Boost_INCLUDE_DIRS} ${EIGEN3_INCLUDE_DIR})
 
 ## Declare a cpp library
-# add_library(cola2_lib
-#   src/${PROJECT_NAME}/cola2_lib.cpp
-# )
+add_library(cola2_lib
+   src/${PROJECT_NAME}/cola2_util.cpp
+   src/${PROJECT_NAME}/SGDerivation.cpp
+   src/${PROJECT_NAME}/cola2_control/IAUVController.cpp
+   src/${PROJECT_NAME}/cola2_control/IAUVROSController.cpp
+   src/${PROJECT_NAME}/cola2_control/IController.cpp
+   src/${PROJECT_NAME}/cola2_control/Merge.cpp
+   src/${PROJECT_NAME}/cola2_control/Model.cpp
+   src/${PROJECT_NAME}/cola2_control/NDofController.cpp
+   src/${PROJECT_NAME}/cola2_control/Pid.cpp
+   src/${PROJECT_NAME}/cola2_control/Poly.cpp
+   src/${PROJECT_NAME}/cola2_control/Request.cpp
+   src/${PROJECT_NAME}/cola2_control/RobustifyingTerms.cpp
+   src/${PROJECT_NAME}/cola2_io/CCamera.cpp
+   src/${PROJECT_NAME}/cola2_io/ISerialPort.cpp
+   src/${PROJECT_NAME}/cola2_io/SerialPort.cpp
+   src/${PROJECT_NAME}/cola2_io/TcpSocket.cpp
+   src/${PROJECT_NAME}/cola2_io/UdpSocket.cpp
+   src/${PROJECT_NAME}/cola2_navigation/EkfBase.cpp
+   src/${PROJECT_NAME}/cola2_navigation/EkfRosBase.cpp
+   src/${PROJECT_NAME}/cola2_navigation/EkfSlamAuv.cpp
+   src/${PROJECT_NAME}/cola2_navigation/nav_utils.cpp
+   src/${PROJECT_NAME}/cola2_navigation/Ned.cpp
+   src/${PROJECT_NAME}/cola2_navigation/transformations.cpp
+   src/${PROJECT_NAME}/cola2_rosutils/DiagnosticHelper.cpp
+   src/${PROJECT_NAME}/cola2_rosutils/RosParamLoader.cpp
+   src/${PROJECT_NAME}/cola2_rosutils/RosUtil.cpp
+)
 
 ## Declare a cpp executable
 # add_executable(cola2_lib_node src/cola2_lib_node.cpp)
@@ -89,7 +139,11 @@ catkin_package(
 ## Mark executable scripts (Python etc.) for installation
 ## in contrast to setup.py, you can choose the destination
 install(PROGRAMS
-  src/cola2_lib/cola2_lib.py src/cola2_lib/cola2_ros_lib.py src/cola2_lib/diagnostic_helper.py src/cola2_lib/NED.py src/cola2_lib/JoystickBase.py
+  src/cola2_lib/cola2_lib.py
+  src/cola2_lib/cola2_ros_lib.py
+  src/cola2_lib/diagnostic_helper.py
+  src/cola2_lib/JoystickBase.py
+  src/cola2_lib/NED.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
