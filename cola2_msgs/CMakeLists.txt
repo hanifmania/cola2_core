@@ -143,6 +143,7 @@ generate_dynamic_reconfigure_options(
   cfg/VirtualCageInfo.cfg
   cfg/Safety.cfg
   cfg/tritech_msis.cfg
+  cfg/ImagenexDeltaT.cfg
 )
 
 ###################################
