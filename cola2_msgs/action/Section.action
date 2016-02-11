@@ -1,0 +1,53 @@
+# Define the REQUEST
+# Initial state
+float64 initial_x
+float64 initial_y
+float64 initial_z
+float64 initial_yaw
+float64 initial_surge
+bool use_initial_yaw
+
+# Final state
+float64 final_x
+float64 final_y
+float64 final_z
+float64 final_yaw
+float64 final_surge
+bool use_final_yaw
+
+# Flag to consider z as altitude
+bool use_altitude
+
+# Controller type
+uint64 controller_type
+uint64 DUBINS=0
+
+# Priority
+uint64 priority
+
+# Timeout
+float64 timeout
+
+---
+
+# Define the RESULT
+# Possible section ending conditions
+uint64 final_status
+uint64 SUCCESS=0
+uint64 TIMEOUT=1
+uint64 FAILURE=2
+
+---
+
+
+# Define a FEEDBACK
+# Current output of the controller
+float64 desired_surge
+float64 desired_depth
+float64 desired_yaw
+
+# Errors
+float64 cross_track_error
+float64 depth_error
+float64 yaw_error
+float64 distance_to_section_end
