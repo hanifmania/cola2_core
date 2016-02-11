@@ -76,6 +76,7 @@ find_package(catkin REQUIRED COMPONENTS
    SonarInfo.msg
    ImagenexSSS.msg
    RangeImageBeam.msg
+   Detection.msg
  )
 
 ## Generate services in the 'srv' folder
