@@ -190,7 +190,7 @@ class Teleoperation(object):
             if data.buttons[b] == 1:
                 self.pose_controlled_axis[b] = True
                 if self.actualize_base_pose:
-                    self.base_pose[b] = self.last_pose[b - 1]
+                    self.base_pose[b] = self.last_pose[b]
                 rospy.loginfo("%s: axis %s now is pose", self.name, str(b))
 
         # Check if velocity controller is enabled
