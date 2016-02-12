@@ -58,8 +58,23 @@ Captain::Captain() {
     section.final_z   = 1.0;
     //section.timeout = 10.0;
 
+
     // Section 1
-    section.initial_x = 1.0;
+    section.initial_x = 0.0;
+    section.initial_y = 0.0;
+    //section.initial_z = 0.0;
+    section.final_x = cos(M_PI/4);
+    section.final_y = 1 - cos(M_PI/4);
+    section.final_yaw = M_PI/4;
+    //section.final_z   = 0.5;
+    section_client->sendGoal(section);
+    section_client->waitForResult(ros::Duration(120.0));
+
+    ros::shutdown();
+
+
+    // Section 1
+    section.initial_x = 0.0;
     section.initial_y = 0.0;
     //section.initial_z = 0.0;
     section.final_x = 3.91868;
@@ -163,6 +178,7 @@ Captain::Captain() {
     section_client->sendGoal(section);
     section_client->waitForResult(ros::Duration(120.0));
 
+/*
     // Section 10
     section.initial_x = 25.0808;
     section.initial_y =  -26.8056;
@@ -183,7 +199,7 @@ Captain::Captain() {
     section.final_yaw = -1.92982;
     //section.final_z   = 0.5;
     section_client->sendGoal(section);
-    section_client->waitForResult(ros::Duration(120.0));
+    section_client->waitForResult(ros::Duration(120.0)); */
 
     // Section 12
     section.initial_x = 25.0808;
