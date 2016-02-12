@@ -60,17 +60,16 @@ Captain::Captain() {
 
 
     // Section 1
-    section.initial_x = 0.0;
-    section.initial_y = 0.0;
+    //section.initial_x = 0.0;
+    //section.initial_y = 0.0;
     //section.initial_z = 0.0;
-    section.final_x = cos(M_PI/4);
-    section.final_y = 1 - cos(M_PI/4);
-    section.final_yaw = M_PI/4;
+    //section.final_x = cos(M_PI/4);
+    //section.final_y = 1 - cos(M_PI/4);
+    //section.final_yaw = M_PI/4;
     //section.final_z   = 0.5;
-    section_client->sendGoal(section);
-    section_client->waitForResult(ros::Duration(120.0));
-
-    ros::shutdown();
+    //section_client->sendGoal(section);
+    //section_client->waitForResult(ros::Duration(120.0));
+    //ros::shutdown();
 
 
     // Section 1

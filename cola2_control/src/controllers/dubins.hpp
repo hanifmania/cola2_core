@@ -50,7 +50,7 @@ public:
 
 DubinsSectionController::DubinsSectionController() {
     // Default config
-    _config.yaw_ki = 0.0;//0.006;
+    _config.yaw_ki = 0.003;//0.003;//0.006;
     _config.yaw_kp = 0.09;//0.12;
 
     // Init some vars
@@ -116,7 +116,7 @@ DubinsSectionController::compute(const control::State& current_state,
         0.5 * fabs(current_state.velocity.linear.x)) feedback.success = true;
 
     // Debug info
-    std::cout << "/dubins: initial_x = " << section.initial_x << std::endl;
+    /*std::cout << "/dubins: initial_x = " << section.initial_x << std::endl;
     std::cout << "/dubins: initial_y = " << section.initial_y << std::endl;
     std::cout << "/dubins: initial_z = " << section.initial_z << std::endl;
     std::cout << "/dubins: initial_yaw = " << section.initial_yaw << std::endl;
@@ -133,7 +133,7 @@ DubinsSectionController::compute(const control::State& current_state,
     std::cout << "/dubins: desired_surge = " << desired_surge << std::endl;
     std::cout << "/dubins: desired_depth = " << desired_depth << std::endl;
     std::cout << "/dubins: desired_yaw = " << desired_yaw << std::endl;
-    std::cout << "/dubins: distance_to_section_end = " << feedback.distance_to_section_end << std::endl;
+    std::cout << "/dubins: distance_to_section_end = " << feedback.distance_to_section_end << std::endl;*/
 }
 
 
@@ -187,8 +187,6 @@ DubinsSectionController::computeEBetaGammaSectionLength(
         reportError("Not ready to process a section using both initial and final yaw");
     }
 
-    std::cout << "/dubins: direction = " << direction << std::endl;
-
     // Follow section
     if (direction == 0) {  // Follow a line
         // Angle beta
@@ -230,13 +228,13 @@ DubinsSectionController::computeEBetaGammaSectionLength(
         if (section.use_initial_yaw) {
             ax = section.initial_x;
             ay = section.initial_y;
-            bx = ax + sin(section.initial_yaw);
+            bx = ax - sin(section.initial_yaw);
             by = ay + cos(section.initial_yaw);
         }
         else {
             ax = section.final_x;
             ay = section.final_y;
-            bx = ax + sin(section.final_yaw);
+            bx = ax - sin(section.final_yaw);
             by = ay + cos(section.final_yaw);
         }
         double D = ay - by;
@@ -250,15 +248,9 @@ DubinsSectionController::computeEBetaGammaSectionLength(
         center_x = (B * F - E * C) / den;
         center_y = (D * C - A * F) / den;
 
-        std::cout << "/dubins: center_x = " << center_x << std::endl;
-        std::cout << "/dubins: center_y = " << center_y << std::endl;
-
         // Find radius
         double radius = sqrt(pow(center_x - section.initial_x, 2.0) +
                              pow(center_y - section.initial_y, 2.0));
-
-        std::cout << "/dubins: radius  = " << radius << std::endl;
-        std::cout << "/dubins: radius2 = " << sqrt(pow(center_x - section.final_x, 2.0) + pow(center_y - section.final_y, 2.0)) << std::endl;
 
         // Compute initial, actual and final angles. Same boundaries are
         // ensured by using the same wrapAngle function
@@ -330,10 +322,6 @@ DubinsSectionController::computeEBetaGammaSectionLength(
         double vtf_east = static_cast<double>(direction) * c_angle;
         beta = atan2(vtf_east, vtf_north);
 
-        std::cout << "/dubins: beta2      = " << wrapAngle(angle + 0.5 * CT_PI * static_cast<double>(direction)) << std::endl;
-        std::cout << "/dubins: beta_start = " << wrapAngle(angle_s + 0.5 * CT_PI * static_cast<double>(direction)) << std::endl;
-        std::cout << "/dubins: beta_end   = " << wrapAngle(angle_e + 0.5 * CT_PI * static_cast<double>(direction)) << std::endl;
-
         // Nearest point in the arc
         double nearest_north = center_x + radius * c_angle;
         double nearest_east = center_y + radius * s_angle;
@@ -356,14 +344,9 @@ DubinsSectionController::computeYaw(double e,
     // Compute psi using a PI controller
     double e_dot = (e - _yaw_old_e) / period;
     double psi_dot = -(_config.yaw_ki * e + _config.yaw_kp * e_dot) / surge;
-    double psi = _yaw_old_psi + psi_dot * period;
-
-    psi = - e * _config.yaw_kp / surge;
-
+    double psi = _yaw_old_psi + psi_dot * period;  // - 0.01 * e_dot;
     if (psi > 1.0) psi = 1.0;
     else if (psi < -1.0) psi = -1.0;
-
-    std::cout << "/dubins: correction = " << asin(psi) * 180 / CT_PI << std::endl;
 
     // Compute yaw setpoint
     double yaw = wrapAngle(beta + asin(psi));
