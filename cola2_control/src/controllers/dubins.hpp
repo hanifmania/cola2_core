@@ -50,8 +50,8 @@ public:
 
 DubinsSectionController::DubinsSectionController() {
     // Default config
-    _config.yaw_ki = 0.006;
-    _config.yaw_kp = 0.12;
+    _config.yaw_ki = 0.003;//0.006;
+    _config.yaw_kp = 0.09;//0.12;
 
     // Init some vars
     _yaw_old_psi = _yaw_old_e = 0.0;

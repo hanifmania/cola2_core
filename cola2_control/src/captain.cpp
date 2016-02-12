@@ -49,21 +49,23 @@ Captain::Captain() {
     // Create section
     cola2_msgs::SectionGoal section;
     section.priority = 30;
-    section.initial_surge = 0.5;
+    section.initial_surge = 0.3;
     //section.use_initial_yaw = true;
-    section.final_surge = 0.5;
+    section.final_surge = 0.3;
     section.controller_type = cola2_msgs::SectionGoal::DUBINS;
     section.use_final_yaw = true;
+    section.initial_z = 1.0;
+    section.final_z   = 1.0;
     //section.timeout = 10.0;
 
     // Section 1
-    section.initial_x = 0.0;
+    section.initial_x = 1.0;
     section.initial_y = 0.0;
-    section.initial_z = 0.0;
-    section.final_yaw = 180 * M_PI / 180.0;
-    section.final_x   = 0.0;
-    section.final_y   = 5.0;
-    section.final_z   = 0.5;
+    //section.initial_z = 0.0;
+    section.final_x = 3.91868;
+    section.final_y = -2.30624;
+    section.final_yaw = -1.33743;
+    //section.final_z   = 0.5;
     section_client->sendGoal(section);
 
     //ros::Duration(5.0).sleep();
@@ -72,92 +74,125 @@ Captain::Captain() {
     section_client->waitForResult(ros::Duration(120.0));
 
     // Section 2
-    section.initial_x = 0.0;
-    section.initial_y = 5.0;
-    section.initial_z = 0.5;
-    section.final_yaw = 0 * M_PI / 180.0;
-    section.final_x   = 0.0;
-    section.final_y   = 0.0;
-    section.final_z   = 1.0;
+    section.initial_x = 3.91868;
+    section.initial_y =  -2.30624;
+    //section.initial_z = 0.5;
+    section.final_x = 6.39008;
+    section.final_y = -12.7036;
+    section.final_yaw = -1.33743;
+    //section.final_z   = 1.0;
     section_client->sendGoal(section);
     section_client->waitForResult(ros::Duration(120.0));
 
     //ros::shutdown();
 
     // Section 3
-    section.initial_x = 0.0;
-    section.initial_y = 0.0;
-    section.initial_z = 1.0;
-    section.final_yaw = 180 * M_PI / 180.0;
-    section.final_x   = 0.0;
-    section.final_y   = 5.0;
-    section.final_z   = 1.5;
+    section.initial_x = 6.39008;
+    section.initial_y =  -12.7036;
+    //section.initial_z = 1.0;
+    section.final_x = 8.32324;
+    section.final_y = -14.8433;
+    section.final_yaw = -0.334722;
+    //section.final_z   = 1.5;
     section_client->sendGoal(section);
     section_client->waitForResult(ros::Duration(120.0));
 
     // Section 4
-    section.initial_x = 0.0;
-    section.initial_y = 5.0;
-    section.initial_z = 1.5;
-    section.final_yaw = 0 * M_PI / 180.0;
-    section.final_x   = 0.0;
-    section.final_y   = 0.0;
-    section.final_z   = 2.0;
+    section.initial_x = 8.32324;
+    section.initial_y =  -14.8433;
+    //section.initial_z = 1.5;
+    section.final_x = 8.36839;
+    section.final_y = -14.8586;
+    section.final_yaw = -0.318834;
+    //section.final_z   = 2.0;
     section_client->sendGoal(section);
     section_client->waitForResult(ros::Duration(120.0));
 
     // Section 5
-    section.initial_x = 0.0;
-    section.initial_y = 0.0;
-    section.initial_z = 2.0;
-    section.final_yaw = 0 * M_PI / 180.0;
-    section.final_x   = 20.0;
-    section.final_y   = 0.0;
-    section.final_z   = 2.0;
+    section.initial_x = 8.36839;
+    section.initial_y =  -14.8586;
+    //section.initial_z = 2.0;
+    section.final_x = 20.8479;
+    section.final_y = -18.978;
+    section.final_yaw = -0.318834;
+    //section.final_z   = 2.0;
     section_client->sendGoal(section);
     section_client->waitForResult(ros::Duration(220.0));
 
     // Section 6
-    section.initial_x = 20.0;
-    section.initial_y = 0.0;
-    section.initial_z = 2.0;
-    section.final_yaw = 180 * M_PI / 180.0;
-    section.final_x   = 20.0;
-    section.final_y   = -5.0;
-    section.final_z   = 1.5;
+    section.initial_x = 20.8479;
+    section.initial_y =  -18.978;
+    //section.initial_z = 2.0;
+    section.final_x = 20.8938;
+    section.final_y = -18.9936;
+    section.final_yaw = -0.33496;
+    //section.final_z   = 1.5;
     section_client->sendGoal(section);
     section_client->waitForResult(ros::Duration(120.0));
 
     // Section 7
-    section.initial_x = 20.0;
-    section.initial_y = -5.0;
-    section.initial_z = 1.5;
-    section.final_yaw = 0 * M_PI / 180.0;
-    section.final_x   = 20.0;
-    section.final_y   = 0.0;
-    section.final_z   = 1.0;
+    section.initial_x = 20.8938;
+    section.initial_y =  -18.9936;
+    //section.initial_z = 1.5;
+    section.final_x = 22.4772;
+    section.final_y = -20.2787;
+    section.final_yaw = -1.02856;
+    //section.final_z   = 1.0;
     section_client->sendGoal(section);
     section_client->waitForResult(ros::Duration(120.0));
 
     // Section 8
-    section.initial_x = 20.0;
-    section.initial_y = 0.0;
-    section.initial_z = 1.0;
-    section.final_yaw = 180 * M_PI / 180.0;
-    section.final_x   = 20.0;
-    section.final_y   = -5.0;
-    section.final_z   = 0.5;
+    section.initial_x = 22.4772;
+    section.initial_y =  -20.2787;
+    //section.initial_z = 1.0;
+    section.final_x = 24.8418;
+    section.final_y = -24.2034;
+    section.final_yaw = -1.02856;
+    //section.final_z   = 0.5;
     section_client->sendGoal(section);
     section_client->waitForResult(ros::Duration(120.0));
 
     // Section 9
-    section.initial_x = 20.0;
-    section.initial_y = -5.0;
-    section.initial_z = 0.5;
-    section.final_yaw = 0 * M_PI / 180.0;
-    section.final_x   = 20.0;
-    section.final_y   = 0.0;
-    section.final_z   = 0.0;
+    section.initial_x = 24.8418;
+    section.initial_y =  -24.2034;
+    //section.initial_z = 0.5;
+    section.final_x = 25.0808;
+    section.final_y = -26.8056;
+    section.final_yaw = -1.92982;
+    //section.final_z   = 0.0;
+    section_client->sendGoal(section);
+    section_client->waitForResult(ros::Duration(120.0));
+
+    // Section 10
+    section.initial_x = 25.0808;
+    section.initial_y =  -26.8056;
+    //section.initial_z = 1.5;
+    section.final_x = 25.0808;
+    section.final_y = -26.8056;
+    section.final_yaw = -1.92982;
+    //section.final_z   = 1.0;
+    section_client->sendGoal(section);
+    section_client->waitForResult(ros::Duration(120.0));
+
+    // Section 11
+    section.initial_x = 25.0808;
+    section.initial_y =  -26.8056;
+    //section.initial_z = 1.0;
+    section.final_x = 25.0808;
+    section.final_y = -26.8056;
+    section.final_yaw = -1.92982;
+    //section.final_z   = 0.5;
+    section_client->sendGoal(section);
+    section_client->waitForResult(ros::Duration(120.0));
+
+    // Section 12
+    section.initial_x = 25.0808;
+    section.initial_y =  -26.8056;
+    //section.initial_z = 0.5;
+    section.final_x = 25.0;
+    section.final_y = -27.0;
+    section.final_yaw = -2.0;
+    //section.final_z   = 0.0;
     section_client->sendGoal(section);
     section_client->waitForResult(ros::Duration(120.0));
 
