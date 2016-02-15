@@ -11,6 +11,8 @@
 typedef struct {
     double yaw_ki;
     double yaw_kp;
+    double lookahead_sec;
+    double acceptance_sec;
 } DubinsSectionControllerConfig;
 
 
@@ -50,8 +52,10 @@ public:
 
 DubinsSectionController::DubinsSectionController() {
     // Default config
-    _config.yaw_ki = 0.003;//0.003;//0.006;
-    _config.yaw_kp = 0.09;//0.12;
+    _config.yaw_ki         = 0.003;//0.003;//0.006;
+    _config.yaw_kp         = 0.09;//0.12;
+    _config.lookahead_sec  = 4.0;
+    _config.acceptance_sec = 3.0;
 
     // Init some vars
     _yaw_old_psi = _yaw_old_e = 0.0;
@@ -112,8 +116,8 @@ DubinsSectionController::compute(const control::State& current_state,
     feedback.yaw_error = wrapAngle(desired_yaw - current_state.pose.orientation.yaw);
     feedback.distance_to_section_end = (1.0 - gamma) * section_length;
     feedback.success = false;
-    if (feedback.distance_to_section_end <
-        0.5 * fabs(current_state.velocity.linear.x)) feedback.success = true;
+    if (feedback.distance_to_section_end < _config.acceptance_sec *
+        fabs(current_state.velocity.linear.x)) feedback.success = true;
 
     // Debug info
     /*std::cout << "/dubins: initial_x = " << section.initial_x << std::endl;
@@ -317,11 +321,6 @@ DubinsSectionController::computeEBetaGammaSectionLength(
         c_angle = cos(angle);
         s_angle = sin(angle);
 
-        // Compute vector to follow and beta
-        double vtf_north = -static_cast<double>(direction) * s_angle;
-        double vtf_east = static_cast<double>(direction) * c_angle;
-        beta = atan2(vtf_east, vtf_north);
-
         // Nearest point in the arc
         double nearest_north = center_x + radius * c_angle;
         double nearest_east = center_y + radius * s_angle;
@@ -329,6 +328,21 @@ DubinsSectionController::computeEBetaGammaSectionLength(
         // Compute cross track error (e)
         e = -(current_state.pose.position.north - nearest_north) * sin(beta) +
              (current_state.pose.position.east - nearest_east) * cos(beta);
+
+
+        // Compute beta with lookahead
+        double surge = current_state.velocity.linear.x;
+        if (surge < 0.01) surge = 0.01;
+        double lookahead_m = _config.lookahead_sec * surge;
+        double lookahead_rad = lookahead_m / radius;
+        if (lookahead_rad > CT_PI) lookahead_rad = CT_PI;
+        double direction_d = static_cast<double>(direction);
+        if (direction == 1) {
+            beta = wrapAngle(angle + 0.5 * CT_PI * direction_d + lookahead_rad);
+        }
+        else {
+            beta = wrapAngle(angle + 0.5 * CT_PI * direction_d - lookahead_rad);
+        }
     }
 }
 
