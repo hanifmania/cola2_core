@@ -350,19 +350,6 @@ DubinsSectionController::computeEBetaGammaSectionLength(
             }
         }
 
-        // Precompute cosine and sine of the angle
-        double c_angle, s_angle;
-        c_angle = cos(angle);
-        s_angle = sin(angle);
-
-        // Nearest point in the arc
-        double nearest_north = center_x + radius * c_angle;
-        double nearest_east = center_y + radius * s_angle;
-
-        // Compute cross track error (e)
-        e = -(current_state.pose.position.north - nearest_north) * sin(beta) +
-             (current_state.pose.position.east - nearest_east) * cos(beta);
-
         // Compute beta with lookahead
         double surge = current_state.velocity.linear.x;
         if (surge < 0.01) surge = 0.01;
@@ -376,6 +363,14 @@ DubinsSectionController::computeEBetaGammaSectionLength(
         else {
             beta = wrapAngle(angle + 0.5 * CT_PI * direction_d - lookahead_rad);
         }
+
+        // Nearest point in the arc
+        double nearest_north = center_x + radius * cos(angle);
+        double nearest_east = center_y + radius * sin(angle);
+
+        // Compute cross track error (e)
+        e = -(current_state.pose.position.north - nearest_north) * sin(beta) +
+             (current_state.pose.position.east - nearest_east) * cos(beta);
 
         // Publish section markers TODO: this should be done in another place
         visualization_msgs::Marker marker;
