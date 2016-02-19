@@ -316,7 +316,7 @@ Pilot::getParam(std::string param_name, T& param_var) {
 
 
 int main(int argc, char **argv) {
-    ros::init(argc, argv, "pilot");
+    ros::init(argc, argv, "pilot_new");
     Pilot pilot;
     ros::spin();
     return 0;
