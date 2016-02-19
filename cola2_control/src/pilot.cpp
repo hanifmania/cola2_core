@@ -141,7 +141,8 @@ Pilot::sectionServerCallback(const cola2_msgs::SectionGoalConstPtr& data) {
                                                section,
                                                1.0 / _config.rate,
                                                controller_output,
-                                               feedback);
+                                               feedback,
+                                               _pub_marker);
                     break;
                 default:
                     throw std::runtime_error("Unknown controller");
