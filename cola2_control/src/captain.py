@@ -1721,7 +1721,9 @@ def __delete_param__( param_name ):
         try:
             rospy.delete_param(param_name)
         except KeyError:
+
             pass #print param_name, " value not set"
+
 if __name__ == '__main__':
     try:
         rospy.init_node('captain', log_level=rospy.INFO) #log_level=rospy.DEBUG)
