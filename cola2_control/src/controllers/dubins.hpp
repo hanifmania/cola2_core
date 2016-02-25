@@ -101,10 +101,10 @@ DubinsSectionController::compute(const control::State& current_state,
     controller_output = control::State();
     controller_output.pose.position.depth = desired_depth;
     controller_output.pose.orientation.yaw = desired_yaw;
-    controller_output.pose.disable_axis[2] = false;
-    controller_output.pose.disable_axis[5] = false;
+    controller_output.pose.disable_axis.z = false;
+    controller_output.pose.disable_axis.yaw = false;
     controller_output.velocity.linear.x = desired_surge;
-    controller_output.velocity.disable_axis[0] = false;
+    controller_output.velocity.disable_axis.x = false;
 
     // Fill feedback
     feedback = control::Feedback();

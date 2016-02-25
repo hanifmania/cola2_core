@@ -35,6 +35,9 @@ namespace control {
         // Flag to consider z as altitude
         bool altitude_mode;
 
+        // Flag to not control z axis
+        bool disable_z;
+
         // Constructor with default values
         Section() {
             initial_position.x = 0.0;
@@ -50,6 +53,7 @@ namespace control {
             final_surge = 0.0;
             use_final_yaw = false;
             altitude_mode = false;
+            disable_z = false;
         }
     };
 
@@ -64,7 +68,14 @@ namespace control {
             struct {
                 double roll, pitch, yaw;
             } orientation;
-            bool disable_axis[6];
+            struct{
+                bool x;
+                bool y;
+                bool z;
+                bool roll;
+                bool pitch;
+                bool yaw;
+            } disable_axis;
             double altitude;
             bool altitude_mode;
         } pose;
@@ -73,7 +84,14 @@ namespace control {
         struct {
             control::point linear;
             control::point angular;
-            bool disable_axis[6];
+            struct{
+                bool x;
+                bool y;
+                bool z;
+                bool roll;
+                bool pitch;
+                bool yaw;
+            } disable_axis;
         } velocity;
 
         // Constructor with default values
@@ -86,24 +104,24 @@ namespace control {
             pose.orientation.yaw   = 0.0;
             pose.altitude = 100000.0;  // Just in case
             pose.altitude_mode = false;
-            pose.disable_axis[0] = true;
-            pose.disable_axis[1] = true;
-            pose.disable_axis[2] = true;
-            pose.disable_axis[3] = true;
-            pose.disable_axis[4] = true;
-            pose.disable_axis[5] = true;
+            pose.disable_axis.x = true;
+            pose.disable_axis.y = true;
+            pose.disable_axis.z = true;
+            pose.disable_axis.roll = true;
+            pose.disable_axis.pitch = true;
+            pose.disable_axis.yaw = true;
             velocity.linear.x = 0.0;
             velocity.linear.y = 0.0;
             velocity.linear.z = 0.0;
             velocity.angular.x = 0.0;
             velocity.angular.y = 0.0;
             velocity.angular.z = 0.0;
-            velocity.disable_axis[0] = 0.0;
-            velocity.disable_axis[1] = 0.0;
-            velocity.disable_axis[2] = 0.0;
-            velocity.disable_axis[3] = 0.0;
-            velocity.disable_axis[4] = 0.0;
-            velocity.disable_axis[5] = 0.0;
+            velocity.disable_axis.x = 0.0;
+            velocity.disable_axis.y = 0.0;
+            velocity.disable_axis.z = 0.0;
+            velocity.disable_axis.roll = 0.0;
+            velocity.disable_axis.pitch = 0.0;
+            velocity.disable_axis.yaw = 0.0;
         }
     };
 
