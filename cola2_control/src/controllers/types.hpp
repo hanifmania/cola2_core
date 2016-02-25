@@ -5,42 +5,67 @@
 
 
 namespace control {
+    class SectionMarker {
+    public:
+        struct {
+            double x;
+            double y;
+            double z;
+        } initial_point;
+
+        struct {
+            double x;
+            double y;
+            double z;
+        } final_point;
+
+        SectionMarker() {
+            initial_point.x = 0.0;
+            initial_point.y = 0.0;
+            initial_point.z = 0.0;
+            final_point.x = 0.0;
+            final_point.y = 0.0;
+            final_point.z = 0.0;
+        }
+    };
+
+
     class Section {
     public:
         // Initial state
-        double initial_x;
-        double initial_y;
-        double initial_z;
+        struct {
+            double x, y, z;
+        } initial_position;
         double initial_yaw;
         double initial_surge;
         bool use_initial_yaw;
 
         // Final state
-        double final_x;
-        double final_y;
-        double final_z;
+        struct {
+            double x, y, z;
+        } final_position;
         double final_yaw;
         double final_surge;
         bool use_final_yaw;
 
         // Flag to consider z as altitude
-        bool use_altitude;
+        bool altitude_mode;
 
         // Constructor with default values
         Section() {
-            initial_x = 0.0;
-            initial_y = 0.0;
-            initial_z = 0.0;
+            initial_position.x = 0.0;
+            initial_position.y = 0.0;
+            initial_position.z = 0.0;
             initial_yaw = 0.0;
             initial_surge = 0.0;
             use_initial_yaw = false;
-            final_x = 0.0;
-            final_y = 0.0;
-            final_z = 0.0;
+            final_position.x = 0.0;
+            final_position.y = 0.0;
+            final_position.z = 0.0;
             final_yaw = 0.0;
             final_surge = 0.0;
             use_final_yaw = false;
-            use_altitude = false;
+            altitude_mode = false;
         }
     };
 

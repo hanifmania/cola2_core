@@ -15,6 +15,9 @@
 
 
 class Pilot {
+public:
+    Pilot();
+
 private:
     // Node handle
     ros::NodeHandle _nh;
@@ -27,8 +30,7 @@ private:
     ros::Publisher _pub_wwr, _pub_bvr, _pub_marker;
 
     // Actionlib servers
-    boost::shared_ptr<actionlib::SimpleActionServer<
-        cola2_msgs::SectionAction> > _section_server;
+    boost::shared_ptr< actionlib::SimpleActionServer<cola2_msgs::SectionAction> > _section_server;
 
     // Other vars
     control::State _current_state;
@@ -50,9 +52,6 @@ private:
     void publishMarker(double, double, double);
     void getConfig();
     template<typename T> void getParam(std::string, T&);
-
-public:
-    Pilot();
 };
 
 
@@ -109,19 +108,19 @@ void
 Pilot::sectionServerCallback(const cola2_msgs::SectionGoalConstPtr& data) {
     // Conversion from actionlib goal to internal Section type
     control::Section section;
-    section.initial_x       = data->initial_x;
-    section.initial_y       = data->initial_y;
-    section.initial_z       = data->initial_z;
-    section.initial_yaw     = data->initial_yaw;
-    section.initial_surge   = data->initial_surge;
-    section.use_initial_yaw = data->use_initial_yaw;
-    section.final_x         = data->final_x;
-    section.final_y         = data->final_y;
-    section.final_z         = data->final_z;
-    section.final_yaw       = data->final_yaw;
-    section.final_surge     = data->final_surge;
-    section.use_final_yaw   = data->use_final_yaw;
-    section.use_altitude    = data->use_altitude;
+    section.initial_position.x      = data->initial_position.x;
+    section.initial_position.y      = data->initial_position.y;
+    section.initial_position.z      = data->initial_position.z;
+    section.initial_yaw             = data->initial_yaw;
+    section.initial_surge           = data->initial_surge;
+    section.use_initial_yaw         = data->use_initial_yaw;
+    section.final_position.x        = data->final_position.x;
+    section.final_position.y        = data->final_position.y;
+    section.final_position.z        = data->final_position.z;
+    section.final_yaw               = data->final_yaw;
+    section.final_surge             = data->final_surge;
+    section.use_final_yaw           = data->use_final_yaw;
+    section.altitude_mode           = data->altitude_mode;
 
     // Main loop
     double init_time = ros::Time::now().toSec();
@@ -163,7 +162,9 @@ Pilot::sectionServerCallback(const cola2_msgs::SectionGoalConstPtr& data) {
         publishFeedback(feedback);
 
         // Publish marker
-        publishMarker(section.final_x, section.final_y, section.final_z);
+        publishMarker(section.final_position.x,
+                      section.final_position.y,
+                      section.final_position.z);
 
         // Check for success
         if (feedback.success) {
@@ -199,7 +200,7 @@ Pilot::sectionServerCallback(const cola2_msgs::SectionGoalConstPtr& data) {
 
 void
 Pilot::publishControlCommands(const control::State& controller_output,
-                              unsigned int priority) {
+                              const unsigned int priority) {
     // Get time
     ros::Time now = ros::Time::now();
 
@@ -306,7 +307,7 @@ Pilot::getConfig() {
 
 
 template<typename T> void
-Pilot::getParam(std::string param_name, T& param_var) {
+Pilot::getParam(const std::string param_name, T& param_var) {
     // Display a message if a parameter is not found in the param server
     if (!ros::param::getCached(param_name, param_var)) {
         ROS_WARN_STREAM(_node_name << ": invalid parameter for " <<
