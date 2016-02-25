@@ -50,6 +50,7 @@ private:
     void publishControlCommands(const control::State&, unsigned int);
     void publishFeedback(const control::Feedback&);
     void publishMarker(double, double, double);
+    void publishMarkerSections(const control::PointsList);
     void getConfig();
     template<typename T> void getParam(std::string, T&);
 };
@@ -130,6 +131,7 @@ Pilot::sectionServerCallback(const cola2_msgs::SectionGoalConstPtr& data) {
         control::State controller_output;
         control::Feedback feedback;
         cola2_msgs::SectionResult result_msg;
+        control::PointsList points;
 
         // Run controller
         try {
@@ -141,7 +143,7 @@ Pilot::sectionServerCallback(const cola2_msgs::SectionGoalConstPtr& data) {
                                                1.0 / _config.rate,
                                                controller_output,
                                                feedback,
-                                               _pub_marker);
+                                               points);
                     break;
                 default:
                     throw std::runtime_error("Unknown controller");
@@ -165,6 +167,8 @@ Pilot::sectionServerCallback(const cola2_msgs::SectionGoalConstPtr& data) {
         publishMarker(section.final_position.x,
                       section.final_position.y,
                       section.final_position.z);
+
+        publishMarkerSections(points);
 
         // Check for success
         if (feedback.success) {
@@ -293,6 +297,35 @@ Pilot::publishMarker(double north, double east, double depth) {
     _pub_marker.publish(marker);
 }
 
+void
+Pilot::publishMarkerSections(const control::PointsList points)
+{
+    // Create visualization marker
+    visualization_msgs::Marker marker;
+    marker.header.frame_id = "world";
+    marker.header.stamp = ros::Time::now();
+    marker.ns = "/dubins";
+    marker.type = visualization_msgs::Marker::LINE_LIST;
+    marker.action = visualization_msgs::Marker::ADD;
+
+    // Add points to it
+    for (unsigned int i = 0; i < points.points_list.size(); i++) {
+        geometry_msgs::Point p;
+        p.x = points.points_list.at(i).x;
+        p.y = points.points_list.at(i).y;
+        p.z = points.points_list.at(i).z;
+        marker.points.push_back(p);
+    }
+
+    marker.scale.x = 0.35;
+    marker.color.r = 0.8;
+    marker.color.g = 0.8;
+    marker.color.b = 0.0;
+    marker.color.a = 0.5;
+    marker.lifetime = ros::Duration(1.0);
+    marker.frame_locked = false;
+    _pub_marker.publish(marker);
+}
 
 void
 Pilot::getConfig() {

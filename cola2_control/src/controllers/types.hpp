@@ -4,46 +4,30 @@
 #include <vector>
 
 
+
 namespace control {
-    class SectionMarker {
+    typedef struct {
+        double x;
+        double y;
+        double z;
+    } point;
+
+    class PointsList {
     public:
-        struct {
-            double x;
-            double y;
-            double z;
-        } initial_point;
-
-        struct {
-            double x;
-            double y;
-            double z;
-        } final_point;
-
-        SectionMarker() {
-            initial_point.x = 0.0;
-            initial_point.y = 0.0;
-            initial_point.z = 0.0;
-            final_point.x = 0.0;
-            final_point.y = 0.0;
-            final_point.z = 0.0;
-        }
+        std::vector<control::point> points_list;
+        PointsList() {}
     };
-
 
     class Section {
     public:
         // Initial state
-        struct {
-            double x, y, z;
-        } initial_position;
+        control::point initial_position;
         double initial_yaw;
         double initial_surge;
         bool use_initial_yaw;
 
         // Final state
-        struct {
-            double x, y, z;
-        } final_position;
+        control::point final_position;
         double final_yaw;
         double final_surge;
         bool use_final_yaw;
@@ -87,12 +71,8 @@ namespace control {
 
         // Velocity
         struct {
-            struct {
-                double x, y, z;
-            } linear;
-            struct {
-                double x, y, z;
-            } angular;
+            control::point linear;
+            control::point angular;
             bool disable_axis[6];
         } velocity;
 

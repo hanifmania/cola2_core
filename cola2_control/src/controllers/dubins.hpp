@@ -9,9 +9,6 @@
 #include <math.h>
 #include <cola2_lib/cola2_util.h>
 
-#include <ros/ros.h>  // TODO: this should not publish the markers!
-
-
 typedef struct {
     double yaw_ki;
     double yaw_kp;
@@ -29,7 +26,7 @@ public:
                  double period,
                  control::State&,
                  control::Feedback&,
-                 ros::Publisher&);
+                 control::PointsList&);
     void setConfig(const DubinsSectionControllerConfig&);
 
 private:
@@ -46,7 +43,7 @@ private:
     void computeEBetaGammaSectionLength(const control::State&,
                                         const control::Section&,
                                         double&, double&, double&, double&,
-                                        ros::Publisher&);
+                                        control::PointsList&);
     double wrapZeroToTwoPi(double);
 };
 
@@ -75,7 +72,7 @@ DubinsSectionController::compute(const control::State& current_state,
                                  double period,
                                  control::State& controller_output,
                                  control::Feedback& feedback,
-                                 ros::Publisher& _pub_marker) {
+                                 control::PointsList& marker) {
     // Compute track variables
     double e, beta, gamma, section_length;
     computeEBetaGammaSectionLength(current_state,
@@ -84,7 +81,7 @@ DubinsSectionController::compute(const control::State& current_state,
                                    beta,
                                    gamma,
                                    section_length,
-                                   _pub_marker);
+                                   marker);
 
     // Compute surge (linear interpolation)
     double desired_surge = section.initial_surge +
@@ -152,7 +149,7 @@ DubinsSectionController::computeEBetaGammaSectionLength(
                             double& beta,
                             double& gamma,
                             double& section_length,
-                            ros::Publisher& _pub_marker) {
+                            control::PointsList& marker) {
 
 
     // Compute interesting variables
@@ -218,32 +215,18 @@ DubinsSectionController::computeEBetaGammaSectionLength(
             else if (gamma > 1.0) gamma = 1.0;
         }
 
-        // Publish section markers TODO: this should be done in another place
-        visualization_msgs::Marker marker;
-        marker.header.frame_id = "world";
-        marker.header.stamp = ros::Time::now();
-        marker.ns = "/dubins";
-        marker.type = visualization_msgs::Marker::LINE_LIST;
-        marker.action = visualization_msgs::Marker::ADD;
+        //Fill marker
+        control::point initial_point;
+        control::point final_point;
 
-        geometry_msgs::Point p1, p2;
-        p1.x = section.initial_position.x;
-        p1.y = section.initial_position.y;
-        p1.z = section.initial_position.z;
-        p2.x = section.final_position.x;
-        p2.y = section.final_position.y;
-        p2.z = section.final_position.z;
-        marker.points.push_back(p1);
-        marker.points.push_back(p2);
-
-        marker.scale.x = 0.35;
-        marker.color.r = 0.8;
-        marker.color.g = 0.8;
-        marker.color.b = 0.0;
-        marker.color.a = 0.5;
-        marker.lifetime = ros::Duration(1.0);
-        marker.frame_locked = false;
-        _pub_marker.publish(marker);
+        initial_point.x = section.initial_position.x;
+        initial_point.y = section.initial_position.y;
+        initial_point.z = section.initial_position.z;
+        marker.points_list.push_back(initial_point);
+        final_point.x = section.final_position.x;
+        final_point.y = section.final_position.y;
+        final_point.z = section.final_position.z;
+        marker.points_list.push_back(final_point);
     }
     else {  // Follow an arc
         // Find center
@@ -369,14 +352,7 @@ DubinsSectionController::computeEBetaGammaSectionLength(
         e = -(current_state.pose.position.north - nearest_north) * sin(beta) +
              (current_state.pose.position.east - nearest_east) * cos(beta);
 
-        // Publish section markers TODO: this should be done in another place
-        visualization_msgs::Marker marker;
-        marker.header.frame_id = "world";
-        marker.header.stamp = ros::Time::now();
-        marker.ns = "/dubins";
-        marker.type = visualization_msgs::Marker::LINE_LIST;
-        marker.action = visualization_msgs::Marker::ADD;
-
+        // Fill section markers
         double delta_angle = w_angle_e;
         if (direction == -1) delta_angle = 2*M_PI - delta_angle;
 
@@ -387,25 +363,16 @@ DubinsSectionController::computeEBetaGammaSectionLength(
             double bx = center_x + radius * cos(angle_s + direction * delta_angle * (i + 1) / pieces);
             double by = center_y + radius * sin(angle_s + direction * delta_angle * (i + 1) / pieces);
 
-            geometry_msgs::Point p1, p2;
+            control::point p1, p2;
             p1.x = ax;
             p1.y = ay;
             p1.z = section.initial_position.z + (i / pieces) * (section.final_position.z - section.initial_position.z);
             p2.x = bx;
             p2.y = by;
             p2.z = section.initial_position.z + ((i + 1) / pieces) * (section.final_position.z - section.initial_position.z);
-            marker.points.push_back(p1);
-            marker.points.push_back(p2);
+            marker.points_list.push_back(p1);
+            marker.points_list.push_back(p2);
         }
-
-        marker.scale.x = 0.35;
-        marker.color.r = 0.8;
-        marker.color.g = 0.8;
-        marker.color.b = 0.0;
-        marker.color.a = 0.5;
-        marker.lifetime = ros::Duration(1.0);
-        marker.frame_locked = false;
-        _pub_marker.publish(marker);
     }
 }
 
