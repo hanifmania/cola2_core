@@ -18,6 +18,8 @@ bool altitude_mode
 # Controller type
 uint64 controller_type
 uint64 DUBINS=0
+uint64 LOSCTE=1
+
 
 # Priority
 uint64 priority

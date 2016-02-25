@@ -12,7 +12,7 @@
 #include <visualization_msgs/Marker.h>
 #include "controllers/types.hpp"
 #include "controllers/dubins.hpp"
-
+#include "controllers/los_cte.hpp"
 
 class Pilot {
 public:
@@ -37,6 +37,7 @@ private:
 
     // Controllers
     DubinsSectionController _dubins_controller;
+    LosCteController *_los_cte_controller;
 
     // Config
     struct {
@@ -62,6 +63,19 @@ Pilot::Pilot() {
 
     // Get config
     getConfig();
+
+    // Initialize controllers
+    // Line of Sight with Cross Tracking Error Controller
+    LosCteControllerConfig config;
+    config.delta = 8.0;
+    config.distance_to_max_velocity = 5.0;
+    config.max_surge_velocity = 0.5;
+    config.min_surge_velocity = 0.2;
+    config.min_velocity_ratio = 0.1;
+    config.tolerance.x = 3.0;
+    config.tolerance.y = 3.0;
+    config.tolerance.z = 1.5;
+    _los_cte_controller = new LosCteController(config);
 
     // Publishers
     _pub_wwr = _nh.advertise<auv_msgs::WorldWaypointReq>(
@@ -145,6 +159,14 @@ Pilot::sectionServerCallback(const cola2_msgs::SectionGoalConstPtr& data) {
                                                feedback,
                                                points);
                     break;
+                    case cola2_msgs::SectionGoal::LOSCTE:
+                        ROS_DEBUG_STREAM(_node_name << ": LOSCTE controller");
+                        _los_cte_controller->compute(_current_state,
+                                                     section,
+                                                     controller_output,
+                                                     feedback,
+                                                     points);
+                        break;
                 default:
                     throw std::runtime_error("Unknown controller");
             }
@@ -214,12 +236,12 @@ Pilot::publishControlCommands(const control::State& controller_output,
     wwr.header.stamp = now;
     wwr.goal.priority = priority;
     wwr.goal.requester = _node_name + "_pose";
-    wwr.disable_axis.x     = controller_output.pose.disable_axis[0];
-    wwr.disable_axis.y     = controller_output.pose.disable_axis[1];
-    wwr.disable_axis.z     = controller_output.pose.disable_axis[2];
-    wwr.disable_axis.roll  = controller_output.pose.disable_axis[3];
-    wwr.disable_axis.pitch = controller_output.pose.disable_axis[4];
-    wwr.disable_axis.yaw   = controller_output.pose.disable_axis[5];
+    wwr.disable_axis.x     = controller_output.pose.disable_axis.x;
+    wwr.disable_axis.y     = controller_output.pose.disable_axis.y;
+    wwr.disable_axis.z     = controller_output.pose.disable_axis.z;
+    wwr.disable_axis.roll  = controller_output.pose.disable_axis.roll;
+    wwr.disable_axis.pitch = controller_output.pose.disable_axis.pitch;
+    wwr.disable_axis.yaw   = controller_output.pose.disable_axis.yaw;
     wwr.position.north     = controller_output.pose.position.north;
     wwr.position.east      = controller_output.pose.position.east;
     wwr.position.depth     = controller_output.pose.position.depth;
@@ -234,12 +256,12 @@ Pilot::publishControlCommands(const control::State& controller_output,
     bvr.header.stamp = now;
     bvr.goal.priority = priority;
     bvr.goal.requester = _node_name + "_velocity";
-    bvr.disable_axis.x     = controller_output.velocity.disable_axis[0];
-    bvr.disable_axis.y     = controller_output.velocity.disable_axis[1];
-    bvr.disable_axis.z     = controller_output.velocity.disable_axis[2];
-    bvr.disable_axis.roll  = controller_output.velocity.disable_axis[3];
-    bvr.disable_axis.pitch = controller_output.velocity.disable_axis[4];
-    bvr.disable_axis.yaw   = controller_output.velocity.disable_axis[5];
+    bvr.disable_axis.x     = controller_output.velocity.disable_axis.x;
+    bvr.disable_axis.y     = controller_output.velocity.disable_axis.y;
+    bvr.disable_axis.z     = controller_output.velocity.disable_axis.z;
+    bvr.disable_axis.roll  = controller_output.velocity.disable_axis.roll;
+    bvr.disable_axis.pitch = controller_output.velocity.disable_axis.pitch;
+    bvr.disable_axis.yaw   = controller_output.velocity.disable_axis.yaw;
     bvr.twist.linear.x     = controller_output.velocity.linear.x;
     bvr.twist.linear.y     = controller_output.velocity.linear.y;
     bvr.twist.linear.z     = controller_output.velocity.linear.z;
