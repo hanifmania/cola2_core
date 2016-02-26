@@ -15,6 +15,8 @@
 #include "controllers/dubins.hpp"
 #include "controllers/los_cte.hpp"
 #include "controllers/goto.hpp"
+#include "controllers/holonomic_goto.hpp"
+
 
 
 #define SECTION_MODE    0
@@ -46,6 +48,7 @@ private:
     DubinsSectionController _dubins_controller;
     LosCteController *_los_cte_controller;
     GotoController * _goto_controller;
+    HolonomicGotoController * _holonomic_goto_controller;
 
     // Mutex between section and waypoint controllers
     // TODO: To be done
@@ -54,6 +57,7 @@ private:
     struct {
         LosCteControllerConfig los_cte_config;
         GotoControllerConfig goto_config;
+        HolonomicGotoControllerConfig holonomic_goto_config;
     } _config;
 
     // Methods
@@ -81,6 +85,8 @@ Pilot::Pilot()
     _los_cte_controller = new LosCteController(_config.los_cte_config);
     // Go to waypoint
     _goto_controller = new GotoController(_config.goto_config);
+    // Holonomic Goto waypoint
+    _holonomic_goto_controller = new HolonomicGotoController(_config.holonomic_goto_config);
 
     // Publishers
     _pub_wwr = _nh.advertise<auv_msgs::WorldWaypointReq>(
@@ -183,9 +189,16 @@ Pilot::waypointServerCallback(const cola2_msgs::WorldWaypointReqGoalConstPtr& da
                                              feedback,
                                              points);
                     break;
+                case cola2_msgs::WorldWaypointReqGoal::HOLONOMIC_GOTO:
+                    ROS_DEBUG_STREAM(_node_name << ": HOLONOMIC_GOTO controller");
+                    _holonomic_goto_controller->compute(_current_state,
+                                                        waypoint,
+                                                        controller_output,
+                                                        feedback,
+                                                        points);
+                    break;
                 default:
                     std::cout << "Controller: " <<  data->controller_type << "\n";
-                    std::cout << "Goto controller is :" << cola2_msgs::WorldWaypointReqGoal::GOTO << "\n";
                     throw std::runtime_error("Unknown controller");
             }
         }
