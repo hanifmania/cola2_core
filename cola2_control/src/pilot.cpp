@@ -4,6 +4,7 @@
 #include <stdexcept>
 #include <actionlib/server/simple_action_server.h>
 #include <cola2_msgs/WorldSectionReqAction.h>
+#include <cola2_msgs/WorldWaypointReqAction.h>
 #include <boost/shared_ptr.hpp>
 #include <boost/bind.hpp>
 #include <auv_msgs/NavSts.h>
@@ -13,6 +14,11 @@
 #include "controllers/types.hpp"
 #include "controllers/dubins.hpp"
 #include "controllers/los_cte.hpp"
+#include "controllers/goto.hpp"
+
+
+#define SECTION_MODE    0
+#define WAYPOINT_MODE   1
 
 class Pilot {
 public:
@@ -31,6 +37,7 @@ private:
 
     // Actionlib servers
     boost::shared_ptr< actionlib::SimpleActionServer<cola2_msgs::WorldSectionReqAction> > _section_server;
+    boost::shared_ptr< actionlib::SimpleActionServer<cola2_msgs::WorldWaypointReqAction> > _waypoint_server;
 
     // Other vars
     control::State _current_state;
@@ -38,17 +45,20 @@ private:
     // Controllers
     DubinsSectionController _dubins_controller;
     LosCteController *_los_cte_controller;
+    GotoController * _goto_controller;
 
     // Config
     struct {
         LosCteControllerConfig los_cte_config;
+        GotoControllerConfig goto_config;
     } _config;
 
     // Methods
     void navCallback(const auv_msgs::NavSts&);
     void sectionServerCallback(const cola2_msgs::WorldSectionReqGoalConstPtr&);
+    void waypointServerCallback(const cola2_msgs::WorldWaypointReqGoalConstPtr&);
     void publishControlCommands(const control::State&, unsigned int);
-    void publishFeedback(const control::Feedback&);
+    void publishFeedback(const control::Feedback&, unsigned int);
     void publishMarker(double, double, double);
     void publishMarkerSections(const control::PointsList);
     void getConfig();
@@ -65,14 +75,13 @@ Pilot::Pilot() {
 
     // Initialize controllers
     // Line of Sight with Cross Tracking Error Controller
-    // TODO: put these param in pilot config file and add a service to set them
-    LosCteControllerConfig config;
-    config.delta = 8.0;
-    config.distance_to_max_velocity = 5.0;
-    config.max_surge_velocity = 0.5;
-    config.min_surge_velocity = 0.2;
-    config.min_velocity_ratio = 0.1;
-    _los_cte_controller = new LosCteController(config);
+    _los_cte_controller = new LosCteController(_config.los_cte_config);
+
+    GotoControllerConfig goto_config;
+    goto_config.max_angle_error = 0.3;
+    goto_config.max_surge = 0.5;
+    goto_config.surge_proportional_gain = 0.25;
+    _goto_controller = new GotoController(goto_config);
 
     // Publishers
     _pub_wwr = _nh.advertise<auv_msgs::WorldWaypointReq>(
@@ -88,12 +97,21 @@ Pilot::Pilot() {
 
     // Actionlib server. Smart pointer is used so that server construction is
     // delayed after configuration is loaded
+    // SECTION action lib
     _section_server = boost::shared_ptr<actionlib::SimpleActionServer<
         cola2_msgs::WorldSectionReqAction> >(
         new actionlib::SimpleActionServer<cola2_msgs::WorldSectionReqAction>(
         _nh, "world_section_req",
         boost::bind(&Pilot::sectionServerCallback, this, _1), false));
     _section_server->start();
+
+    // WAYPOINT action lib
+    _waypoint_server = boost::shared_ptr<actionlib::SimpleActionServer<
+        cola2_msgs::WorldWaypointReqAction> >(
+        new actionlib::SimpleActionServer<cola2_msgs::WorldWaypointReqAction>(
+        _nh, "world_waypoint_req",
+        boost::bind(&Pilot::waypointServerCallback, this, _1), false));
+    _waypoint_server->start();
 
     // Display message
     ROS_INFO_STREAM(_node_name << ": initialized");
@@ -115,6 +133,113 @@ Pilot::navCallback(const auv_msgs::NavSts& data) {
     _current_state.velocity.linear.z      = data.body_velocity.z;
 }
 
+void
+Pilot::waypointServerCallback(const cola2_msgs::WorldWaypointReqGoalConstPtr& data) {
+    // Conversion from actionlib goal to internal Section type
+    control::Waypoint waypoint;
+    waypoint.altitude = data->altitude;
+    waypoint.altitude_mode = data->altitude_mode;
+    waypoint.controller_type = data->controller_type;
+    waypoint.disable_axis.x = data->disable_axis.x;
+    waypoint.disable_axis.y = data->disable_axis.y;
+    waypoint.disable_axis.z = data->disable_axis.z;
+    waypoint.disable_axis.roll = data->disable_axis.roll;
+    waypoint.disable_axis.pitch = data->disable_axis.pitch;
+    waypoint.disable_axis.yaw = data->disable_axis.yaw;
+    waypoint.position.north = data->position.north;
+    waypoint.position.east = data->position.east;
+    waypoint.position.depth = data->position.depth;
+    waypoint.orientation.roll = data->orientation.roll;
+    waypoint.orientation.pitch = data->orientation.pitch;
+    waypoint.orientation.yaw = data->orientation.yaw;
+    waypoint.position_tolerance.x = data->position_tolerance.x;
+    waypoint.position_tolerance.y = data->position_tolerance.y;
+    waypoint.position_tolerance.z = data->position_tolerance.z;
+    waypoint.orientation_tolerance.roll = data->orientation_tolerance.roll;
+    waypoint.orientation_tolerance.pitch = data->orientation_tolerance.pitch;
+    waypoint.orientation_tolerance.yaw = data->orientation_tolerance.yaw;
+    waypoint.priority = data->goal.priority;
+    waypoint.requester = data->goal.requester;
+    waypoint.timeout = data->timeout;
+
+    // Main loop
+    double init_time = ros::Time::now().toSec();
+    ros::Rate r(10);  // 10Hz
+    while (ros::ok()) {
+        // Declare some vars
+        control::State controller_output;
+        control::Feedback feedback;
+        cola2_msgs::WorldWaypointReqResult result_msg;
+        control::PointsList points;
+
+        // Run controller
+        try {
+            switch (data->controller_type) {
+                case cola2_msgs::WorldWaypointReqGoal::GOTO:
+                    ROS_DEBUG_STREAM(_node_name << ": GOTO controller");
+                    _goto_controller->compute(_current_state,
+                                             waypoint,
+                                             controller_output,
+                                             feedback,
+                                             points);
+                    break;
+                default:
+                    std::cout << "Controller: " <<  data->controller_type << "\n";
+                    std::cout << "Goto controller is :" << cola2_msgs::WorldWaypointReqGoal::GOTO << "\n";
+                    throw std::runtime_error("Unknown controller");
+            }
+        }
+        catch (std::exception& e) {
+            // Check for failure
+            ROS_ERROR_STREAM(_node_name << ": controller failure\n" << e.what());
+            result_msg.final_status = cola2_msgs::WorldWaypointReqResult::FAILURE;
+            _waypoint_server->setAborted(result_msg);
+            break;
+        }
+
+        // Publish control commands
+        publishControlCommands(controller_output, data->goal.priority);
+
+        // Publish actionlib feedback
+        publishFeedback(feedback, WAYPOINT_MODE);
+
+        // Publish marker
+        publishMarker(waypoint.position.north,
+                      waypoint.position.east,
+                      waypoint.position.depth);
+
+        publishMarkerSections(points);
+
+        // Check for success
+        if (feedback.success) {
+            ROS_INFO_STREAM(_node_name << ": waypoint success");
+            result_msg.final_status = cola2_msgs::WorldWaypointReqResult::SUCCESS;
+            _waypoint_server->setSucceeded(result_msg);
+            break;
+        }
+
+        // Check for preempted. This happens upon user request (by preempting
+        // or cancelling the goal, or when a new SectionGoal is received
+        if (_waypoint_server->isPreemptRequested()) {
+            ROS_WARN_STREAM(_node_name << ": waypoint preempted");
+            _waypoint_server->setPreempted();
+            break;
+        }
+
+        // Check for timeout
+        if (data->timeout > 0.0) {
+            if ((ros::Time::now().toSec() - init_time) > data->timeout) {
+                ROS_WARN_STREAM(_node_name << ": waypoint timeout");
+                result_msg.final_status = cola2_msgs::WorldWaypointReqResult::TIMEOUT;
+                _waypoint_server->setAborted(result_msg);
+                break;
+            }
+        }
+
+        // Sleep
+        r.sleep();
+    }
+}
 
 void
 Pilot::sectionServerCallback(const cola2_msgs::WorldSectionReqGoalConstPtr& data) {
@@ -133,6 +258,10 @@ Pilot::sectionServerCallback(const cola2_msgs::WorldSectionReqGoalConstPtr& data
     section.final_surge             = data->final_surge;
     section.use_final_yaw           = data->use_final_yaw;
     section.altitude_mode           = data->altitude_mode;
+    section.tolerance.x             = data->tolerance.x;
+    section.tolerance.y             = data->tolerance.y;
+    section.tolerance.z             = data->tolerance.z;
+
 
     // Main loop
     double init_time = ros::Time::now().toSec();
@@ -180,7 +309,7 @@ Pilot::sectionServerCallback(const cola2_msgs::WorldSectionReqGoalConstPtr& data
         publishControlCommands(controller_output, data->priority);
 
         // Publish actionlib feedback
-        publishFeedback(feedback);
+        publishFeedback(feedback, SECTION_MODE);
 
         // Publish marker
         publishMarker(section.final_position.x,
@@ -273,17 +402,33 @@ Pilot::publishControlCommands(const control::State& controller_output,
 
 
 void
-Pilot::publishFeedback(const control::Feedback& feedback) {
+Pilot::publishFeedback(const control::Feedback& feedback, unsigned int mode=SECTION_MODE) {
     // Conversion from internal feedback type to actionlib feedback
-    cola2_msgs::WorldSectionReqFeedback msg;
-    msg.desired_surge           = feedback.desired_surge;
-    msg.desired_depth           = feedback.desired_depth;
-    msg.desired_yaw             = feedback.desired_yaw;
-    msg.cross_track_error       = feedback.cross_track_error;
-    msg.depth_error             = feedback.depth_error;
-    msg.yaw_error               = feedback.yaw_error;
-    msg.distance_to_section_end = feedback.distance_to_section_end;
-    _section_server->publishFeedback(msg);
+    switch(mode) {
+        case SECTION_MODE:
+        {
+            cola2_msgs::WorldSectionReqFeedback msg;
+            msg.desired_surge           = feedback.desired_surge;
+            msg.desired_depth           = feedback.desired_depth;
+            msg.desired_yaw             = feedback.desired_yaw;
+            msg.cross_track_error       = feedback.cross_track_error;
+            msg.depth_error             = feedback.depth_error;
+            msg.yaw_error               = feedback.yaw_error;
+            msg.distance_to_section_end = feedback.distance_to_end;
+            _section_server->publishFeedback(msg);
+            break;
+        }
+        case WAYPOINT_MODE:
+        {
+            cola2_msgs::WorldWaypointReqFeedback msg;
+            // TODO: To be completed
+            msg.distance_to_waypoint = feedback.distance_to_end;
+            _waypoint_server->publishFeedback(msg);
+            break;
+        }
+        default:
+            std::cout << "Error, invalid feedback message!\n";
+    }
 }
 
 

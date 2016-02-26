@@ -2,6 +2,7 @@
 #include <actionlib/client/simple_action_client.h>
 #include <actionlib/client/terminal_state.h>
 #include <cola2_msgs/WorldSectionReqAction.h>
+#include <cola2_msgs/WorldWaypointReqAction.h>
 #include <boost/shared_ptr.hpp>
 
 
@@ -19,6 +20,9 @@ private:
     // Actionlib client
     boost::shared_ptr<actionlib::SimpleActionClient<
         cola2_msgs::WorldSectionReqAction> > section_client;
+
+    boost::shared_ptr<actionlib::SimpleActionClient<
+        cola2_msgs::WorldWaypointReqAction> > waypoint_client;
 
     // Config
     struct {
@@ -44,8 +48,46 @@ Captain::Captain() {
     section_client = boost::shared_ptr<actionlib::SimpleActionClient<
         cola2_msgs::WorldSectionReqAction> >(
         new actionlib::SimpleActionClient<cola2_msgs::WorldSectionReqAction>(
-        config.section_server_name, true));
+        "world_section_req", true));
     section_client->waitForServer();  // Wait for infinite time
+
+    waypoint_client = boost::shared_ptr<actionlib::SimpleActionClient<
+        cola2_msgs::WorldWaypointReqAction> >(
+        new actionlib::SimpleActionClient<cola2_msgs::WorldWaypointReqAction>(
+        "world_waypoint_req", true));
+    waypoint_client->waitForServer();  // Wait for infinite time
+
+
+    // Create Waypoint
+    cola2_msgs::WorldWaypointReqGoal waypoint;
+    waypoint.goal.priority = 10;
+    waypoint.goal.requester = "captain";
+    waypoint.altitude_mode = false;
+    waypoint.position.north = 10.0;
+    waypoint.position.east = 10.0;
+    waypoint.position.depth = 2.0;
+    waypoint.disable_axis.x = false;
+    waypoint.disable_axis.z = false;
+    waypoint.position_tolerance.x = 3.0;
+    waypoint.position_tolerance.y = 3.0;
+    waypoint.position_tolerance.z = 1.5;
+    waypoint.controller_type = cola2_msgs::WorldWaypointReqGoal::GOTO;
+    waypoint.timeout = 100;
+    std::cout << "Send waypoint 1\n";
+    // waypoint_client->sendGoal(waypoint);
+    // waypoint_client->waitForResult(ros::Duration(120.0));
+
+    waypoint.position.north = 0.0;
+    waypoint.position.east = 0.0;
+    std::cout << "Send waypoint 2\n";
+    // waypoint_client->sendGoal(waypoint);
+    // waypoint_client->waitForResult(ros::Duration(120.0));
+
+    waypoint.position.north = -10.0;
+    waypoint.position.east = -10.0;
+    std::cout << "Send waypoint 3\n";
+    // waypoint_client->sendGoal(waypoint);
+    // waypoint_client->waitForResult(ros::Duration(120.0));
 
     // Create section
     cola2_msgs::WorldSectionReqGoal section;

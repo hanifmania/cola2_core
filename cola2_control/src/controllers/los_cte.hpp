@@ -87,6 +87,7 @@ LosCteController::compute(const control::State& current_state,
 
     // Check if final position X, Y is reached
     feedback.success = false;
+
     if(fabs(current_state.pose.position.north - section.final_position.x) < section.tolerance.x &&
        fabs(current_state.pose.position.east - section.final_position.y) < section.tolerance.y){
         // If Z axis is disabled success is true ...
@@ -120,16 +121,18 @@ LosCteController::compute(const control::State& current_state,
             // If z is uncontrolled
             feedback.success = true;
         }
-        else if(fabs(current_z - section.final_position.z) < section.tolerance.z){
-            // If Z is ok, success = True.
-            feedback.success = true;
-        }
         else {
-            // Otherwise X and Yaw = 0.0 and success = false
-            // wait for z to be True
-            desired_yaw = current_state.pose.orientation.yaw;
-            surge = 0.0;
-            feedback.success = false;
+            if(fabs(current_z - section.final_position.z) < section.tolerance.z){
+                // If Z is ok, success = True.
+                feedback.success = true;
+            }
+            else {
+                // Otherwise X and Yaw = 0.0 and success = false
+                // wait for z to be True
+                desired_yaw = current_state.pose.orientation.yaw;
+                surge = 0.0;
+                feedback.success = false;
+            }
         }
     }
 
@@ -171,7 +174,7 @@ LosCteController::compute(const control::State& current_state,
     // std::cout << "Desired Surge: " << surge << "\n";
 
     // Fill additional feedback vars
-    feedback.distance_to_section_end = dist_final;
+    feedback.distance_to_end = dist_final;
 
     //Fill marker
     control::point initial_point;

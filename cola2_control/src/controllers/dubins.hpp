@@ -114,9 +114,9 @@ DubinsSectionController::compute(const control::State& current_state,
     feedback.cross_track_error = e;
     feedback.depth_error = desired_depth - current_state.pose.position.depth;
     feedback.yaw_error = cola2::util::normalizeAngle(desired_yaw - current_state.pose.orientation.yaw);
-    feedback.distance_to_section_end = (1.0 - gamma) * section_length;
+    feedback.distance_to_end = (1.0 - gamma) * section_length;
     feedback.success = false;
-    if (feedback.distance_to_section_end < _config.acceptance_sec *
+    if (feedback.distance_to_end < _config.acceptance_sec *
         fabs(current_state.velocity.linear.x)) feedback.success = true;
 
     // Debug info
@@ -137,7 +137,7 @@ DubinsSectionController::compute(const control::State& current_state,
     std::cout << "/dubins: desired_surge = " << desired_surge << std::endl;
     std::cout << "/dubins: desired_depth = " << desired_depth << std::endl;
     std::cout << "/dubins: desired_yaw = " << desired_yaw << std::endl;
-    std::cout << "/dubins: distance_to_section_end = " << feedback.distance_to_section_end << std::endl;*/
+    std::cout << "/dubins: distance_to_end = " << feedback.distance_to_end << std::endl;*/
 }
 
 

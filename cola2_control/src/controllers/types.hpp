@@ -2,7 +2,7 @@
 #define __CONTROLLER_TYPES__
 
 #include <vector>
-
+#include <string>
 
 
 namespace control {
@@ -21,11 +21,68 @@ namespace control {
         double yaw;
     } vector6d;
 
+    typedef struct {
+        double roll;
+        double pitch;
+        double yaw;
+    } rpy;
+
+    typedef struct {
+        double north;
+        double east;
+        double depth;
+    } ned;
+
+
     class PointsList {
     public:
         std::vector<control::point> points_list;
         PointsList() {}
     };
+
+
+    class Waypoint {
+    public:
+        std::string requester;
+        unsigned int priority;
+        bool altitude_mode;
+        control::ned position;
+        double altitude;
+        control::rpy orientation;
+        control::point position_tolerance;
+        control::rpy orientation_tolerance;
+        unsigned int controller_type;
+        unsigned int timeout;
+        control::vector6d disable_axis;
+
+        Waypoint() {
+            requester = "requester_not_defined";
+            priority = 0;
+            altitude_mode = false;
+            position.north = 0.0;
+            position.east = 0.0;
+            position.depth = 0.0;
+            altitude = 100.0;
+            orientation.roll = 0.0;
+            orientation.pitch = 0.0;
+            orientation.yaw = 0.0;
+            position_tolerance.x = 0.0;
+            position_tolerance.y = 0.0;
+            position_tolerance.z = 0.0;
+            orientation_tolerance.roll = 0.0;
+            orientation_tolerance.pitch = 0.0;
+            orientation_tolerance.yaw = 0.0;
+            controller_type = 0;  // GOTO
+            timeout = 0;
+            disable_axis.x = false;
+            disable_axis.y = false;
+            disable_axis.z = false;
+            disable_axis.roll = false;
+            disable_axis.pitch = false;
+            disable_axis.yaw = false;
+        }
+    };
+
 
     class Section {
     public:
@@ -79,12 +136,8 @@ namespace control {
     public:
         // Position
         struct {
-            struct {
-                double north, east, depth;
-            } position;
-            struct {
-                double roll, pitch, yaw;
-            } orientation;
+            control::ned position;
+            control::rpy orientation;
             control::vector6d disable_axis;
             double altitude;
             bool altitude_mode;
@@ -140,7 +193,7 @@ namespace control {
         double cross_track_error;
         double depth_error;
         double yaw_error;
-        double distance_to_section_end;
+        double distance_to_end;
 
         // Success
         bool success;
@@ -152,7 +205,7 @@ namespace control {
             cross_track_error = 0.0;
             depth_error = 0.0;
             yaw_error = 0.0;
-            distance_to_section_end = 0.0;
+            distance_to_end = 0.0;
             success = false;
         }
     };
