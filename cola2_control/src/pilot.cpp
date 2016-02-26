@@ -41,8 +41,7 @@ private:
 
     // Config
     struct {
-        double rate;
-        std::string section_server_name;
+        LosCteControllerConfig los_cte_config;
     } _config;
 
     // Methods
@@ -53,7 +52,7 @@ private:
     void publishMarker(double, double, double);
     void publishMarkerSections(const control::PointsList);
     void getConfig();
-    template<typename T> void getParam(std::string, T&);
+    template<typename T> void getParam(std::string, T&, T);
 };
 
 
@@ -92,7 +91,7 @@ Pilot::Pilot() {
     _section_server = boost::shared_ptr<actionlib::SimpleActionServer<
         cola2_msgs::WorldSectionReqAction> >(
         new actionlib::SimpleActionServer<cola2_msgs::WorldSectionReqAction>(
-        _nh, _config.section_server_name,
+        _nh, "world_section_req",
         boost::bind(&Pilot::sectionServerCallback, this, _1), false));
     _section_server->start();
 
@@ -137,7 +136,7 @@ Pilot::sectionServerCallback(const cola2_msgs::WorldSectionReqGoalConstPtr& data
 
     // Main loop
     double init_time = ros::Time::now().toSec();
-    ros::Rate r(_config.rate);
+    ros::Rate r(10);  // 10Hz
     while (ros::ok()) {
         // Declare some vars
         control::State controller_output;
@@ -152,7 +151,7 @@ Pilot::sectionServerCallback(const cola2_msgs::WorldSectionReqGoalConstPtr& data
                     ROS_DEBUG_STREAM(_node_name << ": DUBINS controller");
                     _dubins_controller.compute(_current_state,
                                                section,
-                                               1.0 / _config.rate,
+                                               1.0 / 10.0,
                                                controller_output,
                                                feedback,
                                                points);
@@ -349,23 +348,22 @@ Pilot::publishMarkerSections(const control::PointsList points)
 
 void
 Pilot::getConfig() {
-    // Default config here
-    _config.rate                = 10;
-    _config.section_server_name = "section_server";
-
     // Load config from param server
-    getParam("pilot/rate", _config.rate);
-    getParam("pilot/section_server", _config.section_server_name);
+    getParam("pilot/los_cte/delta", _config.los_cte_config.delta, 8.0);
+    getParam("pilot/los_cte/distance_to_max_velocity", _config.los_cte_config.distance_to_max_velocity, 5.0);
+    getParam("pilot/los_cte/max_surge_velocity", _config.los_cte_config.max_surge_velocity, 0.5);
+    getParam("pilot/los_ctemin_surge_velocity", _config.los_cte_config.min_surge_velocity, 0.2);
+    getParam("pilot/los_cte/min_velocity_ratio", _config.los_cte_config.min_velocity_ratio, 0.1);
 }
 
 
 template<typename T> void
-Pilot::getParam(const std::string param_name, T& param_var) {
+Pilot::getParam(const std::string param_name, T& param_var, T default_value) {
     // Display a message if a parameter is not found in the param server
     if (!ros::param::getCached(param_name, param_var)) {
-        ROS_WARN_STREAM(_node_name << ": invalid parameter for " <<
-            param_name << " in param server! Using default value of " <<
-            param_var);
+        ROS_WARN_STREAM(_node_name << ": Value for parameter " <<
+            param_name << " not found in param server! Using default value " <<
+            default_value);
     }
 }
 
