@@ -9,7 +9,9 @@ auv_msgs/NED position
 float32 altitude
 auv_msgs/RPY orientation
 
-# Axes of control to disable, in body frame. (for GOTO X-Z-YAW enable x and z)
+# Axes of control to disable, in body frame. 
+# * for GOTO X-Z-YAW enable x and z
+# * for Holonomic goto: enable x, yaw and z
 auv_msgs/Bool6Axis disable_axis
 
 # Tolerances are in body frame, zero indicates pilot default should be used.
@@ -25,7 +27,7 @@ string mode
 # Controller type
 uint64 controller_type
 uint64 GOTO=0       # Controls z, yaw and surge
-uint64 HOLONOMIC=1  # Controls x, y, z and yaw
+uint64 HOLONOMIC_GOTO=1  # Controls x, y, z and yaw
 
 
 # Max time to achieve waypoint. If timeout <= 0, time is not finite.

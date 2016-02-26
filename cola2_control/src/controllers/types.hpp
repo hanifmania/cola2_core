@@ -74,12 +74,12 @@ namespace control {
             orientation_tolerance.yaw = 0.0;
             controller_type = 0;  // GOTO
             timeout = 0;
-            disable_axis.x = false;
-            disable_axis.y = false;
-            disable_axis.z = false;
-            disable_axis.roll = false;
-            disable_axis.pitch = false;
-            disable_axis.yaw = false;
+            disable_axis.x = true;
+            disable_axis.y = true;
+            disable_axis.z = true;
+            disable_axis.roll = true;
+            disable_axis.pitch = true;
+            disable_axis.yaw = true;
         }
     };
 

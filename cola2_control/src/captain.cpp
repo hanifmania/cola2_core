@@ -66,12 +66,15 @@ Captain::Captain() {
     waypoint.position.north = 10.0;
     waypoint.position.east = 10.0;
     waypoint.position.depth = 2.0;
+    waypoint.orientation.yaw = 1.57;
     waypoint.disable_axis.x = false;
     waypoint.disable_axis.z = false;
+    waypoint.disable_axis.yaw = false;
     waypoint.position_tolerance.x = 3.0;
     waypoint.position_tolerance.y = 3.0;
     waypoint.position_tolerance.z = 1.5;
-    waypoint.controller_type = cola2_msgs::WorldWaypointReqGoal::GOTO;
+    waypoint.orientation_tolerance.yaw = 0.1;
+    waypoint.controller_type = cola2_msgs::WorldWaypointReqGoal::HOLONOMIC_GOTO;
     waypoint.timeout = 100;
     std::cout << "Send waypoint 1\n";
     waypoint_client->sendGoal(waypoint);
@@ -80,8 +83,8 @@ Captain::Captain() {
     waypoint.position.north = 0.0;
     waypoint.position.east = 0.0;
     std::cout << "Send waypoint 2\n";
-    // waypoint_client->sendGoal(waypoint);
-    // waypoint_client->waitForResult(ros::Duration(120.0));
+    waypoint_client->sendGoal(waypoint);
+    waypoint_client->waitForResult(ros::Duration(120.0));
 
     waypoint.position.north = -10.0;
     waypoint.position.east = -10.0;
