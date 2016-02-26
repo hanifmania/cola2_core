@@ -74,8 +74,8 @@ Captain::Captain() {
     waypoint.controller_type = cola2_msgs::WorldWaypointReqGoal::GOTO;
     waypoint.timeout = 100;
     std::cout << "Send waypoint 1\n";
-    // waypoint_client->sendGoal(waypoint);
-    // waypoint_client->waitForResult(ros::Duration(120.0));
+    waypoint_client->sendGoal(waypoint);
+    waypoint_client->waitForResult(ros::Duration(120.0));
 
     waypoint.position.north = 0.0;
     waypoint.position.east = 0.0;

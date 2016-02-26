@@ -47,6 +47,9 @@ private:
     LosCteController *_los_cte_controller;
     GotoController * _goto_controller;
 
+    // Mutex between section and waypoint controllers
+    // TODO: To be done
+
     // Config
     struct {
         LosCteControllerConfig los_cte_config;
@@ -65,8 +68,8 @@ private:
     template<typename T> void getParam(std::string, T&, T);
 };
 
-
-Pilot::Pilot() {
+Pilot::Pilot()
+{
     // Node name
     _node_name = ros::this_node::getName();
 
@@ -76,12 +79,8 @@ Pilot::Pilot() {
     // Initialize controllers
     // Line of Sight with Cross Tracking Error Controller
     _los_cte_controller = new LosCteController(_config.los_cte_config);
-
-    GotoControllerConfig goto_config;
-    goto_config.max_angle_error = 0.3;
-    goto_config.max_surge = 0.5;
-    goto_config.surge_proportional_gain = 0.25;
-    _goto_controller = new GotoController(goto_config);
+    // Go to waypoint
+    _goto_controller = new GotoController(_config.goto_config);
 
     // Publishers
     _pub_wwr = _nh.advertise<auv_msgs::WorldWaypointReq>(
@@ -117,7 +116,6 @@ Pilot::Pilot() {
     ROS_INFO_STREAM(_node_name << ": initialized");
 }
 
-
 void
 Pilot::navCallback(const auv_msgs::NavSts& data) {
     // Obtain navigation data
@@ -135,6 +133,8 @@ Pilot::navCallback(const auv_msgs::NavSts& data) {
 
 void
 Pilot::waypointServerCallback(const cola2_msgs::WorldWaypointReqGoalConstPtr& data) {
+    // TODO: Avoid having a waypoint and a section controller running simultaneously.
+
     // Conversion from actionlib goal to internal Section type
     control::Waypoint waypoint;
     waypoint.altitude = data->altitude;
@@ -243,6 +243,8 @@ Pilot::waypointServerCallback(const cola2_msgs::WorldWaypointReqGoalConstPtr& da
 
 void
 Pilot::sectionServerCallback(const cola2_msgs::WorldSectionReqGoalConstPtr& data) {
+    // TODO: Avoid having a waypoint and a section controller running simultaneously.
+
     // Conversion from actionlib goal to internal Section type
     control::Section section;
     section.initial_position.x      = data->initial_position.x;
@@ -261,7 +263,6 @@ Pilot::sectionServerCallback(const cola2_msgs::WorldSectionReqGoalConstPtr& data
     section.tolerance.x             = data->tolerance.x;
     section.tolerance.y             = data->tolerance.y;
     section.tolerance.z             = data->tolerance.z;
-
 
     // Main loop
     double init_time = ros::Time::now().toSec();
@@ -494,11 +495,17 @@ Pilot::publishMarkerSections(const control::PointsList points)
 void
 Pilot::getConfig() {
     // Load config from param server
+    // LOS-CTE controller
     getParam("pilot/los_cte/delta", _config.los_cte_config.delta, 8.0);
     getParam("pilot/los_cte/distance_to_max_velocity", _config.los_cte_config.distance_to_max_velocity, 5.0);
     getParam("pilot/los_cte/max_surge_velocity", _config.los_cte_config.max_surge_velocity, 0.5);
-    getParam("pilot/los_ctemin_surge_velocity", _config.los_cte_config.min_surge_velocity, 0.2);
+    getParam("pilot/los_cte/min_surge_velocity", _config.los_cte_config.min_surge_velocity, 0.2);
     getParam("pilot/los_cte/min_velocity_ratio", _config.los_cte_config.min_velocity_ratio, 0.1);
+
+    // GOTO controller
+    getParam("pilot/goto/max_angle_error", _config.goto_config.max_angle_error, 0.3);
+    getParam("pilot/goto/max_surge", _config.goto_config.max_surge, 0.5);
+    getParam("pilot/goto/surge_proportional_gain", _config.goto_config.surge_proportional_gain, 0.25);
 }
 
 
@@ -509,6 +516,7 @@ Pilot::getParam(const std::string param_name, T& param_var, T default_value) {
         ROS_WARN_STREAM(_node_name << ": Value for parameter " <<
             param_name << " not found in param server! Using default value " <<
             default_value);
+            param_var = default_value;
     }
 }
 

@@ -41,6 +41,8 @@ uint64 final_status
 uint64 SUCCESS=0
 uint64 TIMEOUT=1
 uint64 FAILURE=2
+uint64 BUSY=3
+
 
 ---
 
