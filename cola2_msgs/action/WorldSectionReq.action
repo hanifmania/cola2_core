@@ -1,26 +1,31 @@
 # Define the REQUEST
+
 # Initial state
-float64 initial_x
-float64 initial_y
-float64 initial_z
+geometry_msgs/Point initial_position
 float64 initial_yaw
 float64 initial_surge
 bool use_initial_yaw
 
 # Final state
-float64 final_x
-float64 final_y
-float64 final_z
+geometry_msgs/Point final_position
 float64 final_yaw
 float64 final_surge
 bool use_final_yaw
 
 # Flag to consider z as altitude
-bool use_altitude
+bool altitude_mode
+
+# Flag to not control z axis (LOS only)
+bool disable_z
+
+# Final waypoint tolerance (LOS only)
+geometry_msgs/Point tolerance
 
 # Controller type
 uint64 controller_type
 uint64 DUBINS=0
+uint64 LOSCTE=1
+
 
 # Priority
 uint64 priority
@@ -36,6 +41,8 @@ uint64 final_status
 uint64 SUCCESS=0
 uint64 TIMEOUT=1
 uint64 FAILURE=2
+uint64 BUSY=3
+
 
 ---
 

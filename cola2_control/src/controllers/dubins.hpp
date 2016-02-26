@@ -6,9 +6,8 @@
 #include <stdexcept>
 #include <iostream>
 #include "types.hpp"
-
-#include <ros/ros.h>  // TODO: this should not publish the markers!
-
+#include <math.h>
+#include <cola2_lib/cola2_util.h>
 
 typedef struct {
     double yaw_ki;
@@ -18,29 +17,7 @@ typedef struct {
 } DubinsSectionControllerConfig;
 
 
-// Constant definitions
-#define CT_PI 3.141592653589793238462643383279502884197169399375105820974
-#define CT_2PI 6.283185307179586476925286766559005768394338798750211641949
-
-
 class DubinsSectionController {
-private:
-    // Config
-    DubinsSectionControllerConfig _config;
-
-    // Other vars
-    double _yaw_old_e, _yaw_old_psi;
-
-    // Methods
-    void reportError(const std::string&);
-    double computeYaw(double, double, double, double);
-    void computeEBetaGammaSectionLength(const control::State&,
-                                        const control::Section&,
-                                        double&, double&, double&, double&,
-                                        ros::Publisher&);
-    double wrapAngle(double);
-    double wrapZeroToTwoPi(double);
-
 public:
     // Methods
     DubinsSectionController();
@@ -49,20 +26,37 @@ public:
                  double period,
                  control::State&,
                  control::Feedback&,
-                 ros::Publisher&);
+                 control::PointsList&);
     void setConfig(const DubinsSectionControllerConfig&);
+
+private:
+    // Config
+    DubinsSectionControllerConfig _config;
+
+    // Other vars
+    double _yaw_old_e;
+    double _yaw_old_psi;
+
+    // Methods
+    void reportError(const std::string&);
+    double computeYaw(double, double, double, double);
+    void computeEBetaGammaSectionLength(const control::State&,
+                                        const control::Section&,
+                                        double&, double&, double&, double&,
+                                        control::PointsList&);
+    double wrapZeroToTwoPi(double);
 };
 
 
-DubinsSectionController::DubinsSectionController() {
+DubinsSectionController::DubinsSectionController():
+    _yaw_old_e(0.0),
+    _yaw_old_psi(0.0)
+{
     // Default config
     _config.yaw_ki         = 0.003;//0.003;//0.006;
     _config.yaw_kp         = 0.09;//0.12;
     _config.lookahead_sec  = 4.0;
     _config.acceptance_sec = 3.0;
-
-    // Init some vars
-    _yaw_old_psi = _yaw_old_e = 0.0;
 }
 
 
@@ -78,7 +72,7 @@ DubinsSectionController::compute(const control::State& current_state,
                                  double period,
                                  control::State& controller_output,
                                  control::Feedback& feedback,
-                                 ros::Publisher& _pub_marker) {
+                                 control::PointsList& marker) {
     // Compute track variables
     double e, beta, gamma, section_length;
     computeEBetaGammaSectionLength(current_state,
@@ -87,15 +81,15 @@ DubinsSectionController::compute(const control::State& current_state,
                                    beta,
                                    gamma,
                                    section_length,
-                                   _pub_marker);
+                                   marker);
 
     // Compute surge (linear interpolation)
     double desired_surge = section.initial_surge +
         gamma * (section.final_surge - section.initial_surge);
 
     // Compute depth (linear interpolation)
-    double desired_depth = section.initial_z +
-        gamma * (section.final_z - section.initial_z);
+    double desired_depth = section.initial_position.z +
+        gamma * (section.final_position.z - section.initial_position.z);
 
     // Compute yaw
     double desired_yaw = computeYaw(e,
@@ -107,10 +101,10 @@ DubinsSectionController::compute(const control::State& current_state,
     controller_output = control::State();
     controller_output.pose.position.depth = desired_depth;
     controller_output.pose.orientation.yaw = desired_yaw;
-    controller_output.pose.disable_axis[2] = false;
-    controller_output.pose.disable_axis[5] = false;
+    controller_output.pose.disable_axis.z = false;
+    controller_output.pose.disable_axis.yaw = false;
     controller_output.velocity.linear.x = desired_surge;
-    controller_output.velocity.disable_axis[0] = false;
+    controller_output.velocity.disable_axis.x = false;
 
     // Fill feedback
     feedback = control::Feedback();
@@ -119,10 +113,10 @@ DubinsSectionController::compute(const control::State& current_state,
     feedback.desired_yaw = desired_yaw;
     feedback.cross_track_error = e;
     feedback.depth_error = desired_depth - current_state.pose.position.depth;
-    feedback.yaw_error = wrapAngle(desired_yaw - current_state.pose.orientation.yaw);
-    feedback.distance_to_section_end = (1.0 - gamma) * section_length;
+    feedback.yaw_error = cola2::util::normalizeAngle(desired_yaw - current_state.pose.orientation.yaw);
+    feedback.distance_to_end = (1.0 - gamma) * section_length;
     feedback.success = false;
-    if (feedback.distance_to_section_end < _config.acceptance_sec *
+    if (feedback.distance_to_end < _config.acceptance_sec *
         fabs(current_state.velocity.linear.x)) feedback.success = true;
 
     // Debug info
@@ -143,7 +137,7 @@ DubinsSectionController::compute(const control::State& current_state,
     std::cout << "/dubins: desired_surge = " << desired_surge << std::endl;
     std::cout << "/dubins: desired_depth = " << desired_depth << std::endl;
     std::cout << "/dubins: desired_yaw = " << desired_yaw << std::endl;
-    std::cout << "/dubins: distance_to_section_end = " << feedback.distance_to_section_end << std::endl;*/
+    std::cout << "/dubins: distance_to_end = " << feedback.distance_to_end << std::endl;*/
 }
 
 
@@ -155,12 +149,12 @@ DubinsSectionController::computeEBetaGammaSectionLength(
                             double& beta,
                             double& gamma,
                             double& section_length,
-                            ros::Publisher& _pub_marker) {
+                            control::PointsList& marker) {
 
 
     // Compute interesting variables
-    double section_dx = (section.final_x - section.initial_x);
-    double section_dy = (section.final_y - section.initial_y);
+    double section_dx = (section.final_position.x - section.initial_position.x);
+    double section_dy = (section.final_position.y - section.initial_position.y);
 
     // Check for repeated (x, y) points
     if ((fabs(section_dx) < 1e-2) && (fabs(section_dy) < 1e-2)) {
@@ -180,7 +174,7 @@ DubinsSectionController::computeEBetaGammaSectionLength(
     else if ((section.use_initial_yaw) &&
              (!section.use_final_yaw)) {
         // Find direction
-        double angle_error = wrapAngle(section.initial_yaw - section_angle);
+        double angle_error = cola2::util::normalizeAngle(section.initial_yaw - section_angle);
         direction = 1;
         if (angle_error > 0.0) direction = -1;
         if (fabs(angle_error) < 0.0436) direction = 0;
@@ -188,7 +182,7 @@ DubinsSectionController::computeEBetaGammaSectionLength(
     else if ((!section.use_initial_yaw) &&
              (section.use_final_yaw)) {
         // Find direction
-        double angle_error = wrapAngle(section.final_yaw - section_angle);
+        double angle_error = cola2::util::normalizeAngle(section.final_yaw - section_angle);
         direction = -1;
         if (angle_error > 0.0) direction = 1;
         if (fabs(angle_error) < 0.0436) direction = 0;
@@ -207,8 +201,8 @@ DubinsSectionController::computeEBetaGammaSectionLength(
         double s, sbeta, cbeta, delta_x, delta_y;
         sbeta = sin(beta);
         cbeta = cos(beta);
-        delta_x = current_state.pose.position.north - section.initial_x;
-        delta_y = current_state.pose.position.east - section.initial_y;
+        delta_x = current_state.pose.position.north - section.initial_position.x;
+        delta_y = current_state.pose.position.east - section.initial_position.y;
         e = -delta_x * sbeta + delta_y * cbeta;
         s = delta_x * cbeta + delta_y * sbeta;
 
@@ -221,32 +215,18 @@ DubinsSectionController::computeEBetaGammaSectionLength(
             else if (gamma > 1.0) gamma = 1.0;
         }
 
-        // Publish section markers TODO: this should be done in another place
-        visualization_msgs::Marker marker;
-        marker.header.frame_id = "world";
-        marker.header.stamp = ros::Time::now();
-        marker.ns = "/dubins";
-        marker.type = visualization_msgs::Marker::LINE_LIST;
-        marker.action = visualization_msgs::Marker::ADD;
+        //Fill marker
+        control::point initial_point;
+        control::point final_point;
 
-        geometry_msgs::Point p1, p2;
-        p1.x = section.initial_x;
-        p1.y = section.initial_y;
-        p1.z = section.initial_z;
-        p2.x = section.final_x;
-        p2.y = section.final_y;
-        p2.z = section.final_z;
-        marker.points.push_back(p1);
-        marker.points.push_back(p2);
-
-        marker.scale.x = 0.35;
-        marker.color.r = 0.8;
-        marker.color.g = 0.8;
-        marker.color.b = 0.0;
-        marker.color.a = 0.5;
-        marker.lifetime = ros::Duration(1.0);
-        marker.frame_locked = false;
-        _pub_marker.publish(marker);
+        initial_point.x = section.initial_position.x;
+        initial_point.y = section.initial_position.y;
+        initial_point.z = section.initial_position.z;
+        marker.points_list.push_back(initial_point);
+        final_point.x = section.final_position.x;
+        final_point.y = section.final_position.y;
+        final_point.z = section.final_position.z;
+        marker.points_list.push_back(final_point);
     }
     else {  // Follow an arc
         // Find center
@@ -254,8 +234,8 @@ DubinsSectionController::computeEBetaGammaSectionLength(
 
         // Equation for the line in between both two section ends
         double ax, ay, bx, by;
-        ax = 0.5 * (section.initial_x + section.final_x);
-        ay = 0.5 * (section.initial_y + section.final_y);
+        ax = 0.5 * (section.initial_position.x + section.final_position.x);
+        ay = 0.5 * (section.initial_position.y + section.final_position.y);
         bx = ax - section_dy;
         by = ay + section_dx;
         double A = ay - by;
@@ -264,14 +244,14 @@ DubinsSectionController::computeEBetaGammaSectionLength(
 
         // Equation of the line perpendicular to the inital direction
         if (section.use_initial_yaw) {
-            ax = section.initial_x;
-            ay = section.initial_y;
+            ax = section.initial_position.x;
+            ay = section.initial_position.y;
             bx = ax - sin(section.initial_yaw);
             by = ay + cos(section.initial_yaw);
         }
         else {
-            ax = section.final_x;
-            ay = section.final_y;
+            ax = section.final_position.x;
+            ay = section.final_position.y;
             bx = ax - sin(section.final_yaw);
             by = ay + cos(section.final_yaw);
         }
@@ -287,27 +267,27 @@ DubinsSectionController::computeEBetaGammaSectionLength(
         center_y = (D * C - A * F) / den;
 
         // Find radius
-        double radius = sqrt(pow(center_x - section.initial_x, 2.0) +
-                             pow(center_y - section.initial_y, 2.0));
+        double radius = sqrt(pow(center_x - section.initial_position.x, 2.0) +
+                             pow(center_y - section.initial_position.y, 2.0));
 
         // Compute initial, actual and final angles. Same boundaries are
         // ensured by using the same wrapAngle function
-        double angle_s = wrapAngle(atan2(
-            section.initial_y - center_y,
-            section.initial_x - center_x));
-        double angle = wrapAngle(atan2(
+        double angle_s = cola2::util::normalizeAngle(atan2(
+            section.initial_position.y - center_y,
+            section.initial_position.x - center_x));
+        double angle = cola2::util::normalizeAngle(atan2(
             current_state.pose.position.east - center_y,
             current_state.pose.position.north - center_x));
-        double angle_e = wrapAngle(atan2(
-            section.final_y - center_y,
-            section.final_x - center_x));
+        double angle_e = cola2::util::normalizeAngle(atan2(
+            section.final_position.y - center_y,
+            section.final_position.x - center_x));
 
         // Compute angle increments between [0 and 2*pi)
         double w_angle_e = wrapZeroToTwoPi(angle_e - angle_s);
         double w_angle_p = wrapZeroToTwoPi(angle - angle_s);
 
         // Check if the robot is inside or outside the arc, and compute gamma
-        if ((w_angle_e == 0.0) or (w_angle_e == 2.0 * CT_PI)) {
+        if ((w_angle_e == 0.0) or (w_angle_e == 2.0 * M_PI)) {
             // This should never happen if wrapZeroToTwoPi and the rest of the
             // code does what it has to do, but it is better to leave this
             // checking here
@@ -321,7 +301,7 @@ DubinsSectionController::computeEBetaGammaSectionLength(
                 gamma = w_angle_p / w_angle_e;
             }
             else {
-                if ((0.5 * w_angle_e + CT_PI) >= w_angle_p) {
+                if ((0.5 * w_angle_e + M_PI) >= w_angle_p) {
                     gamma = 1.0;
                     angle = angle_e;
                 }
@@ -332,11 +312,11 @@ DubinsSectionController::computeEBetaGammaSectionLength(
             }
         }
         else {  // Direction is -1
-            section_length = radius * (CT_2PI - w_angle_e);
+            section_length = radius * (2*M_PI - w_angle_e);
 
             if (w_angle_e <= w_angle_p) {
                 // Is in
-                gamma = (CT_2PI - w_angle_p) / (CT_2PI - w_angle_e);
+                gamma = (2*M_PI - w_angle_p) / (2*M_PI - w_angle_e);
             }
             else {
                 if (0.5 * w_angle_e > w_angle_p) {
@@ -355,13 +335,13 @@ DubinsSectionController::computeEBetaGammaSectionLength(
         if (surge < 0.01) surge = 0.01;
         double lookahead_m = _config.lookahead_sec * surge;
         double lookahead_rad = lookahead_m / radius;
-        if (lookahead_rad > CT_PI) lookahead_rad = CT_PI;
+        if (lookahead_rad > M_PI) lookahead_rad = M_PI;
         double direction_d = static_cast<double>(direction);
         if (direction == 1) {
-            beta = wrapAngle(angle + 0.5 * CT_PI * direction_d + lookahead_rad);
+            beta = cola2::util::normalizeAngle(angle + 0.5 * M_PI * direction_d + lookahead_rad);
         }
         else {
-            beta = wrapAngle(angle + 0.5 * CT_PI * direction_d - lookahead_rad);
+            beta = cola2::util::normalizeAngle(angle + 0.5 * M_PI * direction_d - lookahead_rad);
         }
 
         // Nearest point in the arc
@@ -372,16 +352,9 @@ DubinsSectionController::computeEBetaGammaSectionLength(
         e = -(current_state.pose.position.north - nearest_north) * sin(beta) +
              (current_state.pose.position.east - nearest_east) * cos(beta);
 
-        // Publish section markers TODO: this should be done in another place
-        visualization_msgs::Marker marker;
-        marker.header.frame_id = "world";
-        marker.header.stamp = ros::Time::now();
-        marker.ns = "/dubins";
-        marker.type = visualization_msgs::Marker::LINE_LIST;
-        marker.action = visualization_msgs::Marker::ADD;
-
+        // Fill section markers
         double delta_angle = w_angle_e;
-        if (direction == -1) delta_angle = CT_2PI - delta_angle;
+        if (direction == -1) delta_angle = 2*M_PI - delta_angle;
 
         int pieces = 36;
         for (int i = 0; i < pieces; i++) {
@@ -390,25 +363,16 @@ DubinsSectionController::computeEBetaGammaSectionLength(
             double bx = center_x + radius * cos(angle_s + direction * delta_angle * (i + 1) / pieces);
             double by = center_y + radius * sin(angle_s + direction * delta_angle * (i + 1) / pieces);
 
-            geometry_msgs::Point p1, p2;
+            control::point p1, p2;
             p1.x = ax;
             p1.y = ay;
-            p1.z = section.initial_z + (i / pieces) * (section.final_z - section.initial_z);
+            p1.z = section.initial_position.z + (i / pieces) * (section.final_position.z - section.initial_position.z);
             p2.x = bx;
             p2.y = by;
-            p2.z = section.initial_z + ((i + 1) / pieces) * (section.final_z - section.initial_z);
-            marker.points.push_back(p1);
-            marker.points.push_back(p2);
+            p2.z = section.initial_position.z + ((i + 1) / pieces) * (section.final_position.z - section.initial_position.z);
+            marker.points_list.push_back(p1);
+            marker.points_list.push_back(p2);
         }
-
-        marker.scale.x = 0.35;
-        marker.color.r = 0.8;
-        marker.color.g = 0.8;
-        marker.color.b = 0.0;
-        marker.color.a = 0.5;
-        marker.lifetime = ros::Duration(1.0);
-        marker.frame_locked = false;
-        _pub_marker.publish(marker);
     }
 }
 
@@ -429,7 +393,7 @@ DubinsSectionController::computeYaw(double e,
     else if (psi < -1.0) psi = -1.0;
 
     // Compute yaw setpoint
-    double yaw = wrapAngle(beta + asin(psi));
+    double yaw = cola2::util::normalizeAngle(beta + asin(psi));
 
     // Update old variables
     _yaw_old_e = e;
@@ -438,22 +402,11 @@ DubinsSectionController::computeYaw(double e,
     return yaw;
 }
 
-
-double
-DubinsSectionController::wrapAngle(double angle) {
-    // Wrap angle in the range of (-pi to +pi]
-    if (fabs(angle) > 20.0) angle = atan2(sin(angle), cos(angle));
-    while (angle <= -CT_PI) angle += CT_2PI;
-    while (angle > CT_PI) angle -= CT_2PI;
-    return angle;
-}
-
-
 double
 DubinsSectionController::wrapZeroToTwoPi(double angle) {
     // Wrap angle from [0 to 2*pi)
-    angle = wrapAngle(angle);
-    if (angle < 0.0) angle += CT_2PI;
+    angle = cola2::util::normalizeAngle(angle);
+    if (angle < 0.0) angle += 2*M_PI;
     return angle;
 }
 
