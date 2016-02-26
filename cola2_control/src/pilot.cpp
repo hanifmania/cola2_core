@@ -3,7 +3,7 @@
 #include <vector>
 #include <stdexcept>
 #include <actionlib/server/simple_action_server.h>
-#include <cola2_msgs/SectionAction.h>
+#include <cola2_msgs/WorldSectionReqAction.h>
 #include <boost/shared_ptr.hpp>
 #include <boost/bind.hpp>
 #include <auv_msgs/NavSts.h>
@@ -30,7 +30,7 @@ private:
     ros::Publisher _pub_wwr, _pub_bvr, _pub_marker;
 
     // Actionlib servers
-    boost::shared_ptr< actionlib::SimpleActionServer<cola2_msgs::SectionAction> > _section_server;
+    boost::shared_ptr< actionlib::SimpleActionServer<cola2_msgs::WorldSectionReqAction> > _section_server;
 
     // Other vars
     control::State _current_state;
@@ -47,7 +47,7 @@ private:
 
     // Methods
     void navCallback(const auv_msgs::NavSts&);
-    void sectionServerCallback(const cola2_msgs::SectionGoalConstPtr&);
+    void sectionServerCallback(const cola2_msgs::WorldSectionReqGoalConstPtr&);
     void publishControlCommands(const control::State&, unsigned int);
     void publishFeedback(const control::Feedback&);
     void publishMarker(double, double, double);
@@ -66,15 +66,13 @@ Pilot::Pilot() {
 
     // Initialize controllers
     // Line of Sight with Cross Tracking Error Controller
+    // TODO: put these param in pilot config file and add a service to set them
     LosCteControllerConfig config;
     config.delta = 8.0;
     config.distance_to_max_velocity = 5.0;
     config.max_surge_velocity = 0.5;
     config.min_surge_velocity = 0.2;
     config.min_velocity_ratio = 0.1;
-    config.tolerance.x = 3.0;
-    config.tolerance.y = 3.0;
-    config.tolerance.z = 1.5;
     _los_cte_controller = new LosCteController(config);
 
     // Publishers
@@ -92,8 +90,8 @@ Pilot::Pilot() {
     // Actionlib server. Smart pointer is used so that server construction is
     // delayed after configuration is loaded
     _section_server = boost::shared_ptr<actionlib::SimpleActionServer<
-        cola2_msgs::SectionAction> >(
-        new actionlib::SimpleActionServer<cola2_msgs::SectionAction>(
+        cola2_msgs::WorldSectionReqAction> >(
+        new actionlib::SimpleActionServer<cola2_msgs::WorldSectionReqAction>(
         _nh, _config.section_server_name,
         boost::bind(&Pilot::sectionServerCallback, this, _1), false));
     _section_server->start();
@@ -120,7 +118,7 @@ Pilot::navCallback(const auv_msgs::NavSts& data) {
 
 
 void
-Pilot::sectionServerCallback(const cola2_msgs::SectionGoalConstPtr& data) {
+Pilot::sectionServerCallback(const cola2_msgs::WorldSectionReqGoalConstPtr& data) {
     // Conversion from actionlib goal to internal Section type
     control::Section section;
     section.initial_position.x      = data->initial_position.x;
@@ -144,13 +142,13 @@ Pilot::sectionServerCallback(const cola2_msgs::SectionGoalConstPtr& data) {
         // Declare some vars
         control::State controller_output;
         control::Feedback feedback;
-        cola2_msgs::SectionResult result_msg;
+        cola2_msgs::WorldSectionReqResult result_msg;
         control::PointsList points;
 
         // Run controller
         try {
             switch (data->controller_type) {
-                case cola2_msgs::SectionGoal::DUBINS:
+                case cola2_msgs::WorldSectionReqGoal::DUBINS:
                     ROS_DEBUG_STREAM(_node_name << ": DUBINS controller");
                     _dubins_controller.compute(_current_state,
                                                section,
@@ -159,7 +157,7 @@ Pilot::sectionServerCallback(const cola2_msgs::SectionGoalConstPtr& data) {
                                                feedback,
                                                points);
                     break;
-                    case cola2_msgs::SectionGoal::LOSCTE:
+                    case cola2_msgs::WorldSectionReqGoal::LOSCTE:
                         ROS_DEBUG_STREAM(_node_name << ": LOSCTE controller");
                         _los_cte_controller->compute(_current_state,
                                                      section,
@@ -174,7 +172,7 @@ Pilot::sectionServerCallback(const cola2_msgs::SectionGoalConstPtr& data) {
         catch (std::exception& e) {
             // Check for failure
             ROS_ERROR_STREAM(_node_name << ": controller failure\n" << e.what());
-            result_msg.final_status = cola2_msgs::SectionResult::FAILURE;
+            result_msg.final_status = cola2_msgs::WorldSectionReqResult::FAILURE;
             _section_server->setAborted(result_msg);
             break;
         }
@@ -195,7 +193,7 @@ Pilot::sectionServerCallback(const cola2_msgs::SectionGoalConstPtr& data) {
         // Check for success
         if (feedback.success) {
             ROS_INFO_STREAM(_node_name << ": section success");
-            result_msg.final_status = cola2_msgs::SectionResult::SUCCESS;
+            result_msg.final_status = cola2_msgs::WorldSectionReqResult::SUCCESS;
             _section_server->setSucceeded(result_msg);
             break;
         }
@@ -212,7 +210,7 @@ Pilot::sectionServerCallback(const cola2_msgs::SectionGoalConstPtr& data) {
         if (data->timeout > 0.0) {
             if ((ros::Time::now().toSec() - init_time) > data->timeout) {
                 ROS_WARN_STREAM(_node_name << ": section timeout");
-                result_msg.final_status = cola2_msgs::SectionResult::TIMEOUT;
+                result_msg.final_status = cola2_msgs::WorldSectionReqResult::TIMEOUT;
                 _section_server->setAborted(result_msg);
                 break;
             }
@@ -278,7 +276,7 @@ Pilot::publishControlCommands(const control::State& controller_output,
 void
 Pilot::publishFeedback(const control::Feedback& feedback) {
     // Conversion from internal feedback type to actionlib feedback
-    cola2_msgs::SectionFeedback msg;
+    cola2_msgs::WorldSectionReqFeedback msg;
     msg.desired_surge           = feedback.desired_surge;
     msg.desired_depth           = feedback.desired_depth;
     msg.desired_yaw             = feedback.desired_yaw;

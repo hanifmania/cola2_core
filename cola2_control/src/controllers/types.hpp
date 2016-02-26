@@ -12,6 +12,15 @@ namespace control {
         double z;
     } point;
 
+    typedef struct {
+        double x;
+        double y;
+        double z;
+        double roll;
+        double pitch;
+        double yaw;
+    } vector6d;
+
     class PointsList {
     public:
         std::vector<control::point> points_list;
@@ -22,12 +31,14 @@ namespace control {
     public:
         // Initial state
         control::point initial_position;
+        // Only for DUBINS (not for LOS)
         double initial_yaw;
         double initial_surge;
         bool use_initial_yaw;
 
         // Final state
         control::point final_position;
+        // Only for DUBINS (not for LOS)
         double final_yaw;
         double final_surge;
         bool use_final_yaw;
@@ -35,8 +46,11 @@ namespace control {
         // Flag to consider z as altitude
         bool altitude_mode;
 
+        // Only for LOS (Not DUBINS)
         // Flag to not control z axis
         bool disable_z;
+        // Tolerance (LOS only uses position tolerance)
+        control::point tolerance;
 
         // Constructor with default values
         Section() {
@@ -54,6 +68,9 @@ namespace control {
             use_final_yaw = false;
             altitude_mode = false;
             disable_z = false;
+            tolerance.x = 0.0;
+            tolerance.y = 0.0;
+            tolerance.z = 0.0;
         }
     };
 
@@ -68,14 +85,7 @@ namespace control {
             struct {
                 double roll, pitch, yaw;
             } orientation;
-            struct{
-                bool x;
-                bool y;
-                bool z;
-                bool roll;
-                bool pitch;
-                bool yaw;
-            } disable_axis;
+            control::vector6d disable_axis;
             double altitude;
             bool altitude_mode;
         } pose;
@@ -84,14 +94,7 @@ namespace control {
         struct {
             control::point linear;
             control::point angular;
-            struct{
-                bool x;
-                bool y;
-                bool z;
-                bool roll;
-                bool pitch;
-                bool yaw;
-            } disable_axis;
+            control::vector6d disable_axis;
         } velocity;
 
         // Constructor with default values

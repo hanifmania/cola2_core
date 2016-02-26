@@ -1,7 +1,7 @@
 #include <ros/ros.h>
 #include <actionlib/client/simple_action_client.h>
 #include <actionlib/client/terminal_state.h>
-#include <cola2_msgs/SectionAction.h>
+#include <cola2_msgs/WorldSectionReqAction.h>
 #include <boost/shared_ptr.hpp>
 
 
@@ -18,7 +18,7 @@ private:
 
     // Actionlib client
     boost::shared_ptr<actionlib::SimpleActionClient<
-        cola2_msgs::SectionAction> > section_client;
+        cola2_msgs::WorldSectionReqAction> > section_client;
 
     // Config
     struct {
@@ -40,33 +40,40 @@ Captain::Captain() {
 
     // Actionlib client. Smart pointer is used so that client construction is
     // delayed after configuration is loaded
+    std::cout << "Wait for action lib (Pilot)\n";
     section_client = boost::shared_ptr<actionlib::SimpleActionClient<
-        cola2_msgs::SectionAction> >(
-        new actionlib::SimpleActionClient<cola2_msgs::SectionAction>(
+        cola2_msgs::WorldSectionReqAction> >(
+        new actionlib::SimpleActionClient<cola2_msgs::WorldSectionReqAction>(
         config.section_server_name, true));
     section_client->waitForServer();  // Wait for infinite time
 
     // Create section
-    cola2_msgs::SectionGoal section;
+    cola2_msgs::WorldSectionReqGoal section;
     section.priority = 30;
     section.initial_surge = 0.3;
     //section.use_initial_yaw = true;
     section.final_surge = 0.3;
-    section.controller_type = cola2_msgs::SectionGoal::DUBINS;
+    section.controller_type = cola2_msgs::WorldSectionReqGoal::LOSCTE;
     section.use_final_yaw = true;
     section.initial_position.z = 1.0;
     section.final_position.z   = 1.0;
+    section.disable_z = false;
+    section.tolerance.x = 3.0;
+    section.tolerance.y = 3.0;
+    section.tolerance.z = 1.5;
+
     //section.timeout = 10.0;
 
 
     // Section 1
-    section.initial_position.x = 1;
+    section.initial_position.x = 0;
     section.initial_position.y = 0;
     section.initial_yaw = 0;
-    section.final_position.x = 3.78427;
-    section.final_position.y = -1.88294;
+    section.final_position.x = 15;
+    section.final_position.y = 0;
     section.final_yaw = -1.18925;
     //section.final_z   = 0.5;
+    std::cout << "Send Section 1\n";
     section_client->sendGoal(section);
 
     //ros::Duration(5.0).sleep();
@@ -75,37 +82,40 @@ Captain::Captain() {
     section_client->waitForResult(ros::Duration(120.0));
 
     // Section 2
-    section.initial_position.x = 3.78427;
-    section.initial_position.y = -1.88294;
+    section.initial_position.x = 15.0;
+    section.initial_position.y = .0;
     section.initial_yaw = -1.18925;
-    section.final_position.x = 8.41576;
-    section.final_position.y = -13.4269;
+    section.final_position.x = 15.0;
+    section.final_position.y = -15.0;
     section.final_yaw = -1.18925;
     //section.final_z   = 1.0;
+    std::cout << "Send Section 2\n";
     section_client->sendGoal(section);
     section_client->waitForResult(ros::Duration(120.0));
 
     //ros::shutdown();
 
     // Section 3
-    section.initial_position.x = 8.41576;
-    section.initial_position.y = -13.4269;
+    section.initial_position.x = 15;
+    section.initial_position.y = -15;
     section.initial_yaw = -1.18925;
-    section.final_position.x = 8.95118;
-    section.final_position.y = -14.2955;
+    section.final_position.x = 0;
+    section.final_position.y = -15;
     section.final_yaw = -0.847483;
     //section.final_z   = 1.5;
+    std::cout << "Send Section 3\n";
     section_client->sendGoal(section);
     section_client->waitForResult(ros::Duration(120.0));
 
     // Section 4
-    section.initial_position.x = 8.95118;
-    section.initial_position.y = -14.2955;
+    section.initial_position.x = 0;
+    section.initial_position.y = -15;
     section.initial_yaw = -0.847483;
-    section.final_position.x = 10.4831;
-    section.final_position.y = -15.223;
+    section.final_position.x = 0;
+    section.final_position.y = 0;
     section.final_yaw = -0.241298;
     //section.final_z   = 2.0;
+    std::cout << "Send Section 4\n";
     section_client->sendGoal(section);
     section_client->waitForResult(ros::Duration(120.0));
 
@@ -117,6 +127,7 @@ Captain::Captain() {
     section.final_position.y = -17.441;
     section.final_yaw = -0.241298;
     //section.final_z   = 2.0;
+    std::cout << "Send Section 5\n";
     section_client->sendGoal(section);
     section_client->waitForResult(ros::Duration(220.0));
 

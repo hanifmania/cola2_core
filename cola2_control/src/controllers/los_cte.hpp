@@ -16,7 +16,6 @@ typedef struct {
     double min_velocity_ratio;  // from 0 to 1
     double delta;
     double distance_to_max_velocity;
-    control::point tolerance;
 } LosCteControllerConfig;
 
 
@@ -88,14 +87,14 @@ LosCteController::compute(const control::State& current_state,
 
     // Check if final position X, Y is reached
     feedback.success = false;
-    if(fabs(current_state.pose.position.north - section.final_position.x) < _config.tolerance.x &&
-       fabs(current_state.pose.position.east - section.final_position.y) < _config.tolerance.y){
+    if(fabs(current_state.pose.position.north - section.final_position.x) < section.tolerance.x &&
+       fabs(current_state.pose.position.east - section.final_position.y) < section.tolerance.y){
         // If Z axis is disabled success is true ...
         if(section.disable_z) {
             feedback.success = true;
         }
         // ... otherwise check Z value
-        else if (fabs(current_z - section.final_position.z) < _config.tolerance.z) {
+        else if (fabs(current_z - section.final_position.z) < section.tolerance.z) {
             feedback.success = true;
         }
     }
@@ -121,7 +120,7 @@ LosCteController::compute(const control::State& current_state,
             // If z is uncontrolled
             feedback.success = true;
         }
-        else if(fabs(current_z - section.final_position.z) < _config.tolerance.z){
+        else if(fabs(current_z - section.final_position.z) < section.tolerance.z){
             // If Z is ok, success = True.
             feedback.success = true;
         }
@@ -143,7 +142,7 @@ LosCteController::compute(const control::State& current_state,
         std::cout << "LOSCTE: initial and final waypoint are the same!\n";
         surge = 0.0;
         desired_yaw = current_state.pose.orientation.yaw;
-        if(abs(current_z - section.final_position.z) < _config.tolerance.z){
+        if(abs(current_z - section.final_position.z) < section.tolerance.z){
             feedback.success = true;
         }
     }

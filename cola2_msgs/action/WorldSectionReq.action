@@ -15,6 +15,12 @@ bool use_final_yaw
 # Flag to consider z as altitude
 bool altitude_mode
 
+# Flag to not control z axis (LOS only)
+bool disable_z
+
+# Final waypoint tolerance (LOS only)
+geometry_msgs/Point tolerance
+
 # Controller type
 uint64 controller_type
 uint64 DUBINS=0
