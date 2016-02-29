@@ -697,7 +697,6 @@ class Captain:
             param_dict['wait'] = 'trajectory/wait'
         else:
             config.wait=[]
-
         if rospy.has_param("trajectory/actions"):
             param_dict['actions'] = 'trajectory/actions'
         else:
@@ -1723,6 +1722,7 @@ def __delete_param__( param_name ):
             rospy.delete_param(param_name)
         except KeyError:
             pass #print param_name, " value not set"
+
 if __name__ == '__main__':
     try:
         rospy.init_node('captain', log_level=rospy.INFO) #log_level=rospy.DEBUG)
