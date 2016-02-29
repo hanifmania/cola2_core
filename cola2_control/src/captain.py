@@ -535,7 +535,8 @@ class Captain:
         # newline it thinks is the same value. For this reason the yaml library
         # doesn't load the correctly the yaml string.
         # To aboid this problem We can create a temp file with the string and\
-        # load as like the same service . Since is a service it needs a special
+        # load like the original service.
+        # Since is a service it needs a special
         # message to call it so its easier coyp it again.
         #
         #ifile = open("/tmp/mission.yaml","w")
@@ -654,7 +655,7 @@ class Captain:
         This method suppose that some other node has already loaded the mission
         in the configuration server so it only need to load
         """
-        print "!!!!!!!!!!!!!!!!!!!! Load Trajectory Config !!!!!!!!!!!"
+        # print "!!!!!!!!!!!!!!!!!!!! Load Trajectory Config !!!!!!!!!!!"
         # Check for timeout
         if rospy.has_param("trajectory/time_out"):
             self.trajectory_time_out = rospy.get_param("trajectory/time_out")
