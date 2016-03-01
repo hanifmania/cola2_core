@@ -88,6 +88,7 @@ add_service_files(
   SimulatedCurrents.srv
   Goto.srv
   GotoWithYaw.srv
+  NewGoto.srv
   String.srv
   StringList.srv
   MissionTimeout.srv

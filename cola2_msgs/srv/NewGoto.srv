@@ -1,0 +1,22 @@
+geometry_msgs/Vector3 position
+float32 yaw
+float32 altitude
+float32 altitude_mode
+
+# If blocking never finalizes
+bool blocking
+
+uint8 REFERENCE_NED=0
+uint8 REFERENCE_LAT_LON=1
+uint8 REFENCE_VEHICLE=2
+uint8 reference
+
+# GOTO:             False,  True,   ?,      True,   True,   False
+# HOLONOMIC GOTO:   False,  False,  ?,      True,   True,   ?
+# SUBMERGE:         True,   True,   False,  True,   True,   True
+auv_msgs/Bool6Axis disable_axis
+
+geometry_msgs/Vector3 position_tolerance
+auv_msgs/RPY orientation_tolerance
+---
+bool success
