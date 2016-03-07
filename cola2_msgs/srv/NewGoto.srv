@@ -1,7 +1,7 @@
 geometry_msgs/Vector3 position
 float32 yaw
 float32 altitude
-float32 altitude_mode
+bool altitude_mode
 
 # If blocking never finalizes
 bool blocking
