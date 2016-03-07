@@ -23,6 +23,8 @@ typedef struct {
     std::vector<double> y;
     std::vector<double> z;
     std::vector<bool> altitude_mode;
+    std::vector<double> yaw;
+    std::vector<double> surge;
     std::string mode;
     unsigned int timeout;
     std::vector<double> wait;
@@ -231,6 +233,7 @@ Captain::enable_goto(cola2_msgs::NewGoto::Request &req,
                             << distance_to(req.position.x, req.position.y));
             return false;
         }
+        distance_to_waypoint += fabs(req.position.z - _nav.z);
 
         _is_waypoint_running = true;
         cola2_msgs::WorldWaypointReqGoal waypoint;
@@ -342,18 +345,36 @@ Captain::load_trajectory(std_srvs::Empty::Request &req,
         ROS_INFO_STREAM(_name << ": invalid trajectory");
         return false;
     }
-
-    if(!cola2::rosutil::loadVector("trajectory/z", trajectory.z)) valid_trajectory = false;
-    if(!cola2::rosutil::loadVector("trajectory/altitude_mode", trajectory.altitude_mode)) valid_trajectory = false;
-    if (!ros::param::getCached("trajectory/mode", trajectory.mode)) valid_trajectory = false;
-    if (!ros::param::getCached("trajectory/mode", trajectory.mode)) valid_trajectory = false;
-    if(!cola2::rosutil::loadVector("trajectory/wait",trajectory.wait)) valid_trajectory = false;
-
     ROS_ASSERT_MSG(trajectory.x.size() > 1, "Minimum mission size is 2");
     ROS_ASSERT_MSG(trajectory.x.size() == trajectory.y.size(), "Different mission array sizes");
+
+    if(!cola2::rosutil::loadVector("trajectory/z", trajectory.z)) valid_trajectory = false;
     ROS_ASSERT_MSG(trajectory.x.size() == trajectory.z.size(), "Different mission array sizes");
-    ROS_ASSERT_MSG(trajectory.x.size() == trajectory.wait.size(), "Different mission array sizes");
+
+    if(!cola2::rosutil::loadVector("trajectory/altitude_mode", trajectory.altitude_mode)) valid_trajectory = false;
     ROS_ASSERT_MSG(trajectory.x.size() == trajectory.altitude_mode.size(), "Different mission array sizes");
+
+    if (!ros::param::getCached("trajectory/mode", trajectory.mode)) valid_trajectory = false;
+    ROS_ASSERT_MSG(trajectory.mode == "los_cte" || trajectory.mode == "dubins", "Invalid trajectory mode");
+
+    if(ros::param::has("trajectory/wait")) {
+        cola2::rosutil::loadVector("trajectory/wait", trajectory.wait);
+        ROS_ASSERT_MSG(trajectory.x.size() == trajectory.wait.size(), "Different mission array sizes");
+    }
+    else {
+        for (unsigned int i = 0; i < trajectory.x.size(); i++) {
+            trajectory.wait.push_back(0.0);
+        }
+    }
+    if(ros::param::has("trajectory/yaw")) {
+        cola2::rosutil::loadVector("trajectory/yaw", trajectory.yaw);
+        ROS_ASSERT_MSG(trajectory.x.size() == trajectory.yaw.size(), "Different mission array sizes");
+    }
+    if(ros::param::has("trajectory/surge")) {
+        cola2::rosutil::loadVector("trajectory/surge", trajectory.surge);
+        ROS_ASSERT_MSG(trajectory.x.size() == trajectory.surge.size(), "Different mission array sizes");
+    }
+
     ROS_ASSERT_MSG(valid_trajectory, "Invalid mission parameter");
 
     // If the trajectory is defined globally, tranform from lat/lon to NED.
@@ -362,8 +383,8 @@ Captain::load_trajectory(std_srvs::Empty::Request &req,
         for(unsigned int i = 0; i < trajectory.x.size(); i++){
             _ned->geodetic2Ned(trajectory.x.at(i), trajectory.y.at(i), 0.0,
                                north, east, depth);
-            trajectory.x.at(i) = north;
-            trajectory.y.at(i) = east;
+            trajectory.x.at(i) = north;  // - 15.0; //TODO: treure aixo!!!!
+            trajectory.y.at(i) = east;  // - 50.0;
         }
     }
 
@@ -434,29 +455,52 @@ Captain::enable_trajectory(std_srvs::Empty::Request&,
 
             unsigned int i = 1;
             while (i < _trajectory.x.size() &&  _is_section_running) {
-                // For each pair of waypoints
+                // For each pair of waypoints:
+
+                // ...initial point of the section
                 section.initial_position.x = _trajectory.x.at(i-1);
                 section.initial_position.y = _trajectory.y.at(i-1);
                 section.initial_position.z = _trajectory.z.at(i-1);
+                if (_trajectory.yaw.size() > 0) {
+                    section.initial_yaw = _trajectory.yaw.at(i-1);
+                    section.use_initial_yaw = true;
+                }
+                else {
+                    section.initial_yaw = 0.0;
+                    section.use_initial_yaw = false;
+                }
+                if (_trajectory.surge.size() > 0 )
+                    section.initial_surge = _trajectory.surge.at(i-1);
+                else
+                    section.initial_surge = 0;
 
-                // TODO: Add yaw and surge in trajectory definition (mission.yaml)
-                section.initial_yaw = 0;
-                section.initial_surge = 0;
-                section.use_initial_yaw = false;
-
+                // ...final point of the section
                 section.final_position.x = _trajectory.x.at(i);
                 section.final_position.y = _trajectory.y.at(i);
                 section.final_position.z = _trajectory.z.at(i);
-                section.final_yaw = 0;
-                section.final_surge = 0;
-                section.use_final_yaw = false;
+                if (_trajectory.yaw.size() > 0) {
+                    section.final_yaw = _trajectory.yaw.at(i);
+                    section.use_final_yaw = true;
+                }
+                else {
+                    section.final_yaw = 0.0;
+                    section.use_final_yaw = false;
+                }
+                if (_trajectory.surge.size() > 0 )
+                    section.final_surge = _trajectory.surge.at(i);
+                else
+                    section.final_surge = 0;
 
-                // TODO: Altitude mode is defeined for waypoints not for sections!
-                section.altitude_mode = _trajectory.altitude_mode.at(i);
+                // Altitude mode is defined by the initial waypoint
+                section.altitude_mode = _trajectory.altitude_mode.at(i-1);
                 _section_client->sendGoal(section);
-                // TODO: Estimate maximum time for the section
-                // TODO: Right now 'enable_trajectory' is blocking.
-                _section_client->waitForResult(ros::Duration(120.0));
+
+                // TODO: Check time!
+                double section_longitude = sqrt(pow(section.final_position.x - section.initial_position.x, 2) +
+                                                pow(section.final_position.y - section.initial_position.y, 2) +
+                                                pow(section.final_position.z - section.initial_position.z, 2));
+
+                _section_client->waitForResult(ros::Duration(section_longitude * 6.0));
 
                 // Move to next waypoint
                 i++;
