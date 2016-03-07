@@ -16,7 +16,7 @@
 #include "controllers/los_cte.hpp"
 #include "controllers/goto.hpp"
 #include "controllers/holonomic_goto.hpp"
-
+#include <cola2_lib/cola2_rosutils/RosUtil.h>
 
 
 #define SECTION_MODE    0
@@ -69,7 +69,6 @@ private:
     void publishMarker(double, double, double);
     void publishMarkerSections(const control::PointsList);
     void getConfig();
-    template<typename T> void getParam(std::string, T&, T);
 };
 
 Pilot::Pilot()
@@ -509,19 +508,20 @@ void
 Pilot::getConfig() {
     // Load config from param server
     // LOS-CTE controller
-    getParam("pilot/los_cte/delta", _config.los_cte_config.delta, 8.0);
-    getParam("pilot/los_cte/distance_to_max_velocity", _config.los_cte_config.distance_to_max_velocity, 5.0);
-    getParam("pilot/los_cte/max_surge_velocity", _config.los_cte_config.max_surge_velocity, 0.5);
-    getParam("pilot/los_cte/min_surge_velocity", _config.los_cte_config.min_surge_velocity, 0.2);
-    getParam("pilot/los_cte/min_velocity_ratio", _config.los_cte_config.min_velocity_ratio, 0.1);
+
+    cola2::rosutil::getParam("pilot/los_cte/delta", _config.los_cte_config.delta, 8.0);
+    cola2::rosutil::getParam("pilot/los_cte/distance_to_max_velocity", _config.los_cte_config.distance_to_max_velocity, 5.0);
+    cola2::rosutil::getParam("pilot/los_cte/max_surge_velocity", _config.los_cte_config.max_surge_velocity, 0.5);
+    cola2::rosutil::getParam("pilot/los_cte/min_surge_velocity", _config.los_cte_config.min_surge_velocity, 0.2);
+    cola2::rosutil::getParam("pilot/los_cte/min_velocity_ratio", _config.los_cte_config.min_velocity_ratio, 0.1);
 
     // GOTO controller
-    getParam("pilot/goto/max_angle_error", _config.goto_config.max_angle_error, 0.3);
-    getParam("pilot/goto/max_surge", _config.goto_config.max_surge, 0.5);
-    getParam("pilot/goto/surge_proportional_gain", _config.goto_config.surge_proportional_gain, 0.25);
+    cola2::rosutil::getParam("pilot/goto/max_angle_error", _config.goto_config.max_angle_error, 0.3);
+    cola2::rosutil::getParam("pilot/goto/max_surge", _config.goto_config.max_surge, 0.5);
+    cola2::rosutil::getParam("pilot/goto/surge_proportional_gain", _config.goto_config.surge_proportional_gain, 0.25);
 }
 
-
+/*
 template<typename T> void
 Pilot::getParam(const std::string param_name, T& param_var, T default_value) {
     // Display a message if a parameter is not found in the param server
@@ -532,7 +532,7 @@ Pilot::getParam(const std::string param_name, T& param_var, T default_value) {
             param_var = default_value;
     }
 }
-
+*/
 
 int main(int argc, char **argv) {
     ros::init(argc, argv, "pilot_new");
