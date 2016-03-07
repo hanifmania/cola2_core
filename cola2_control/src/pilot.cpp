@@ -509,7 +509,7 @@ Pilot::getConfig() {
     // Load config from param server
     // LOS-CTE controller
 
-    cola2::rosutil::getParam("pilot/los_cte/delta", _config.los_cte_config.delta, 8.0);
+    cola2::rosutil::getParam("pilot/los_cte/delta", _config.los_cte_config.delta, 5.0);
     cola2::rosutil::getParam("pilot/los_cte/distance_to_max_velocity", _config.los_cte_config.distance_to_max_velocity, 5.0);
     cola2::rosutil::getParam("pilot/los_cte/max_surge_velocity", _config.los_cte_config.max_surge_velocity, 0.5);
     cola2::rosutil::getParam("pilot/los_cte/min_surge_velocity", _config.los_cte_config.min_surge_velocity, 0.2);
