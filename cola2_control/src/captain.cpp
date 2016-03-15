@@ -6,6 +6,7 @@
 #include <boost/shared_ptr.hpp>
 #include <cola2_msgs/String.h>
 #include <cola2_msgs/NewGoto.h>
+#include <cola2_msgs/Submerge.h>
 #include <std_srvs/Empty.h>
 #include <auv_msgs/GoalDescriptor.h>
 #include <nav_msgs/Path.h>
@@ -63,6 +64,7 @@ private:
     // Services
     ros::ServiceServer _enable_goto_srv;
     ros::ServiceServer _disable_goto_srv;
+    ros::ServiceServer _submerge_srv;
     ros::ServiceServer _load_trajectory_srv;
     ros::ServiceServer _enable_trajectory_srv;
     ros::ServiceServer _disable_trajectory_srv;
@@ -103,6 +105,9 @@ private:
     // ... services callbacks
     bool enable_goto(cola2_msgs::NewGoto::Request&,
                      cola2_msgs::NewGoto::Response&);
+
+    bool submerge(cola2_msgs::Submerge::Request&,
+                  cola2_msgs::Submerge::Response&);
 
     bool disable_goto(std_srvs::Empty::Request&,
                       std_srvs::Empty::Response&);
@@ -163,11 +168,13 @@ Captain::Captain():
     // Init services
     _enable_goto_srv = _n.advertiseService("/cola2_control/enable_goto", &Captain::enable_goto, this);
     _disable_goto_srv = _n.advertiseService("/cola2_control/disable_goto", &Captain::disable_goto, this);
+    _submerge_srv = _n.advertiseService("/cola2_control/submerge", &Captain::submerge, this);
+
     _load_trajectory_srv = _n.advertiseService("/cola2_control/load_trajectory", &Captain::load_trajectory, this);
     _enable_trajectory_srv = _n.advertiseService("/cola2_control/enable_trajectory", &Captain::enable_trajectory, this);
     _disable_trajectory_srv = _n.advertiseService("/cola2_control/disable_trajectory", &Captain::disable_trajectory, this);
-    _enable_keep_position_holonomic_srv = _n.advertiseService("/cola2_control/enable_keep_position_holonomic", &Captain::enable_keep_position_holonomic, this);
-    _enable_keep_position_non_holonomic_srv = _n.advertiseService("/cola2_control/enable_keep_position_non_holonomic", &Captain::enable_keep_position_non_holonomic, this);
+    _enable_keep_position_holonomic_srv = _n.advertiseService("/cola2_control/enable_keep_position_g500", &Captain::enable_keep_position_holonomic, this);
+    _enable_keep_position_non_holonomic_srv = _n.advertiseService("/cola2_control/enable_keep_position_s2", &Captain::enable_keep_position_non_holonomic, this);
     _disable_keep_position_srv = _n.advertiseService("/cola2_control/disable_keep_position", &Captain::disable_keep_position, this);
 
     // Subscriber
@@ -286,7 +293,7 @@ Captain::enable_goto(cola2_msgs::NewGoto::Request &req,
         }
 
         // TODO: Check timeout
-        waypoint.timeout = distance_to_waypoint * 6.0;
+        waypoint.timeout = distance_to_waypoint * 10.0;
 
         ROS_INFO_STREAM(_name << ": Send WorldWaypointRequest");
         _waypoint_client->sendGoal(waypoint);
@@ -306,6 +313,34 @@ Captain::enable_goto(cola2_msgs::NewGoto::Request &req,
     }
     return true;
 }
+
+bool
+Captain::submerge(cola2_msgs::Submerge::Request &req,
+                  cola2_msgs::Submerge::Response &res)
+{
+    cola2_msgs::NewGoto::Request goto_req;
+    cola2_msgs::NewGoto::Response goto_res;
+
+    goto_req.altitude = req.z;
+    goto_req.altitude_mode = req.altitude_mode;
+    goto_req.blocking = false;
+    goto_req.disable_axis.x = true;
+    goto_req.disable_axis.y = true;
+    goto_req.disable_axis.z = false;
+    goto_req.disable_axis.roll = true;
+    goto_req.disable_axis.pitch = true;
+    goto_req.disable_axis.yaw = false;
+    goto_req.position.z = req.z;
+    goto_req.position_tolerance.z = 1.0;
+    goto_req.yaw = _nav.yaw;
+    goto_req.orientation_tolerance.yaw = 0.1;
+    goto_req.reference = cola2_msgs::NewGoto::Request::REFERENCE_NED;
+
+    enable_goto(goto_req, goto_res);
+    res.attempted = goto_res.success;
+    return true;
+}
+
 
 bool
 Captain::disable_goto(std_srvs::Empty::Request&,
@@ -478,6 +513,8 @@ Captain::enable_trajectory(std_srvs::Empty::Request&,
                 section.final_position.x = _trajectory.x.at(i);
                 section.final_position.y = _trajectory.y.at(i);
                 section.final_position.z = _trajectory.z.at(i);
+
+                // TODO: Pilot is not prepared to use initial and final yaw yet.
                 if (_trajectory.yaw.size() > 0) {
                     section.final_yaw = _trajectory.yaw.at(i);
                     section.use_final_yaw = true;
@@ -608,11 +645,6 @@ Captain::create_path_from_trajectory(Trajectory trajectory)
     }
     return path;
 }
-
-
-
-
-
 
 
 void
