@@ -183,10 +183,10 @@ Pilot::waypointServerCallback(const cola2_msgs::WorldWaypointReqGoalConstPtr& da
                 case cola2_msgs::WorldWaypointReqGoal::GOTO:
                     ROS_DEBUG_STREAM(_node_name << ": GOTO controller");
                     _goto_controller->compute(_current_state,
-                                             waypoint,
-                                             controller_output,
-                                             feedback,
-                                             points);
+                                              waypoint,
+                                              controller_output,
+                                              feedback,
+                                              points);
                     break;
                 case cola2_msgs::WorldWaypointReqGoal::HOLONOMIC_GOTO:
                     ROS_DEBUG_STREAM(_node_name << ": HOLONOMIC_GOTO controller");
