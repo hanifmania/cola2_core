@@ -477,7 +477,7 @@ Captain::enable_trajectory(std_srvs::Empty::Request&,
                 section.controller_type = cola2_msgs::WorldSectionReqGoal::LOSCTE;
             }
             else if(_trajectory.mode == "dubins"){
-                cola2_msgs::WorldSectionReqGoal::DUBINS;
+            	section.controller_type = cola2_msgs::WorldSectionReqGoal::DUBINS;
             }
             else {
                 ROS_ASSERT_MSG(false, "Invalid trajectory mode!");

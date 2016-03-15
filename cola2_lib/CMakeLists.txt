@@ -122,7 +122,8 @@ add_library(cola2_lib
 
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
-# add_dependencies(cola2_lib_node cola2_lib_generate_messages_cpp)
+#add_dependencies(cola2_lib_node auv_msgs_generate_messages_cpp)
+add_dependencies(cola2_lib auv_msgs_generate_messages_cpp cola2_msgs_generate_messages_cpp)
 
 ## Specify libraries to link a library or executable target against
 # target_link_libraries(cola2_lib_node
