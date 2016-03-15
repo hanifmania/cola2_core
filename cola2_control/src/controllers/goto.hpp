@@ -110,13 +110,16 @@ GotoController::compute(const control::State& current_state,
         controller_output.velocity.linear.x = surge;
         controller_output.velocity.disable_axis.x = false;
         feedback.desired_surge = surge;
-        // std::cout << "Desired Surge: " << surge << "\n";
-
-        // Set desired yaw
         controller_output.pose.orientation.yaw = desired_yaw;
         controller_output.pose.disable_axis.yaw = false;
         feedback.desired_yaw = desired_yaw;
-        // std::cout << "Desired yaw: " << desired_yaw << "\n";
+    }
+
+    // Set yaw if yaw is enabled and X is disabled
+    if (waypoint.disable_axis.x && !waypoint.disable_axis.yaw){
+        controller_output.pose.orientation.yaw = waypoint.orientation.yaw;
+        controller_output.pose.disable_axis.yaw = false;
+        feedback.desired_yaw = waypoint.orientation.yaw;
     }
 
     // Fill additional feedback vars
