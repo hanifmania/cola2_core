@@ -9,18 +9,26 @@ auv_msgs/NED position
 float32 altitude
 auv_msgs/RPY orientation
 
-# Axes of control to disable, in body frame.
+# Axes of control to disable, in body frame. 
+# * for GOTO X-Z-YAW enable x and z
+# * for Holonomic goto: enable x, yaw and z
 auv_msgs/Bool6Axis disable_axis
 
 # Tolerances are in body frame, zero indicates pilot default should be used.
 geometry_msgs/Vector3 position_tolerance
 auv_msgs/RPY orientation_tolerance
 
-# Available modes are: 
+# Available modes are: (OBSOLETE!!! REPLACED BY controller_type)
 # - If ABSOLUTE_X_Z_YAW mode then: 'los' (if Line of Sight), whatever if waypoint.
-# - If ABSOLUTE_X_Y_Z_YAW mode then: 'neverending' if the action only finalizes when preempted 
+# - If ABSOLUTE_X_Y_Z_YAW mode then: 'neverending' if the action only finalizes when preempted
 #                                    or whatever to finalize when the goal is reached.
 string mode
+
+# Controller type
+uint64 controller_type
+uint64 GOTO=0       # Controls z, yaw and surge
+uint64 HOLONOMIC_GOTO=1  # Controls x, y, z and yaw
+
 
 # Max time to achieve waypoint. If timeout <= 0, time is not finite.
 int16 timeout
@@ -34,12 +42,17 @@ auv_msgs/NED position
 float32 altitude
 auv_msgs/RPY orientation
 
+uint64 final_status
+uint64 SUCCESS=0
+uint64 TIMEOUT=1
+uint64 FAILURE=2
+uint64 BUSY=3
 ---
 
 # Define a feedback message
 # If true, maintain Z position relative to altitude, otherwise depth.
 bool altitude_mode
-
 auv_msgs/NED position
 float32 altitude
 auv_msgs/RPY orientation
+float64 distance_to_waypoint

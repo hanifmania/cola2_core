@@ -2,45 +2,132 @@
 #define __CONTROLLER_TYPES__
 
 #include <vector>
+#include <string>
 
 
 namespace control {
+    typedef struct {
+        double x;
+        double y;
+        double z;
+    } point;
+
+    typedef struct {
+        double x;
+        double y;
+        double z;
+        double roll;
+        double pitch;
+        double yaw;
+    } vector6d;
+
+    typedef struct {
+        double roll;
+        double pitch;
+        double yaw;
+    } rpy;
+
+    typedef struct {
+        double north;
+        double east;
+        double depth;
+    } ned;
+
+
+    class PointsList {
+    public:
+        std::vector<control::point> points_list;
+        PointsList() {}
+    };
+
+
+    class Waypoint {
+    public:
+        std::string requester;
+        unsigned int priority;
+        bool altitude_mode;
+        control::ned position;
+        double altitude;
+        control::rpy orientation;
+        control::point position_tolerance;
+        control::rpy orientation_tolerance;
+        unsigned int controller_type;
+        unsigned int timeout;
+        control::vector6d disable_axis;
+
+        Waypoint() {
+            requester = "requester_not_defined";
+            priority = 0;
+            altitude_mode = false;
+            position.north = 0.0;
+            position.east = 0.0;
+            position.depth = 0.0;
+            altitude = 100.0;
+            orientation.roll = 0.0;
+            orientation.pitch = 0.0;
+            orientation.yaw = 0.0;
+            position_tolerance.x = 0.0;
+            position_tolerance.y = 0.0;
+            position_tolerance.z = 0.0;
+            orientation_tolerance.roll = 0.0;
+            orientation_tolerance.pitch = 0.0;
+            orientation_tolerance.yaw = 0.0;
+            controller_type = 0;  // GOTO
+            timeout = 0;
+            disable_axis.x = true;
+            disable_axis.y = true;
+            disable_axis.z = true;
+            disable_axis.roll = true;
+            disable_axis.pitch = true;
+            disable_axis.yaw = true;
+        }
+    };
+
+
     class Section {
     public:
         // Initial state
-        double initial_x;
-        double initial_y;
-        double initial_z;
+        control::point initial_position;
+        // Only for DUBINS (not for LOS)
         double initial_yaw;
         double initial_surge;
         bool use_initial_yaw;
 
         // Final state
-        double final_x;
-        double final_y;
-        double final_z;
+        control::point final_position;
+        // Only for DUBINS (not for LOS)
         double final_yaw;
         double final_surge;
         bool use_final_yaw;
 
         // Flag to consider z as altitude
-        bool use_altitude;
+        bool altitude_mode;
+
+        // Only for LOS (Not DUBINS)
+        // Flag to not control z axis
+        bool disable_z;
+        // Tolerance (LOS only uses position tolerance)
+        control::point tolerance;
 
         // Constructor with default values
         Section() {
-            initial_x = 0.0;
-            initial_y = 0.0;
-            initial_z = 0.0;
+            initial_position.x = 0.0;
+            initial_position.y = 0.0;
+            initial_position.z = 0.0;
             initial_yaw = 0.0;
             initial_surge = 0.0;
             use_initial_yaw = false;
-            final_x = 0.0;
-            final_y = 0.0;
-            final_z = 0.0;
+            final_position.x = 0.0;
+            final_position.y = 0.0;
+            final_position.z = 0.0;
             final_yaw = 0.0;
             final_surge = 0.0;
             use_final_yaw = false;
-            use_altitude = false;
+            altitude_mode = false;
+            disable_z = false;
+            tolerance.x = 0.0;
+            tolerance.y = 0.0;
+            tolerance.z = 0.0;
         }
     };
 
@@ -49,26 +136,18 @@ namespace control {
     public:
         // Position
         struct {
-            struct {
-                double north, east, depth;
-            } position;
-            struct {
-                double roll, pitch, yaw;
-            } orientation;
-            bool disable_axis[6];
+            control::ned position;
+            control::rpy orientation;
+            control::vector6d disable_axis;
             double altitude;
             bool altitude_mode;
         } pose;
 
         // Velocity
         struct {
-            struct {
-                double x, y, z;
-            } linear;
-            struct {
-                double x, y, z;
-            } angular;
-            bool disable_axis[6];
+            control::point linear;
+            control::point angular;
+            control::vector6d disable_axis;
         } velocity;
 
         // Constructor with default values
@@ -81,24 +160,24 @@ namespace control {
             pose.orientation.yaw   = 0.0;
             pose.altitude = 100000.0;  // Just in case
             pose.altitude_mode = false;
-            pose.disable_axis[0] = true;
-            pose.disable_axis[1] = true;
-            pose.disable_axis[2] = true;
-            pose.disable_axis[3] = true;
-            pose.disable_axis[4] = true;
-            pose.disable_axis[5] = true;
+            pose.disable_axis.x = true;
+            pose.disable_axis.y = true;
+            pose.disable_axis.z = true;
+            pose.disable_axis.roll = true;
+            pose.disable_axis.pitch = true;
+            pose.disable_axis.yaw = true;
             velocity.linear.x = 0.0;
             velocity.linear.y = 0.0;
             velocity.linear.z = 0.0;
             velocity.angular.x = 0.0;
             velocity.angular.y = 0.0;
             velocity.angular.z = 0.0;
-            velocity.disable_axis[0] = 0.0;
-            velocity.disable_axis[1] = 0.0;
-            velocity.disable_axis[2] = 0.0;
-            velocity.disable_axis[3] = 0.0;
-            velocity.disable_axis[4] = 0.0;
-            velocity.disable_axis[5] = 0.0;
+            velocity.disable_axis.x = 0.0;
+            velocity.disable_axis.y = 0.0;
+            velocity.disable_axis.z = 0.0;
+            velocity.disable_axis.roll = 0.0;
+            velocity.disable_axis.pitch = 0.0;
+            velocity.disable_axis.yaw = 0.0;
         }
     };
 
@@ -114,7 +193,7 @@ namespace control {
         double cross_track_error;
         double depth_error;
         double yaw_error;
-        double distance_to_section_end;
+        double distance_to_end;
 
         // Success
         bool success;
@@ -126,7 +205,7 @@ namespace control {
             cross_track_error = 0.0;
             depth_error = 0.0;
             yaw_error = 0.0;
-            distance_to_section_end = 0.0;
+            distance_to_end = 0.0;
             success = false;
         }
     };

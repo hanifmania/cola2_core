@@ -3,6 +3,8 @@
 .pydevproject
 *~
 *.pyc
+*.gch
+*.o
 
 # Folders
 bin/

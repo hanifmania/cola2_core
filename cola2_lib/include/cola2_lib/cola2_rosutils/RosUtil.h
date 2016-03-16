@@ -32,6 +32,38 @@ struct SpConfig
   int sp_timeout;
 };
 
+template<typename T>
+void getParam(const std::string param_name, T& param_var, T default_value) {
+    // Display a message if a parameter is not found in the param server
+    if (!ros::param::getCached(param_name, param_var)) {
+        ROS_WARN_STREAM("Value for parameter " <<
+            param_name << " not found in param server! Using default value " <<
+            default_value);
+            param_var = default_value;
+    }
+}
+
+template <typename ParamType>
+bool loadVector(const std::string param_name,
+                std::vector<ParamType> &data)
+{
+    // Take the vector param and copy to a std::vector<double>
+    XmlRpc::XmlRpcValue my_list ;
+    if (ros::param::getCached(param_name, my_list)) {
+        ROS_ASSERT(my_list.getType() == XmlRpc::XmlRpcValue::TypeArray) ;
+
+        for (int32_t i = 0; i < my_list.size(); ++i) {
+            // ROS_ASSERT(my_list[i].getType() == XmlRpc::XmlRpcValue::TypeDouble) ;
+            data.push_back(static_cast<ParamType>(my_list[i])) ;
+        }
+    }
+    else {
+        ROS_FATAL_STREAM("Invalid parameters for " << param_name << " in param server!");
+        return false;
+    }
+    return true;
+}
+
 void loadParam(std::string param_name, bool& value);
 void loadParam(std::string param_name, int& value);
 void loadParam(std::string param_name, double& value);
@@ -49,4 +81,3 @@ bool setUpSerialPort(cola2::io::SerialPort& serial_port, const cola2::rosutil::S
 }  // namespace cola2
 
 #endif  // COLA2_LIB_INCLUDE_COLA2_LIB_COLA2_ROSUTILS_ROSUTIL_H_
-
