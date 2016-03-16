@@ -366,10 +366,10 @@ DubinsSectionController::computeEBetaGammaSectionLength(
             control::point p1, p2;
             p1.x = ax;
             p1.y = ay;
-            p1.z = section.initial_position.z + (i / pieces) * (section.final_position.z - section.initial_position.z);
+            p1.z = section.initial_position.z + (double(i) / double(pieces)) * (section.final_position.z - section.initial_position.z);
             p2.x = bx;
             p2.y = by;
-            p2.z = section.initial_position.z + ((i + 1) / pieces) * (section.final_position.z - section.initial_position.z);
+            p2.z = section.initial_position.z + (double(i + 1) / double(pieces)) * (section.final_position.z - section.initial_position.z);
             marker.points_list.push_back(p1);
             marker.points_list.push_back(p2);
         }
