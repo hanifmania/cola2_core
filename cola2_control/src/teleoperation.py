@@ -173,6 +173,9 @@ class Teleoperation(object):
         for i in range(6):
             if (data.axes[i] < 0):
                 desired[i] = abs(data.axes[i]) * self.min_pos[i] + self.base_pose[i]
+                # If we are controlling Z axis in position this can never be smaller than 0.0
+                if i == 2 and desired[i] < 0.0:
+                    desired[i] = 0.0
             else:
                 desired[i] = data.axes[i] * self.max_pos[i] + self.base_pose[i]
             if i > 2:
