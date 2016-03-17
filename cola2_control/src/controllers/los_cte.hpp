@@ -40,6 +40,12 @@ LosCteController::LosCteController(LosCteControllerConfig config):
     _config(config)
 { }
 
+void
+LosCteController::setConfig(const LosCteControllerConfig &config)
+{
+    _config = config;
+}
+
 // Compute Method
 void
 LosCteController::compute(const control::State& current_state,

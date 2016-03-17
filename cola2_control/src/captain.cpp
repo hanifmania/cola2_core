@@ -439,8 +439,7 @@ Captain::load_trajectory(std_srvs::Empty::Request &req,
 
     if(!cola2::rosutil::loadVector("trajectory/altitude_mode", trajectory.altitude_mode)) valid_trajectory = false;
     ROS_ASSERT_MSG(trajectory.x.size() == trajectory.altitude_mode.size(), "Different mission array sizes");
-    std::cout << "Initial waypoint altitude_mode: " << trajectory.altitude_mode.at(0) << "\n";
-
+    
     if (!ros::param::getCached("trajectory/mode", trajectory.mode)) valid_trajectory = false;
     ROS_ASSERT_MSG(trajectory.mode == "los_cte" || trajectory.mode == "dubins", "Invalid trajectory mode");
 

@@ -17,7 +17,8 @@
 #include "controllers/goto.hpp"
 #include "controllers/holonomic_goto.hpp"
 #include <cola2_lib/cola2_rosutils/RosUtil.h>
-
+#include <dynamic_reconfigure/server.h>
+#include <cola2_control/PilotConfig.h>
 
 #define SECTION_MODE    0
 #define WAYPOINT_MODE   1
@@ -40,6 +41,10 @@ private:
     // Actionlib servers
     boost::shared_ptr< actionlib::SimpleActionServer<cola2_msgs::WorldSectionReqAction> > _section_server;
     boost::shared_ptr< actionlib::SimpleActionServer<cola2_msgs::WorldWaypointReqAction> > _waypoint_server;
+
+    // Reconfigure parameters
+    dynamic_reconfigure::Server<cola2_control::PilotConfig> _param_server;
+    dynamic_reconfigure::Server<cola2_control::PilotConfig>::CallbackType _f;
 
     // Other vars
     control::State _current_state;
@@ -69,6 +74,7 @@ private:
     void publishMarker(double, double, double);
     void publishMarkerSections(const control::PointsList);
     void getConfig();
+    void setParams(cola2_control::PilotConfig&, uint32_t);
 };
 
 Pilot::Pilot()
@@ -117,8 +123,14 @@ Pilot::Pilot()
         boost::bind(&Pilot::waypointServerCallback, this, _1), false));
     _waypoint_server->start();
 
+    // Init dynamic reconfigure
+    _f = boost::bind(&Pilot::setParams, this, _1, _2);
+    _param_server.setCallback(_f);
+
     // Display message
     ROS_INFO_STREAM(_node_name << ": initialized");
+
+    ros::spin();
 }
 
 void
@@ -522,22 +534,20 @@ Pilot::getConfig() {
     cola2::rosutil::getParam("pilot/goto/surge_proportional_gain", _config.goto_config.surge_proportional_gain, 0.25);
 }
 
-/*
-template<typename T> void
-Pilot::getParam(const std::string param_name, T& param_var, T default_value) {
-    // Display a message if a parameter is not found in the param server
-    if (!ros::param::getCached(param_name, param_var)) {
-        ROS_WARN_STREAM(_node_name << ": Value for parameter " <<
-            param_name << " not found in param server! Using default value " <<
-            default_value);
-            param_var = default_value;
-    }
+void
+Pilot::setParams(cola2_control::PilotConfig &config, uint32_t level)
+{
+    ROS_INFO_STREAM(_node_name << ": new parameters received!\n");
+    _config.los_cte_config.delta = config.delta;
+    _config.los_cte_config.distance_to_max_velocity = config.distance_to_max_velocity;
+    _config.los_cte_config.max_surge_velocity = config.max_surge_velocity;
+    _config.los_cte_config.min_surge_velocity = config.min_surge_velocity;
+    _config.los_cte_config.min_velocity_ratio = config.min_velocity_ratio;
+    _los_cte_controller->setConfig(_config.los_cte_config);
 }
-*/
 
 int main(int argc, char **argv) {
     ros::init(argc, argv, "pilot_new");
     Pilot pilot;
-    ros::spin();
     return 0;
 }
