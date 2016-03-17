@@ -233,7 +233,7 @@ Pilot::waypointServerCallback(const cola2_msgs::WorldWaypointReqGoalConstPtr& da
         // Check for preempted. This happens upon user request (by preempting
         // or cancelling the goal, or when a new SectionGoal is received
         if (_waypoint_server->isPreemptRequested()) {
-            ROS_WARN_STREAM(_node_name << ": waypoint preempted");
+            ROS_INFO_STREAM(_node_name << ": waypoint preempted");
             _waypoint_server->setPreempted();
             break;
         }
@@ -481,7 +481,7 @@ Pilot::publishMarkerSections(const control::PointsList points)
     visualization_msgs::Marker marker;
     marker.header.frame_id = "world";
     marker.header.stamp = ros::Time::now();
-    marker.ns = "/dubins";
+    marker.ns = _node_name;
     marker.type = visualization_msgs::Marker::LINE_LIST;
     marker.action = visualization_msgs::Marker::ADD;
 

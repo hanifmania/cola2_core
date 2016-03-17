@@ -82,14 +82,14 @@ GotoController::compute(const control::State& current_state,
     // If necessary, check if final position X, Y is reached
     feedback.success = true;
     if(!waypoint.disable_axis.x){  // X-Y tolerance must be checked
-        if(fabs(current_state.pose.position.north - waypoint.position.north) >= waypoint.position_tolerance.x ||
-           fabs(current_state.pose.position.east - waypoint.position.east) >= waypoint.position_tolerance.y){
+        if(fabs(current_state.pose.position.north - waypoint.position.north) > waypoint.position_tolerance.x ||
+           fabs(current_state.pose.position.east - waypoint.position.east) > waypoint.position_tolerance.y){
             feedback.success = false;
         }
     }
     // If necessary, check if final position Z is reached
     if(!waypoint.disable_axis.z &&
-       fabs(current_z - desired_z) >= waypoint.position_tolerance.z) {
+       fabs(current_z - desired_z) > waypoint.position_tolerance.z) {
         feedback.success = false;
     }
 
