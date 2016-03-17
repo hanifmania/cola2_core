@@ -387,7 +387,8 @@ Pilot::publishControlCommands(const control::State& controller_output,
     wwr.orientation.roll   = controller_output.pose.orientation.roll;
     wwr.orientation.pitch  = controller_output.pose.orientation.pitch;
     wwr.orientation.yaw    = controller_output.pose.orientation.yaw;
-    wwr.altitude_mode = false;
+    wwr.altitude_mode = controller_output.pose.altitude_mode;
+    wwr.altitude = controller_output.pose.altitude;
 
     // Create ROS msgs for bvr
     auv_msgs::BodyVelocityReq bvr;

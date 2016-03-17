@@ -135,7 +135,9 @@ GotoController::compute(const control::State& current_state,
     marker.points_list.push_back(initial_point);
     final_point.x = waypoint.position.north;
     final_point.y = waypoint.position.east;
-    final_point.z = waypoint.position.depth;
+    if (waypoint.altitude_mode) final_point.z = current_state.pose.position.depth + (current_state.pose.altitude - waypoint.altitude);
+    else final_point.z = waypoint.position.depth;
+
     marker.points_list.push_back(final_point);
 }
 

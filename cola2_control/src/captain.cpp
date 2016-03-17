@@ -289,6 +289,7 @@ Captain::enable_goto(cola2_msgs::NewGoto::Request &req,
                             << distance_to(req.position.x, req.position.y));
             return false;
         }
+        // TODO: distance can be with depth or altitude!
         distance_to_waypoint += fabs(req.position.z - _nav.z);
 
         _is_waypoint_running = true;
@@ -438,6 +439,7 @@ Captain::load_trajectory(std_srvs::Empty::Request &req,
 
     if(!cola2::rosutil::loadVector("trajectory/altitude_mode", trajectory.altitude_mode)) valid_trajectory = false;
     ROS_ASSERT_MSG(trajectory.x.size() == trajectory.altitude_mode.size(), "Different mission array sizes");
+    std::cout << "Initial waypoint altitude_mode: " << trajectory.altitude_mode.at(0) << "\n";
 
     if (!ros::param::getCached("trajectory/mode", trajectory.mode)) valid_trajectory = false;
     ROS_ASSERT_MSG(trajectory.mode == "los_cte" || trajectory.mode == "dubins", "Invalid trajectory mode");
@@ -510,12 +512,13 @@ Captain::enable_trajectory(std_srvs::Empty::Request&,
         enable_goto(req, res);
         ROS_ASSERT_MSG(res.success, "Impossible to reach initial waypoint");
         if (!_is_trajectory_disabled) {
-            // Submerge unti initial waypoint
-            req.altitude_mode = _trajectory.altitude_mode.at(0);
+            // Submerge until initial waypoint
             req.blocking = true;
             req.disable_axis.x = true;
             req.yaw = _nav.yaw;
             req.position.z = _trajectory.z.at(0);
+            req.altitude = _trajectory.z.at(0);
+            req.altitude_mode = _trajectory.altitude_mode.at(0);
             enable_goto(req, res);
             ROS_ASSERT_MSG(res.success, "Impossible to reach initial waypoint");
         }
