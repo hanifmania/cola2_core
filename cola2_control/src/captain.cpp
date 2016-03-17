@@ -57,6 +57,7 @@ private:
     Ned *_ned;
     control::vector6d _nav;
     CaptainConfig _config;
+    bool _is_holonomic_keep_pose_enabled;
 
     // Publishers
     ros::Publisher _pub_path;
@@ -138,7 +139,8 @@ Captain::Captain():
     _is_waypoint_running(false),
     _is_section_running(false),
     _is_trajectory_disabled(false),
-    _spinner(2)
+    _spinner(2),
+    _is_holonomic_keep_pose_enabled(false)
 {
     // Node name
     _name = ros::this_node::getName();
@@ -244,7 +246,7 @@ Captain::enable_goto(cola2_msgs::NewGoto::Request &req,
 
         _is_waypoint_running = true;
         cola2_msgs::WorldWaypointReqGoal waypoint;
-        waypoint.goal.priority = auv_msgs::GoalDescriptor::PRIORITY_NORMAL;
+        waypoint.goal.priority = req.priority;
         waypoint.goal.requester = _name;
         waypoint.altitude_mode = req.altitude_mode;
         waypoint.altitude = req.altitude;
@@ -321,6 +323,7 @@ Captain::submerge(cola2_msgs::Submerge::Request &req,
     cola2_msgs::NewGoto::Request goto_req;
     cola2_msgs::NewGoto::Response goto_res;
 
+    goto_req.priority = auv_msgs::GoalDescriptor::PRIORITY_MANUAL_OVERRIDE + 10;
     goto_req.altitude = req.z;
     goto_req.altitude_mode = req.altitude_mode;
     goto_req.blocking = false;
@@ -443,6 +446,7 @@ Captain::enable_trajectory(std_srvs::Empty::Request&,
         // Move to initial waypoint on surface and then submerge to it
         cola2_msgs::NewGoto::Request req;
         cola2_msgs::NewGoto::Response res;
+        req.priority = auv_msgs::GoalDescriptor::PRIORITY_NORMAL;
         req.altitude_mode = false;
         req.blocking = true;
         req.disable_axis.x = false;
@@ -545,6 +549,7 @@ Captain::enable_trajectory(std_srvs::Empty::Request&,
             if(_is_section_running){
                 _is_section_running = false;
                 // Move to final waypoint on surface
+                req.priority = auv_msgs::GoalDescriptor::PRIORITY_NORMAL;
                 req.altitude_mode = false;
                 req.blocking = true;
                 req.disable_axis.x = true;
@@ -586,10 +591,41 @@ Captain::disable_trajectory(std_srvs::Empty::Request&,
 }
 
 bool
-Captain::enable_keep_position_holonomic(std_srvs::Empty::Request&,
-                                        std_srvs::Empty::Response&)
+Captain::enable_keep_position_holonomic(std_srvs::Empty::Request &req,
+                                        std_srvs::Empty::Response &res)
 {
-    return false;
+    cola2_msgs::NewGoto::Request goto_req;
+    cola2_msgs::NewGoto::Response goto_res;
+
+    goto_req.priority = auv_msgs::GoalDescriptor::PRIORITY_NORMAL;
+    goto_req.altitude_mode = false;
+    goto_req.blocking = false;
+    goto_req.disable_axis.x = false;
+    goto_req.disable_axis.y = false;
+    goto_req.disable_axis.z = false;
+    goto_req.disable_axis.roll = true;
+    goto_req.disable_axis.pitch = true;
+    goto_req.disable_axis.yaw = false;
+    goto_req.position.x = _nav.x;
+    goto_req.position.y = _nav.y;
+    goto_req.position.z = _nav.z;
+    goto_req.yaw = _nav.yaw;
+
+    // If toloerance is 0.0 position, the waypoint is impossible to reach
+    // and therefore, the controller will never finish.
+    goto_req.position_tolerance.x = 0.0;
+    goto_req.position_tolerance.y = 0.0;
+    goto_req.position_tolerance.z = 0.0;
+    goto_req.orientation_tolerance.yaw = 0.0;
+
+    ROS_INFO_STREAM(_name << ": Start holonomic keep position at " << _nav.x
+                    << ", " << _nav.y << ", " << _nav.z << ", "
+                    << _nav.yaw << ".\n");
+    _is_holonomic_keep_pose_enabled = true;
+    goto_req.reference = cola2_msgs::NewGoto::Request::REFERENCE_NED;
+    enable_goto(goto_req, goto_res);
+
+    return true;
 }
 
 bool
@@ -600,10 +636,16 @@ Captain::enable_keep_position_non_holonomic(std_srvs::Empty::Request&,
 }
 
 bool
-Captain::disable_keep_position(std_srvs::Empty::Request&,
-                               std_srvs::Empty::Response&)
+Captain::disable_keep_position(std_srvs::Empty::Request &req,
+                               std_srvs::Empty::Response &res)
 {
-    return false;
+    if (_is_holonomic_keep_pose_enabled) {
+        ROS_INFO_STREAM(_name << ": Disable holonomic keep pose.");
+        disable_goto(req, res);
+        _is_holonomic_keep_pose_enabled = false;
+    }
+
+    return true;
 }
 
 void

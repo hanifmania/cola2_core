@@ -5,6 +5,7 @@ bool altitude_mode
 
 # If blocking never finalizes
 bool blocking
+uint8 priority
 
 uint8 REFERENCE_NED=0
 uint8 REFERENCE_GLOBAL=1
