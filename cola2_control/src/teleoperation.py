@@ -225,6 +225,15 @@ class Teleoperation(object):
             # if not world_waypoint_req.disable_axis.pitch:
             #    rospy.logfatal("%s: PITCH IS NOT DISABLED!", self.name)
             #    world_waypoint_req.disable_axis.pitch = True
+
+            if (world_waypoint_req.disable_axis.x and
+                    world_waypoint_req.disable_axis.y and
+                    world_waypoint_req.disable_axis.z and
+                    world_waypoint_req.disable_axis.roll and
+                    world_waypoint_req.disable_axis.pitch and
+                    world_waypoint_req.disable_axis.yaw):
+                world_waypoint_req.goal.priority = GoalDescriptor.PRIORITY_LOW
+
             self.pub_world_waypoint_req.publish(world_waypoint_req)
 
             # Velocities
