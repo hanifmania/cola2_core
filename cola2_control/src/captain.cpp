@@ -72,6 +72,7 @@ private:
     ros::ServiceServer _enable_keep_position_holonomic_srv;
     ros::ServiceServer _enable_keep_position_non_holonomic_srv;
     ros::ServiceServer _disable_keep_position_srv;
+    ros::Subscriber _2D_nav_goal;
 
     // Subscriber
     ros::Subscriber _sub_nav;
@@ -132,6 +133,7 @@ private:
                                std_srvs::Empty::Response&);
 
     void update_nav(const ros::MessageEvent<auv_msgs::NavSts const> & msg);
+    void nav_goal(const ros::MessageEvent<geometry_msgs::PoseStamped const> & msg);
 };
 
 
@@ -182,6 +184,7 @@ Captain::Captain():
     // Subscriber
 
     _sub_nav = _n.subscribe("/cola2_navigation/nav_sts", 1, &Captain::update_nav, this);
+    _2D_nav_goal = _n.subscribe("/move_base_simple/goal", 1, &Captain::nav_goal, this);
 
     // test();
     _spinner.spin();
@@ -196,6 +199,50 @@ Captain::update_nav(const ros::MessageEvent<auv_msgs::NavSts const> & msg)
     _nav.yaw = msg.getMessage()->orientation.yaw;
 }
 
+void
+Captain::nav_goal(const ros::MessageEvent<geometry_msgs::PoseStamped const> & msg)
+{
+    // Disable a previous goto if necessary
+    std_srvs::Empty::Request req;
+    std_srvs::Empty::Response res;
+    disable_goto(req, res);
+
+    double x, y;
+    // TODO: It is necessary to check TF between msg.header.frame_id and world
+    //       and apply a transformation.
+    if (msg.getMessage()->header.frame_id == "rviz" || msg.getMessage()->header.frame_id == "world"){
+        x = msg.getMessage()->pose.position.x;
+        y = msg.getMessage()->pose.position.y;
+        if (msg.getMessage()->header.frame_id == "rviz") y = -1.0 * msg.getMessage()->pose.position.y;
+
+        ROS_INFO_STREAM(_name << "Received 2D Nav Goal to " << x << ", " << y);
+        cola2_msgs::NewGoto::Request goto_req;
+        cola2_msgs::NewGoto::Response goto_res;
+
+        goto_req.priority = auv_msgs::GoalDescriptor::PRIORITY_NORMAL;
+        goto_req.altitude_mode = false;
+        goto_req.blocking = false;
+        goto_req.disable_axis.x = false;
+        goto_req.disable_axis.y = true;
+        goto_req.disable_axis.z = false;
+        goto_req.disable_axis.roll = true;
+        goto_req.disable_axis.pitch = true;
+        goto_req.disable_axis.yaw = false;
+        goto_req.position.x = x;
+        goto_req.position.y = y;
+        goto_req.position.z = 0.0;
+        goto_req.position_tolerance.x = 2.0;
+        goto_req.position_tolerance.y = 2.0;
+        goto_req.position_tolerance.z = 1.0;
+        goto_req.orientation_tolerance.yaw = 0.1;
+        goto_req.reference = cola2_msgs::NewGoto::Request::REFERENCE_NED;
+
+        enable_goto(goto_req, goto_res);
+    }
+    else {
+        ROS_INFO_STREAM(_name << "Received INVALID 2D Nav Goal from frame " << msg.getMessage()->header.frame_id << ". Change to frame 'rviz or world'");
+    }
+}
 
 double
 Captain::distance_to(const double x, const double y)
