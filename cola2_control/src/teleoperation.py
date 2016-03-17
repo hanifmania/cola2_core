@@ -16,7 +16,7 @@ from auv_msgs.msg import NavSts
 from cola2_msgs.srv import MaxJoyVelocity, MaxJoyVelocityResponse
 from cola2_lib.diagnostic_helper import DiagnosticHelper
 from cola2_lib import cola2_lib, cola2_ros_lib
-
+from std_srvs.srv import Empty, EmptyRequest, EmptyResponse
 
 class Teleoperation(object):
     """ This class recieves a joy message and generates a world_waypoint_req
@@ -85,10 +85,15 @@ class Teleoperation(object):
                          queue_size=1)
 
         # Create services
-        self.load_trajectory_srv = rospy.Service(
+        self.set_joy_srv = rospy.Service(
             '/cola2_control/set_max_joy_velocity',
             MaxJoyVelocity,
             self.set_max_joy_vel)
+
+        self.set_axes_velocity_srv = rospy.Service(
+            '/cola2_control/set_joystick_axes_to_velocity',
+            Empty,
+            self.set_axes_velocity)
 
         # Init periodic check timer
         rospy.Timer(rospy.Duration(1.0), self.check_map_ack)
@@ -173,9 +178,6 @@ class Teleoperation(object):
         for i in range(6):
             if (data.axes[i] < 0):
                 desired[i] = abs(data.axes[i]) * self.min_pos[i] + self.base_pose[i]
-                # If we are controlling Z axis in position this can never be smaller than 0.0
-                if i == 2 and desired[i] < 0.0:
-                    desired[i] = 0.0
             else:
                 desired[i] = data.axes[i] * self.max_pos[i] + self.base_pose[i]
             if i > 2:
@@ -296,6 +298,23 @@ class Teleoperation(object):
             self.min_vel[i] = -req.max_joy_velocity[i]
 
         return(MaxJoyVelocityResponse(True))
+
+    def set_axes_velocity(self, req):
+        """ Set all joystick axes to velocity control"""
+        data = Joy()
+        rospy.loginfo("%s: Set all axis to velocity", self.name)
+        # Set all axis at 0.0 and set control to velocity for all axes
+        for i in range(12):
+            data.axes.append(0.0)
+            if i < 6:
+                data.buttons.append(0)
+            else:
+                data.buttons.append(1)
+
+        self.map_ack_data_callback(data)
+
+        return EmptyResponse()
+
 
 if __name__ == '__main__':
     try:

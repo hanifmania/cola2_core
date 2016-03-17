@@ -38,6 +38,15 @@ class RecoveryActions(object):
 
         # Init service clients
         rospy.loginfo("%s: waiting for services", self.name)
+
+        try:
+            rospy.wait_for_service('/cola2_control/set_joystick_axes_to_velocity', 20)
+            self.set_joy_to_vel_srv = rospy.ServiceProxy(
+                                '/cola2_control/set_joystick_axes_to_velocity', Empty)
+        except rospy.exceptions.ROSException:
+            self.captain_clients = False
+            rospy.logfatal("%s: set joystick axes to velocity service is not available!", self.name)
+
         self.captain_clients = True
         try:
             rospy.wait_for_service('/cola2_control/disable_trajectory', 20)
@@ -139,7 +148,7 @@ class RecoveryActions(object):
             self.abort_mission_srv(EmptyRequest())
         except rospy.exceptions.ROSException:
             rospy.logerr('%s: error aborting the mission', self.name)
-            
+
         try:
             self.abort_goto_srv(EmptyRequest())
         except rospy.exceptions.ROSException:
@@ -155,6 +164,12 @@ class RecoveryActions(object):
     def surface(self):
         """ This method handles surface recovery action """
         rospy.loginfo("%s: surface", self.name)
+
+        # If we are controlling with the joystick in position (Z),
+        # submerge service could fail.
+        # Then, we first set all joystick axes to velocity 
+        self.set_joy_to_vel_srv(EmptyRequest())
+
         try:
             surface = SubmergeRequest()
             surface.z = self.controlled_surface_depth
