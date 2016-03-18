@@ -55,9 +55,11 @@ private:
     ros::MultiThreadedSpinner _spinner;
     Trajectory _trajectory;
     Ned *_ned;
-    control::vector6d _nav;
+    control::Nav _nav;
     CaptainConfig _config;
     bool _is_holonomic_keep_pose_enabled;
+    double _min_goto_vel;
+    double _min_loscte_vel;
 
     // Publishers
     ros::Publisher _pub_path;
@@ -98,11 +100,11 @@ private:
     // Methods
     bool check_no_request_running();
 
-    void getConfig();
+    void get_config();
 
     nav_msgs::Path create_path_from_trajectory(Trajectory trajectory);
 
-    double distance_to(const double, const double);
+    double distance_to(const double, const double, const double, const double, const bool);
 
     // ... services callbacks
     bool enable_goto(cola2_msgs::NewGoto::Request&,
@@ -148,7 +150,7 @@ Captain::Captain():
     _name = ros::this_node::getName();
 
     // Get config
-    getConfig();
+    get_config();
     _trajectory.valid_trajectory = false;
 
     // Init publishers
@@ -197,6 +199,7 @@ Captain::update_nav(const ros::MessageEvent<auv_msgs::NavSts const> & msg)
     _nav.y = msg.getMessage()->position.east;
     _nav.z = msg.getMessage()->position.depth;
     _nav.yaw = msg.getMessage()->orientation.yaw;
+    _nav.altitude = msg.getMessage()->altitude;
 }
 
 void
@@ -245,13 +248,20 @@ Captain::nav_goal(const ros::MessageEvent<geometry_msgs::PoseStamped const> & ms
 }
 
 double
-Captain::distance_to(const double x, const double y)
+Captain::distance_to(const double x, const double y, const double depth, const double altitude, const bool altitude_mode)
 {
-    return sqrt(pow(x - _nav.x, 2) + pow(y - _nav.y, 2));
+    double inc_z;
+    if (altitude_mode) {
+        inc_z = _nav.altitude - altitude;
+    }
+    else {
+        inc_z = depth - _nav.z;
+    }
+    return sqrt(pow(x - _nav.x, 2) + pow(y - _nav.y, 2) + pow(inc_z, 2));
 }
 
 void
-Captain::getConfig() {
+Captain::get_config() {
     // Default config here
     config.section_server_name = "section_server";
     double ned_latitude;
@@ -272,6 +282,15 @@ Captain::getConfig() {
     _config.tolerance.roll = tolerance.at(3);
     _config.tolerance.pitch = tolerance.at(4);
     _config.tolerance.yaw = tolerance.at(5);
+
+    // Get max velocity Z from controller params and goto_max_surge or
+    // los_cte_max_surge_velocity to estimate GOTO timeout.
+    double surge, heave, surge_los;
+    cola2::rosutil::getParam("/controller/max_velocity_z", heave, 0.1);
+    cola2::rosutil::getParam("pilot/goto_max_surge", surge, 0.1);
+    cola2::rosutil::getParam("pilot/los_cte_max_surge_velocity", surge_los, 0.1);
+    _min_goto_vel = std::min(heave, surge);
+    _min_loscte_vel = std::min(heave, surge_los);
 }
 
 
@@ -280,19 +299,6 @@ Captain::enable_goto(cola2_msgs::NewGoto::Request &req,
                      cola2_msgs::NewGoto::Response &res)
 {
     if(check_no_request_running()){
-
-        // Check max distance to waypoint
-        double distance_to_waypoint = distance_to(req.position.x, req.position.y);
-        if(distance_to_waypoint > _config.max_distance_to_waypoint) {
-            ROS_WARN_STREAM(_name << ": Max distance to waypoint is " <<
-                            _config.max_distance_to_waypoint << " requested waypoint is at "
-                            << distance_to(req.position.x, req.position.y));
-            return false;
-        }
-        // TODO: distance can be with depth or altitude!
-        distance_to_waypoint += fabs(req.position.z - _nav.z);
-
-        _is_waypoint_running = true;
         cola2_msgs::WorldWaypointReqGoal waypoint;
         waypoint.goal.priority = req.priority;
         waypoint.goal.requester = _name;
@@ -312,7 +318,21 @@ Captain::enable_goto(cola2_msgs::NewGoto::Request &req,
             waypoint.position.east = east;
         }
         else {
-            ROS_WARN_STREAM(_name << ": Invalid GOTO refenrece. REFERENCE_VEHICLE not yet implemented.");
+            ROS_WARN_STREAM(_name << ": Invalid GOTO reference. REFERENCE_VEHICLE not yet implemented.");
+        }
+
+        // Check max distance to waypoint
+        double distance_to_waypoint = distance_to(waypoint.position.north,
+                                                  waypoint.position.east,
+                                                  req.position.z,
+                                                  req.altitude,
+                                                  req.altitude_mode);
+
+        if(distance_to_waypoint > _config.max_distance_to_waypoint) {
+            ROS_WARN_STREAM(_name << ": Max distance to waypoint is " <<
+                            _config.max_distance_to_waypoint << " requested waypoint is at "
+                            << distance_to_waypoint);
+            return false;
         }
 
         waypoint.position.depth = req.position.z;
@@ -342,10 +362,12 @@ Captain::enable_goto(cola2_msgs::NewGoto::Request &req,
             waypoint.controller_type = cola2_msgs::WorldWaypointReqGoal::GOTO;
         }
 
-        // TODO: Check timeout
-        waypoint.timeout = distance_to_waypoint * 10.0;
+        _is_waypoint_running = true;
 
-        ROS_INFO_STREAM(_name << ": Send WorldWaypointRequest");
+        // Compute timeout
+        waypoint.timeout = (2.0 * distance_to_waypoint) / _min_goto_vel;
+
+        ROS_INFO_STREAM(_name << ": Send WorldWaypointRequest. Timeout = " << waypoint.timeout << "\n");
         _waypoint_client->sendGoal(waypoint);
         res.success = true;
         // If blocking wait for the result
@@ -412,23 +434,29 @@ Captain::load_trajectory(std_srvs::Empty::Request &req,
     // be firts loaded to the param server!
     bool valid_trajectory = true ;
     bool is_trajectory_global = false;
+    bool is_trajectory_local = false;
     double ned_latitude;
     double ned_longitude;
     Trajectory trajectory;
 
-    // TODO: Compte! Si es passa d'una mission local a global, s'han de borrar
-    //       els camps trajectory/north, trajectory/east, trajectory/latitude, ...
     if(cola2::rosutil::loadVector("trajectory/north", trajectory.x) &&
        cola2::rosutil::loadVector("trajectory/east", trajectory.y)){
         ROS_INFO_STREAM(_name << ": loading local trajectory ...");
+        is_trajectory_local = true;
     }
-    else if (cola2::rosutil::loadVector("trajectory/latitude", trajectory.x) &&
-             cola2::rosutil::loadVector("trajectory/longitude", trajectory.y)){
+    if (cola2::rosutil::loadVector("trajectory/latitude", trajectory.x) &&
+        cola2::rosutil::loadVector("trajectory/longitude", trajectory.y)){
         ROS_INFO_STREAM(_name << ": loading global trajectory ...");
         is_trajectory_global = true;
     }
-    else {
+    if(is_trajectory_global && is_trajectory_local) {
+        ROS_WARN_STREAM(_name << ": invalid trajectory. Found North/East and Latitude/Longitude waypoints in param server!");
+        _trajectory.valid_trajectory = false;
+        return false;
+    }
+    if(!is_trajectory_global && !is_trajectory_local) {
         ROS_INFO_STREAM(_name << ": invalid trajectory");
+        _trajectory.valid_trajectory = false;
         return false;
     }
     ROS_ASSERT_MSG(trajectory.x.size() > 1, "Minimum mission size is 2");
@@ -439,7 +467,7 @@ Captain::load_trajectory(std_srvs::Empty::Request &req,
 
     if(!cola2::rosutil::loadVector("trajectory/altitude_mode", trajectory.altitude_mode)) valid_trajectory = false;
     ROS_ASSERT_MSG(trajectory.x.size() == trajectory.altitude_mode.size(), "Different mission array sizes");
-    
+
     if (!ros::param::getCached("trajectory/mode", trajectory.mode)) valid_trajectory = false;
     ROS_ASSERT_MSG(trajectory.mode == "los_cte" || trajectory.mode == "dubins", "Invalid trajectory mode");
 
@@ -469,8 +497,8 @@ Captain::load_trajectory(std_srvs::Empty::Request &req,
         for(unsigned int i = 0; i < trajectory.x.size(); i++){
             _ned->geodetic2Ned(trajectory.x.at(i), trajectory.y.at(i), 0.0,
                                north, east, depth);
-            trajectory.x.at(i) = north;  // - 15.0; //TODO: treure aixo!!!!
-            trajectory.y.at(i) = east;  // - 50.0;
+            trajectory.x.at(i) = north;
+            trajectory.y.at(i) = east;
         }
     }
 
@@ -544,7 +572,6 @@ Captain::enable_trajectory(std_srvs::Empty::Request&,
             unsigned int i = 1;
             while (i < _trajectory.x.size() &&  _is_section_running) {
                 // For each pair of waypoints:
-
                 // ...initial point of the section
                 section.initial_position.x = _trajectory.x.at(i-1);
                 section.initial_position.y = _trajectory.y.at(i-1);
@@ -585,12 +612,15 @@ Captain::enable_trajectory(std_srvs::Empty::Request&,
                 section.altitude_mode = _trajectory.altitude_mode.at(i-1);
                 _section_client->sendGoal(section);
 
-                // TODO: Check time!
-                double section_longitude = sqrt(pow(section.final_position.x - section.initial_position.x, 2) +
-                                                pow(section.final_position.y - section.initial_position.y, 2) +
-                                                pow(section.final_position.z - section.initial_position.z, 2));
-
-                _section_client->waitForResult(ros::Duration(section_longitude * 6.0));
+                // Compute timeout
+                double distance_to_end_section = distance_to(_trajectory.x.at(i),
+                                                             _trajectory.y.at(i),
+                                                             _trajectory.z.at(i),
+                                                             _trajectory.z.at(i),
+                                                             _trajectory.altitude_mode.at(i));
+                double timeout = (2*distance_to_end_section) / _min_loscte_vel;
+                ROS_INFO_STREAM(_name << ": Section timeout = " << timeout << "\n");
+                _section_client->waitForResult(ros::Duration(timeout));
 
                 // Move to next waypoint
                 i++;
@@ -737,183 +767,6 @@ Captain::create_path_from_trajectory(Trajectory trajectory)
     return path;
 }
 
-
-void
-Captain::test()
-{
-    // Create Waypoint
-    cola2_msgs::WorldWaypointReqGoal waypoint;
-    waypoint.goal.priority = 10;
-    waypoint.goal.requester = "captain";
-    waypoint.altitude_mode = false;
-    waypoint.position.north = 10.0;
-    waypoint.position.east = 10.0;
-    waypoint.position.depth = 2.0;
-    waypoint.orientation.yaw = 1.57;
-    waypoint.disable_axis.x = false;
-    waypoint.disable_axis.z = false;
-    waypoint.disable_axis.yaw = false;
-    waypoint.position_tolerance.x = 3.0;
-    waypoint.position_tolerance.y = 3.0;
-    waypoint.position_tolerance.z = 1.5;
-    waypoint.orientation_tolerance.yaw = 0.1;
-    waypoint.controller_type = cola2_msgs::WorldWaypointReqGoal::HOLONOMIC_GOTO;
-    waypoint.timeout = 100;
-    std::cout << "Send waypoint 1\n";
-    _waypoint_client->sendGoal(waypoint);
-    _waypoint_client->waitForResult(ros::Duration(120.0));
-
-    waypoint.position.north = 0.0;
-    waypoint.position.east = 0.0;
-    std::cout << "Send waypoint 2\n";
-    _waypoint_client->sendGoal(waypoint);
-    _waypoint_client->waitForResult(ros::Duration(120.0));
-
-    waypoint.position.north = -10.0;
-    waypoint.position.east = -10.0;
-    std::cout << "Send waypoint 3\n";
-    // _waypoint_client->sendGoal(waypoint);
-    // _waypoint_client->waitForResult(ros::Duration(120.0));
-
-    // Create section
-    cola2_msgs::WorldSectionReqGoal section;
-    section.priority = 30;
-    section.initial_surge = 0.3;
-    //section.use_initial_yaw = true;
-    section.final_surge = 0.3;
-    section.controller_type = cola2_msgs::WorldSectionReqGoal::LOSCTE;
-    section.use_final_yaw = true;
-    section.initial_position.z = 1.0;
-    section.final_position.z   = 1.0;
-    section.disable_z = false;
-    section.tolerance.x = 3.0;
-    section.tolerance.y = 3.0;
-    section.tolerance.z = 1.5;
-
-    //section.timeout = 10.0;
-
-
-    // Section 1
-    section.initial_position.x = 0;
-    section.initial_position.y = 0;
-    section.initial_yaw = 0;
-    section.final_position.x = 15;
-    section.final_position.y = 0;
-    section.final_yaw = -1.18925;
-    //section.final_z   = 0.5;
-    std::cout << "Send Section 1\n";
-    _section_client->sendGoal(section);
-
-    //ros::Duration(5.0).sleep();
-    //_section_client->cancelGoal();
-
-    _section_client->waitForResult(ros::Duration(120.0));
-
-    // Section 2
-    section.initial_position.x = 15.0;
-    section.initial_position.y = .0;
-    section.initial_yaw = -1.18925;
-    section.final_position.x = 15.0;
-    section.final_position.y = -15.0;
-    section.final_yaw = -1.18925;
-    //section.final_z   = 1.0;
-    std::cout << "Send Section 2\n";
-    _section_client->sendGoal(section);
-    _section_client->waitForResult(ros::Duration(120.0));
-
-    //ros::shutdown();
-
-    // Section 3
-    section.initial_position.x = 15;
-    section.initial_position.y = -15;
-    section.initial_yaw = -1.18925;
-    section.final_position.x = 0;
-    section.final_position.y = -15;
-    section.final_yaw = -0.847483;
-    //section.final_z   = 1.5;
-    std::cout << "Send Section 3\n";
-    _section_client->sendGoal(section);
-    _section_client->waitForResult(ros::Duration(120.0));
-
-    // Section 4
-    section.initial_position.x = 0;
-    section.initial_position.y = -15;
-    section.initial_yaw = -0.847483;
-    section.final_position.x = 0;
-    section.final_position.y = 0;
-    section.final_yaw = -0.241298;
-    //section.final_z   = 2.0;
-    std::cout << "Send Section 4\n";
-    _section_client->sendGoal(section);
-    _section_client->waitForResult(ros::Duration(120.0));
-
-    // Section 5
-    section.initial_position.x = 10.4831;
-    section.initial_position.y = -15.223;
-    section.initial_yaw = -0.241298;
-    section.final_position.x = 19.4962;
-    section.final_position.y = -17.441;
-    section.final_yaw = -0.241298;
-    //section.final_z   = 2.0;
-    std::cout << "Send Section 5\n";
-    _section_client->sendGoal(section);
-    _section_client->waitForResult(ros::Duration(220.0));
-
-    // Section 6
-    section.initial_position.x = 19.4962;
-    section.initial_position.y = -17.441;
-    section.initial_yaw = -0.241298;
-    section.final_position.x = 19.6668;
-    section.final_position.y = -17.4884;
-    section.final_yaw = -0.300332;
-    //section.final_z   = 1.5;
-    _section_client->sendGoal(section);
-    _section_client->waitForResult(ros::Duration(120.0));
-
-    // Section 7
-    section.initial_position.x = 19.6668;
-    section.initial_position.y = -17.4884;
-    section.initial_yaw = -0.300332;
-    section.final_position.x = 21.2979;
-    section.final_position.y= -18.7242;
-    section.final_yaw = -0.996449;
-    //section.final_z   = 1.0;
-    _section_client->sendGoal(section);
-    _section_client->waitForResult(ros::Duration(120.0));
-
-    // Section 8
-    section.initial_position.x = 21.2979;
-    section.initial_position.y = -18.7242;
-    section.initial_yaw = -0.996449;
-    section.final_position.x = 24.7907;
-    section.final_position.y= -24.1217;
-    section.final_yaw = -0.996449;
-    //section.final_z   = 0.5;
-    _section_client->sendGoal(section);
-    _section_client->waitForResult(ros::Duration(120.0));
-
-    // Section 9
-    section.initial_position.x = 24.7907;
-    section.initial_position.y = -24.1217;
-    section.initial_yaw = -0.996449;
-    section.final_position.x = 25.1677;
-    section.final_position.y= -26.5361;
-    section.final_yaw = -1.8354;
-    //section.final_z   = 0.0;
-    _section_client->sendGoal(section);
-    _section_client->waitForResult(ros::Duration(120.0));
-
-    // Section 10
-    section.initial_position.x = 25.1677;
-    section.initial_position.y = -26.5361;
-    section.initial_yaw = -1.8354;
-    section.final_position.x = 25;
-    section.final_position.y= -27;
-    section.final_yaw = -2;
-    //section.final_z   = 1.0;
-    _section_client->sendGoal(section);
-    _section_client->waitForResult(ros::Duration(120.0));
-}
 
 int main(int argc, char **argv) {
     ros::init(argc, argv, "captain_new");

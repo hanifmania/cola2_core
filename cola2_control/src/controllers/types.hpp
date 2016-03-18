@@ -22,6 +22,16 @@ namespace control {
     } vector6d;
 
     typedef struct {
+        double x;
+        double y;
+        double z;
+        double roll;
+        double pitch;
+        double yaw;
+        double altitude;
+    } Nav;
+
+    typedef struct {
         double roll;
         double pitch;
         double yaw;
