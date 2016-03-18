@@ -20,7 +20,7 @@ typedef struct {
 class DubinsSectionController {
 public:
     // Methods
-    DubinsSectionController();
+    DubinsSectionController(const DubinsSectionControllerConfig&);
     void compute(const control::State&,
                  const control::Section&,
                  double period,
@@ -48,15 +48,11 @@ private:
 };
 
 
-DubinsSectionController::DubinsSectionController():
+DubinsSectionController::DubinsSectionController(const DubinsSectionControllerConfig &config):
     _yaw_old_e(0.0),
     _yaw_old_psi(0.0)
 {
-    // Default config
-    _config.yaw_ki         = 0.003;//0.003;//0.006;
-    _config.yaw_kp         = 0.09;//0.12;
-    _config.lookahead_sec  = 4.0;
-    _config.acceptance_sec = 3.0;
+    _config = config;
 }
 
 

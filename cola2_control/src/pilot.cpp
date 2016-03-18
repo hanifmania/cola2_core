@@ -50,10 +50,10 @@ private:
     control::State _current_state;
 
     // Controllers
-    DubinsSectionController _dubins_controller;
+    DubinsSectionController *_dubins_controller;
     LosCteController *_los_cte_controller;
-    GotoController * _goto_controller;
-    HolonomicGotoController * _holonomic_goto_controller;
+    GotoController *_goto_controller;
+    HolonomicGotoController *_holonomic_goto_controller;
 
     // Mutex between section and waypoint controllers
     // TODO: To be done
@@ -63,6 +63,7 @@ private:
         LosCteControllerConfig los_cte_config;
         GotoControllerConfig goto_config;
         HolonomicGotoControllerConfig holonomic_goto_config;
+        DubinsSectionControllerConfig dubins_config;
     } _config;
 
     // Methods
@@ -92,6 +93,8 @@ Pilot::Pilot()
     _goto_controller = new GotoController(_config.goto_config);
     // Holonomic Goto waypoint
     _holonomic_goto_controller = new HolonomicGotoController(_config.holonomic_goto_config);
+    // Dubins controller
+    _dubins_controller = new DubinsSectionController(_config.dubins_config);
 
     // Publishers
     _pub_wwr = _nh.advertise<auv_msgs::WorldWaypointReq>(
@@ -303,12 +306,12 @@ Pilot::sectionServerCallback(const cola2_msgs::WorldSectionReqGoalConstPtr& data
             switch (data->controller_type) {
                 case cola2_msgs::WorldSectionReqGoal::DUBINS:
                     ROS_DEBUG_STREAM(_node_name << ": DUBINS controller");
-                    _dubins_controller.compute(_current_state,
-                                               section,
-                                               1.0 / 10.0,
-                                               controller_output,
-                                               feedback,
-                                               points);
+                    _dubins_controller->compute(_current_state,
+                                                section,
+                                                1.0 / 10.0,
+                                                controller_output,
+                                                feedback,
+                                                points);
                     break;
                     case cola2_msgs::WorldSectionReqGoal::LOSCTE:
                         ROS_DEBUG_STREAM(_node_name << ": LOSCTE controller");
@@ -532,18 +535,35 @@ Pilot::getConfig() {
     cola2::rosutil::getParam("pilot/goto/max_angle_error", _config.goto_config.max_angle_error, 0.3);
     cola2::rosutil::getParam("pilot/goto/max_surge", _config.goto_config.max_surge, 0.5);
     cola2::rosutil::getParam("pilot/goto/surge_proportional_gain", _config.goto_config.surge_proportional_gain, 0.25);
+
+    // DUBINS controller
+    cola2::rosutil::getParam("pilot/dubins/yaw_ki", _config.dubins_config.yaw_ki, 0.003);
+    cola2::rosutil::getParam("pilot/dubins/yaw_kp", _config.dubins_config.yaw_kp, 0.09);
+    cola2::rosutil::getParam("pilot/dubins/lookahead_sec", _config.dubins_config.lookahead_sec, 4.0);
+    cola2::rosutil::getParam("pilot/dubins/acceptance_sec", _config.dubins_config.acceptance_sec, 3.0);
 }
 
 void
 Pilot::setParams(cola2_control::PilotConfig &config, uint32_t level)
 {
     ROS_INFO_STREAM(_node_name << ": new parameters received!\n");
-    _config.los_cte_config.delta = config.delta;
-    _config.los_cte_config.distance_to_max_velocity = config.distance_to_max_velocity;
-    _config.los_cte_config.max_surge_velocity = config.max_surge_velocity;
-    _config.los_cte_config.min_surge_velocity = config.min_surge_velocity;
-    _config.los_cte_config.min_velocity_ratio = config.min_velocity_ratio;
+    _config.los_cte_config.delta = config.LOS_CTE_delta;
+    _config.los_cte_config.distance_to_max_velocity = config.LOS_CTE_distance_to_max_velocity;
+    _config.los_cte_config.max_surge_velocity = config.LOS_CTE_max_surge_velocity;
+    _config.los_cte_config.min_surge_velocity = config.LOS_CTE_min_surge_velocity;
+    _config.los_cte_config.min_velocity_ratio = config.LOS_CTE_min_velocity_ratio;
     _los_cte_controller->setConfig(_config.los_cte_config);
+
+    _config.goto_config.max_angle_error = config.GOTO_max_angle_error;
+    _config.goto_config.max_surge = config.GOTO_max_surge;
+    _config.goto_config.surge_proportional_gain = config.GOTO_surge_proportional_gain;
+    _goto_controller->setConfig(_config.goto_config);
+
+    _config.dubins_config.yaw_kp = config.DUBINS_yaw_kp;
+    _config.dubins_config.yaw_ki = config.DUBINS_yaw_ki;
+    _config.dubins_config.acceptance_sec = config.DUBINS_acceptance_sec;
+    _config.dubins_config.lookahead_sec = config.DUBINS_lookahead_sec;
+    _dubins_controller->setConfig(_config.dubins_config);
 }
 
 int main(int argc, char **argv) {

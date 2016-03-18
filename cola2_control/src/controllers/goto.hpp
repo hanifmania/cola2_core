@@ -141,4 +141,10 @@ GotoController::compute(const control::State& current_state,
     marker.points_list.push_back(final_point);
 }
 
+void
+GotoController::setConfig(const GotoControllerConfig &config)
+{
+    _config = config;
+}
+
 #endif  /* __CONTROLLER_GOTO__ */
