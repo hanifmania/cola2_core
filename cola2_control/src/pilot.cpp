@@ -525,44 +525,44 @@ Pilot::getConfig() {
     // Load config from param server
     // LOS-CTE controller
 
-    cola2::rosutil::getParam("pilot/los_cte/delta", _config.los_cte_config.delta, 5.0);
-    cola2::rosutil::getParam("pilot/los_cte/distance_to_max_velocity", _config.los_cte_config.distance_to_max_velocity, 5.0);
-    cola2::rosutil::getParam("pilot/los_cte/max_surge_velocity", _config.los_cte_config.max_surge_velocity, 0.5);
-    cola2::rosutil::getParam("pilot/los_cte/min_surge_velocity", _config.los_cte_config.min_surge_velocity, 0.2);
-    cola2::rosutil::getParam("pilot/los_cte/min_velocity_ratio", _config.los_cte_config.min_velocity_ratio, 0.1);
+    cola2::rosutil::getParam("pilot/los_cte_delta", _config.los_cte_config.delta, 5.0);
+    cola2::rosutil::getParam("pilot/los_cte_distance_to_max_velocity", _config.los_cte_config.distance_to_max_velocity, 5.0);
+    cola2::rosutil::getParam("pilot/los_cte_max_surge_velocity", _config.los_cte_config.max_surge_velocity, 0.5);
+    cola2::rosutil::getParam("pilot/los_cte_min_surge_velocity", _config.los_cte_config.min_surge_velocity, 0.2);
+    cola2::rosutil::getParam("pilot/los_cte_min_velocity_ratio", _config.los_cte_config.min_velocity_ratio, 0.1);
 
     // GOTO controller
-    cola2::rosutil::getParam("pilot/goto/max_angle_error", _config.goto_config.max_angle_error, 0.3);
-    cola2::rosutil::getParam("pilot/goto/max_surge", _config.goto_config.max_surge, 0.5);
-    cola2::rosutil::getParam("pilot/goto/surge_proportional_gain", _config.goto_config.surge_proportional_gain, 0.25);
+    cola2::rosutil::getParam("pilot/goto_max_angle_error", _config.goto_config.max_angle_error, 0.3);
+    cola2::rosutil::getParam("pilot/goto_max_surge", _config.goto_config.max_surge, 0.5);
+    cola2::rosutil::getParam("pilot/goto_surge_proportional_gain", _config.goto_config.surge_proportional_gain, 0.25);
 
     // DUBINS controller
-    cola2::rosutil::getParam("pilot/dubins/yaw_ki", _config.dubins_config.yaw_ki, 0.003);
-    cola2::rosutil::getParam("pilot/dubins/yaw_kp", _config.dubins_config.yaw_kp, 0.09);
-    cola2::rosutil::getParam("pilot/dubins/lookahead_sec", _config.dubins_config.lookahead_sec, 4.0);
-    cola2::rosutil::getParam("pilot/dubins/acceptance_sec", _config.dubins_config.acceptance_sec, 3.0);
+    cola2::rosutil::getParam("pilot/dubins_yaw_ki", _config.dubins_config.yaw_ki, 0.003);
+    cola2::rosutil::getParam("pilot/dubins_yaw_kp", _config.dubins_config.yaw_kp, 0.09);
+    cola2::rosutil::getParam("pilot/dubins_lookahead_sec", _config.dubins_config.lookahead_sec, 4.0);
+    cola2::rosutil::getParam("pilot/dubins_acceptance_sec", _config.dubins_config.acceptance_sec, 3.0);
 }
 
 void
 Pilot::setParams(cola2_control::PilotConfig &config, uint32_t level)
 {
     ROS_INFO_STREAM(_node_name << ": new parameters received!\n");
-    _config.los_cte_config.delta = config.LOS_CTE_delta;
-    _config.los_cte_config.distance_to_max_velocity = config.LOS_CTE_distance_to_max_velocity;
-    _config.los_cte_config.max_surge_velocity = config.LOS_CTE_max_surge_velocity;
-    _config.los_cte_config.min_surge_velocity = config.LOS_CTE_min_surge_velocity;
-    _config.los_cte_config.min_velocity_ratio = config.LOS_CTE_min_velocity_ratio;
+    _config.los_cte_config.delta = config.los_cte_delta;
+    _config.los_cte_config.distance_to_max_velocity = config.los_cte_distance_to_max_velocity;
+    _config.los_cte_config.max_surge_velocity = config.los_cte_max_surge_velocity;
+    _config.los_cte_config.min_surge_velocity = config.los_cte_min_surge_velocity;
+    _config.los_cte_config.min_velocity_ratio = config.los_cte_min_velocity_ratio;
     _los_cte_controller->setConfig(_config.los_cte_config);
 
-    _config.goto_config.max_angle_error = config.GOTO_max_angle_error;
-    _config.goto_config.max_surge = config.GOTO_max_surge;
-    _config.goto_config.surge_proportional_gain = config.GOTO_surge_proportional_gain;
+    _config.goto_config.max_angle_error = config.goto_max_angle_error;
+    _config.goto_config.max_surge = config.goto_max_surge;
+    _config.goto_config.surge_proportional_gain = config.goto_surge_proportional_gain;
     _goto_controller->setConfig(_config.goto_config);
 
-    _config.dubins_config.yaw_kp = config.DUBINS_yaw_kp;
-    _config.dubins_config.yaw_ki = config.DUBINS_yaw_ki;
-    _config.dubins_config.acceptance_sec = config.DUBINS_acceptance_sec;
-    _config.dubins_config.lookahead_sec = config.DUBINS_lookahead_sec;
+    _config.dubins_config.yaw_kp = config.dubins_yaw_kp;
+    _config.dubins_config.yaw_ki = config.dubins_yaw_ki;
+    _config.dubins_config.acceptance_sec = config.dubins_acceptance_sec;
+    _config.dubins_config.lookahead_sec = config.dubins_lookahead_sec;
     _dubins_controller->setConfig(_config.dubins_config);
 }
 
