@@ -44,6 +44,20 @@ HolonomicGotoController::compute(const control::State& current_state,
                                  control::Feedback& feedback,
                                  control::PointsList& marker)
 {
+    // Set all axis as disabled by default
+    controller_output.pose.disable_axis.x = true;
+    controller_output.pose.disable_axis.y = true;
+    controller_output.pose.disable_axis.z = true;
+    controller_output.pose.disable_axis.roll = true;
+    controller_output.pose.disable_axis.pitch = true;
+    controller_output.pose.disable_axis.yaw = true;
+    controller_output.velocity.disable_axis.x = true;
+    controller_output.velocity.disable_axis.y = true;
+    controller_output.velocity.disable_axis.z = true;
+    controller_output.velocity.disable_axis.roll = true;
+    controller_output.velocity.disable_axis.pitch = true;
+    controller_output.velocity.disable_axis.yaw = true;
+
     // Take desired and current Z
     double desired_z = waypoint.position.depth;
     double current_z = current_state.pose.position.depth;

@@ -54,6 +54,20 @@ LosCteController::compute(const control::State& current_state,
                           control::Feedback& feedback,
                           control::PointsList& marker)
 {
+    // Set all axis as disabled by default
+    controller_output.pose.disable_axis.x = true;
+    controller_output.pose.disable_axis.y = true;
+    controller_output.pose.disable_axis.z = true;
+    controller_output.pose.disable_axis.roll = true;
+    controller_output.pose.disable_axis.pitch = true;
+    controller_output.pose.disable_axis.yaw = true;
+    controller_output.velocity.disable_axis.x = true;
+    controller_output.velocity.disable_axis.y = true;
+    controller_output.velocity.disable_axis.z = true;
+    controller_output.velocity.disable_axis.roll = true;
+    controller_output.velocity.disable_axis.pitch = true;
+    controller_output.velocity.disable_axis.yaw = true;
+    
     // std::cout << section.initial_position.x << ", " << section.initial_position.y << " to " << section.final_position.x << ", " << section.final_position.y << " \n";
     // Compute desired surge and yaw
     double surge = _config.max_surge_velocity;
