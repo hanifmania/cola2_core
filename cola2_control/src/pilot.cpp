@@ -16,6 +16,7 @@
 #include "controllers/los_cte.hpp"
 #include "controllers/goto.hpp"
 #include "controllers/holonomic_goto.hpp"
+#include "controllers/anchor.cpp"
 #include <cola2_lib/cola2_rosutils/RosUtil.h>
 #include <dynamic_reconfigure/server.h>
 #include <cola2_control/PilotConfig.h>
@@ -54,6 +55,7 @@ private:
     LosCteController *_los_cte_controller;
     GotoController *_goto_controller;
     HolonomicGotoController *_holonomic_goto_controller;
+    AnchorController *_anchor_controller;
 
     // Mutex between section and waypoint controllers
     // TODO: To be done
@@ -64,6 +66,7 @@ private:
         GotoControllerConfig goto_config;
         HolonomicGotoControllerConfig holonomic_goto_config;
         DubinsSectionControllerConfig dubins_config;
+        AnchorControllerConfig anchor_config;
     } _config;
 
     // Methods
@@ -95,6 +98,8 @@ Pilot::Pilot()
     _holonomic_goto_controller = new HolonomicGotoController(_config.holonomic_goto_config);
     // Dubins controller
     _dubins_controller = new DubinsSectionController(_config.dubins_config);
+    // Anchor controller (for keep position in non holonomic vehicles)
+    _anchor_controller = new AnchorController(_config.anchor_config);
 
     // Publishers
     _pub_wwr = _nh.advertise<auv_msgs::WorldWaypointReq>(
@@ -210,6 +215,14 @@ Pilot::waypointServerCallback(const cola2_msgs::WorldWaypointReqGoalConstPtr& da
                                                         controller_output,
                                                         feedback,
                                                         points);
+                    break;
+                case cola2_msgs::WorldWaypointReqGoal::ANCHOR:
+                    ROS_DEBUG_STREAM(_node_name << ": ANCHOR controller");
+                    _anchor_controller->compute(_current_state,
+                                                 waypoint,
+                                                 controller_output,
+                                                 feedback,
+                                                 points);
                     break;
                 default:
                     std::cout << "Controller: " <<  data->controller_type << "\n";
@@ -466,27 +479,27 @@ Pilot::publishMarker(double north, double east, double depth) {
     // Publish marker. Marker is published periodically so that RViz always
     // receives it, even if RViz is started after the ActionGoal arrives
     visualization_msgs::Marker marker;
-    marker.header.frame_id = "world";
-    marker.header.stamp = ros::Time::now();
-    marker.ns = _node_name;
-    marker.type = visualization_msgs::Marker::SPHERE;
-    marker.action = visualization_msgs::Marker::ADD;
-    marker.pose.position.x = north;
-    marker.pose.position.y = east;
-    marker.pose.position.z = depth;
-    marker.pose.orientation.w = 1.0;
-    marker.pose.orientation.x = 0.0;
-    marker.pose.orientation.y = 0.0;
-    marker.pose.orientation.z = 0.0;
-    marker.scale.x = 1.0;
-    marker.scale.y = 1.0;
-    marker.scale.z = 1.0;
-    marker.color.r = 1.0;
-    marker.color.g = 0.0;
-    marker.color.b = 0.0;
-    marker.color.a = 0.5;
-    marker.lifetime = ros::Duration(1.0);
-    marker.frame_locked = false;
+    marker.header.frame_id      = "world";
+    marker.header.stamp         = ros::Time::now();
+    marker.ns                   = _node_name;
+    marker.type                 = visualization_msgs::Marker::SPHERE;
+    marker.action               = visualization_msgs::Marker::ADD;
+    marker.pose.position.x      = north;
+    marker.pose.position.y      = east;
+    marker.pose.position.z      = depth;
+    marker.pose.orientation.w   = 1.0;
+    marker.pose.orientation.x   = 0.0;
+    marker.pose.orientation.y   = 0.0;
+    marker.pose.orientation.z   = 0.0;
+    marker.scale.x              = 1.0;
+    marker.scale.y              = 1.0;
+    marker.scale.z              = 1.0;
+    marker.color.r              = 1.0;
+    marker.color.g              = 0.0;
+    marker.color.b              = 0.0;
+    marker.color.a              = 0.5;
+    marker.lifetime             = ros::Duration(1.0);
+    marker.frame_locked         = false;
     _pub_marker.publish(marker);
 }
 
@@ -495,11 +508,11 @@ Pilot::publishMarkerSections(const control::PointsList points)
 {
     // Create visualization marker
     visualization_msgs::Marker marker;
-    marker.header.frame_id = "world";
-    marker.header.stamp = ros::Time::now();
-    marker.ns = _node_name;
-    marker.type = visualization_msgs::Marker::LINE_LIST;
-    marker.action = visualization_msgs::Marker::ADD;
+    marker.header.frame_id  = "world";
+    marker.header.stamp     = ros::Time::now();
+    marker.ns               = _node_name;
+    marker.type             = visualization_msgs::Marker::LINE_LIST;
+    marker.action           = visualization_msgs::Marker::ADD;
 
     // Add points to it
     for (unsigned int i = 0; i < points.points_list.size(); i++) {
@@ -510,12 +523,12 @@ Pilot::publishMarkerSections(const control::PointsList points)
         marker.points.push_back(p);
     }
 
-    marker.scale.x = 0.35;
-    marker.color.r = 0.8;
-    marker.color.g = 0.8;
-    marker.color.b = 0.0;
-    marker.color.a = 0.5;
-    marker.lifetime = ros::Duration(1.0);
+    marker.scale.x      = 0.35;
+    marker.color.r      = 0.8;
+    marker.color.g      = 0.8;
+    marker.color.b      = 0.0;
+    marker.color.a      = 0.5;
+    marker.lifetime     = ros::Duration(1.0);
     marker.frame_locked = false;
     _pub_marker.publish(marker);
 }
@@ -541,6 +554,14 @@ Pilot::getConfig() {
     cola2::rosutil::getParam("pilot/dubins_yaw_kp", _config.dubins_config.yaw_kp, 0.09);
     cola2::rosutil::getParam("pilot/dubins_lookahead_sec", _config.dubins_config.lookahead_sec, 4.0);
     cola2::rosutil::getParam("pilot/dubins_acceptance_sec", _config.dubins_config.acceptance_sec, 3.0);
+
+    // ANCHOR controller
+    cola2::rosutil::getParam("pilot/anchor_kp", _config.anchor_config.kp, 0.1);
+    cola2::rosutil::getParam("pilot/anchor_radius", _config.anchor_config.radius, 1.0);
+    cola2::rosutil::getParam("pilot/anchor_min_surge", _config.anchor_config.min_surge, -0.1);
+    cola2::rosutil::getParam("pilot/anchor_max_surge", _config.anchor_config.max_surge, 0.3);
+    cola2::rosutil::getParam("pilot/anchor_safety_distance", _config.anchor_config.safety_distance, 50.0);
+    cola2::rosutil::getParam("pilot/anchor_max_angle_error", _config.anchor_config.max_angle_error, 0.5);
 }
 
 void

@@ -25,10 +25,10 @@ auv_msgs/RPY orientation_tolerance
 string mode
 
 # Controller type
-uint64 controller_type
-uint64 GOTO=0       # Controls z, yaw and surge
-uint64 HOLONOMIC_GOTO=1  # Controls x, y, z and yaw
-
+uint8 controller_type
+uint8 GOTO=0       # Controls z, yaw and surge
+uint8 HOLONOMIC_GOTO=1  # Controls x, y, z and yaw
+uint8 ANCHOR=2 # to keep position with non holonomic vehicles
 
 # Max time to achieve waypoint. If timeout <= 0, time is not finite.
 int16 timeout
@@ -42,11 +42,11 @@ auv_msgs/NED position
 float32 altitude
 auv_msgs/RPY orientation
 
-uint64 final_status
-uint64 SUCCESS=0
-uint64 TIMEOUT=1
-uint64 FAILURE=2
-uint64 BUSY=3
+uint8 final_status
+uint8 SUCCESS=0
+uint8 TIMEOUT=1
+uint8 FAILURE=2
+uint8 BUSY=3
 ---
 
 # Define a feedback message

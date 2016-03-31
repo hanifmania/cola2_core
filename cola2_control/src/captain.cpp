@@ -348,8 +348,12 @@ Captain::enable_goto(cola2_msgs::NewGoto::Request &req,
         waypoint.position_tolerance.z = req.position_tolerance.z;
         waypoint.orientation_tolerance.yaw = req.orientation_tolerance.yaw;
 
-        // Choose WorldWaypointReq mode taking into account disable axis
-        if(!req.disable_axis.x && req.disable_axis.y && !req.disable_axis.yaw) {
+        // Choose WorldWaypointReq mode taking into account disable axis & tolerance
+        if (req.position_tolerance.x == 0.0 && req.position_tolerance.y == 0.0 && req.position_tolerance.z == 0.0 && !req.disable_axis.x && req.disable_axis.y && !req.disable_axis.yaw) {
+            // Non holonomic keep position
+            waypoint.controller_type = cola2_msgs::WorldWaypointReqGoal::ANCHOR;
+        }
+        else if (!req.disable_axis.x && req.disable_axis.y && !req.disable_axis.yaw) {
             // X, Z, Yaw Goto (with or wiyhou Z)
             waypoint.controller_type = cola2_msgs::WorldWaypointReqGoal::GOTO;
         }
@@ -357,7 +361,7 @@ Captain::enable_goto(cola2_msgs::NewGoto::Request &req,
             // Holonomic X, Y, Z, Yaw goto (with or without Z and Yaw)
             waypoint.controller_type = cola2_msgs::WorldWaypointReqGoal::HOLONOMIC_GOTO;
         }
-        else if(req.disable_axis.x && req.disable_axis.y && !req.disable_axis.z) {
+        else if (req.disable_axis.x && req.disable_axis.y && !req.disable_axis.z) {
             // Submerge Z, Yaw (with or without Yaw)
             waypoint.controller_type = cola2_msgs::WorldWaypointReqGoal::GOTO;
         }
@@ -711,7 +715,38 @@ bool
 Captain::enable_keep_position_non_holonomic(std_srvs::Empty::Request&,
                                             std_srvs::Empty::Response&)
 {
-    return false;
+    cola2_msgs::NewGoto::Request goto_req;
+    cola2_msgs::NewGoto::Response goto_res;
+
+    goto_req.priority = auv_msgs::GoalDescriptor::PRIORITY_NORMAL;
+    goto_req.altitude_mode = false;
+    goto_req.blocking = false;
+    goto_req.disable_axis.x = false;
+    goto_req.disable_axis.y = true;
+    goto_req.disable_axis.z = false;
+    goto_req.disable_axis.roll = true;
+    goto_req.disable_axis.pitch = true;
+    goto_req.disable_axis.yaw = false;
+    goto_req.position.x = _nav.x;
+    goto_req.position.y = _nav.y;
+    goto_req.position.z = _nav.z;
+    goto_req.yaw = _nav.yaw;
+
+    // If toloerance is 0.0 position, the waypoint is impossible to reach
+    // and therefore, the controller will never finish.
+    goto_req.position_tolerance.x = 0.0;
+    goto_req.position_tolerance.y = 0.0;
+    goto_req.position_tolerance.z = 0.0;
+    goto_req.orientation_tolerance.yaw = 0.0;
+
+    ROS_INFO_STREAM(_name << ": Start non holonomic keep position at " << _nav.x
+                    << ", " << _nav.y << ", " << _nav.z << ", "
+                    << _nav.yaw << ".\n");
+    _is_holonomic_keep_pose_enabled = true;
+    goto_req.reference = cola2_msgs::NewGoto::Request::REFERENCE_NED;
+    enable_goto(goto_req, goto_res);
+
+    return true;
 }
 
 bool
