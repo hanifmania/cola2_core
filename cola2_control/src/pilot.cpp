@@ -253,7 +253,7 @@ Pilot::waypointServerCallback(const cola2_msgs::WorldWaypointReqGoalConstPtr& da
             break;
         }
 
-        // Check for timeout
+        // Check for timeout --> If keep position, timeout = 0.0
         if (data->timeout > 0.0) {
             if ((ros::Time::now().toSec() - init_time) > data->timeout) {
                 ROS_WARN_STREAM(_node_name << ": waypoint timeout");

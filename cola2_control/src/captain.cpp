@@ -367,7 +367,7 @@ Captain::enable_goto(cola2_msgs::NewGoto::Request &req,
         // Compute timeout
         waypoint.timeout = (2.0 * distance_to_waypoint) / _min_goto_vel;
 
-        ROS_INFO_STREAM(_name << ": Send WorldWaypointRequest. Timeout = " << waypoint.timeout << "\n");
+        ROS_INFO_STREAM(_name << ": Send WorldWaypointRequest at " << waypoint.position.north << ", "  << waypoint.position.east << ", " << waypoint.position.depth << ". Timeout = " << waypoint.timeout << "\n");
         _waypoint_client->sendGoal(waypoint);
         res.success = true;
         // If blocking wait for the result
