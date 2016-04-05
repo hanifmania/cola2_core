@@ -598,15 +598,16 @@ Captain::enable_trajectory(std_srvs::Empty::Request&,
                 section.final_position.y = _trajectory.y.at(i);
                 section.final_position.z = _trajectory.z.at(i);
 
-                // TODO: Pilot is not prepared to use initial and final yaw yet.
-                if (_trajectory.yaw.size() > 0) {
-                    section.final_yaw = _trajectory.yaw.at(i);
-                    section.use_final_yaw = true;
-                }
-                else {
+                // TODO: Pilot is not prepared to use initial and final yaw yet
+                // By default, yaw is considered to be the initial one
+                //if (_trajectory.yaw.size() > 0) {
+                //    section.final_yaw = _trajectory.yaw.at(i);
+                //    section.use_final_yaw = true;
+                //}
+                //else {
                     section.final_yaw = 0.0;
                     section.use_final_yaw = false;
-                }
+                //}
                 if (_trajectory.surge.size() > 0 )
                     section.final_surge = _trajectory.surge.at(i);
                 else

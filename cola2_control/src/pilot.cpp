@@ -543,6 +543,7 @@ Pilot::getConfig() {
     cola2::rosutil::getParam("pilot/los_cte_max_surge_velocity", _config.los_cte_config.max_surge_velocity, 0.5);
     cola2::rosutil::getParam("pilot/los_cte_min_surge_velocity", _config.los_cte_config.min_surge_velocity, 0.2);
     cola2::rosutil::getParam("pilot/los_cte_min_velocity_ratio", _config.los_cte_config.min_velocity_ratio, 0.1);
+    cola2::rosutil::getParam("pilot/los_cte_heave_in_3D", _config.los_cte_config.heave_in_3D, false);
 
     // GOTO controller
     cola2::rosutil::getParam("pilot/goto_max_angle_error", _config.goto_config.max_angle_error, 0.3);
@@ -573,6 +574,7 @@ Pilot::setParams(cola2_control::PilotConfig &config, uint32_t level)
     _config.los_cte_config.max_surge_velocity = config.los_cte_max_surge_velocity;
     _config.los_cte_config.min_surge_velocity = config.los_cte_min_surge_velocity;
     _config.los_cte_config.min_velocity_ratio = config.los_cte_min_velocity_ratio;
+    _config.los_cte_config.heave_in_3D = config.los_cte_heave_in_3D;
     _los_cte_controller->setConfig(_config.los_cte_config);
 
     _config.goto_config.max_angle_error = config.goto_max_angle_error;
