@@ -16,6 +16,7 @@ typedef struct {
     double min_velocity_ratio;  // from 0 to 1
     double delta;
     double distance_to_max_velocity;
+    bool heave_in_3D;
 } LosCteControllerConfig;
 
 
@@ -67,7 +68,7 @@ LosCteController::compute(const control::State& current_state,
     controller_output.velocity.disable_axis.roll = true;
     controller_output.velocity.disable_axis.pitch = true;
     controller_output.velocity.disable_axis.yaw = true;
-    
+
     // std::cout << section.initial_position.x << ", " << section.initial_position.y << " to " << section.final_position.x << ", " << section.final_position.y << " \n";
     // Compute desired surge and yaw
     double surge = _config.max_surge_velocity;
@@ -80,6 +81,7 @@ LosCteController::compute(const control::State& current_state,
                 (current_state.pose.position.east - section.initial_position.y) * cos(alpha);
 
     double beta = atan2(current_state.velocity.linear.y, current_state.velocity.linear.x);
+    if (current_state.velocity.linear.x < 0.05) beta = 0.0;  // Check for low velocity (beta could take any value)
 
     desired_yaw = cola2::util::normalizeAngle(alpha + atan2(-e, _config.delta) - beta);
 
@@ -101,7 +103,7 @@ LosCteController::compute(const control::State& current_state,
         if (surge < _config.min_surge_velocity) surge = _config.min_surge_velocity;
     }
 
-    // define current z according to altitude_mde
+    // Define current z according to altitude_mde
     double current_z = current_state.pose.position.depth;
     if (section.altitude_mode) current_z = current_state.pose.altitude;
 
@@ -178,14 +180,35 @@ LosCteController::compute(const control::State& current_state,
     // std::cout << "Desired yaw: " << desired_yaw << "\n";
 
     // Set desired Z
+    double desired_depth = section.final_position.z;
+    if ((!section.altitude_mode) && (_config.heave_in_3D)) {
+        double s = (current_state.pose.position.north - section.initial_position.x) * cos(alpha) +
+                   (current_state.pose.position.east - section.initial_position.y) * sin(alpha);
+        double section_dx = (section.final_position.x - section.initial_position.x);
+        double section_dy = (section.final_position.y - section.initial_position.y);
+        double section_length = sqrt(pow(section_dx, 2.0) + pow(section_dy, 2.0));
+
+        if (s < 0.0) {
+            desired_depth = section.initial_position.z;
+        }
+        else if (s > section_length) {
+            desired_depth = section.final_position.z;
+        }
+        else {
+            if (section_length != 0.0) {
+                desired_depth = section.initial_position.z + (section.final_position.z - section.initial_position.z) * (s / section_length);
+            }
+        }
+    }
+
     controller_output.pose.altitude_mode = section.altitude_mode;
     controller_output.pose.altitude = section.final_position.z;
-    controller_output.pose.position.depth = section.final_position.z;
+    controller_output.pose.position.depth = desired_depth;
     if (!section.disable_z){
         controller_output.pose.disable_axis.z = false;
-        // std::cout << "Desired Z: " << section.final_position.z << "\n";
+        // std::cout << "Desired Z: " << desired_depth << "\n";
     }
-    feedback.desired_depth = section.final_position.z;
+    feedback.desired_depth = desired_depth;
 
     // Set Surge velocity
     controller_output.velocity.linear.x = surge;
@@ -196,7 +219,7 @@ LosCteController::compute(const control::State& current_state,
     // Fill additional feedback vars
     feedback.distance_to_end = dist_final;
 
-    //Fill marker
+    // Fill marker
     control::point initial_point;
     control::point final_point;
 

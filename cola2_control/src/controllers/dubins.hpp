@@ -82,7 +82,7 @@ DubinsSectionController::compute(const control::State& current_state,
      controller_output.velocity.disable_axis.roll = true;
      controller_output.velocity.disable_axis.pitch = true;
      controller_output.velocity.disable_axis.yaw = true;
-     
+
     // Compute track variables
     double e, beta, gamma, section_length;
     computeEBetaGammaSectionLength(current_state,
@@ -225,7 +225,7 @@ DubinsSectionController::computeEBetaGammaSectionLength(
             else if (gamma > 1.0) gamma = 1.0;
         }
 
-        //Fill marker
+        // Fill marker
         control::point initial_point;
         control::point final_point;
 
@@ -272,9 +272,9 @@ DubinsSectionController::computeEBetaGammaSectionLength(
         // Find center at the intersection between both lines
         // Solve: Ax + By = -C
         //        Dx + Ey = -F
-        double den = A * E - B * D;
-        center_x = (B * F - E * C) / den;
-        center_y = (D * C - A * F) / den;
+        double den_inv = 1.0 / (A * E - B * D);
+        center_x = (B * F - E * C) * den_inv;
+        center_y = (D * C - A * F) * den_inv;
 
         // Find radius
         double radius = sqrt(pow(center_x - section.initial_position.x, 2.0) +
@@ -297,7 +297,7 @@ DubinsSectionController::computeEBetaGammaSectionLength(
         double w_angle_p = wrapZeroToTwoPi(angle - angle_s);
 
         // Check if the robot is inside or outside the arc, and compute gamma
-        if ((w_angle_e == 0.0) or (w_angle_e == 2.0 * M_PI)) {
+        if ((w_angle_e == 0.0) || (w_angle_e == 2.0 * M_PI)) {
             // This should never happen if wrapZeroToTwoPi and the rest of the
             // code does what it has to do, but it is better to leave this
             // checking here
@@ -364,7 +364,7 @@ DubinsSectionController::computeEBetaGammaSectionLength(
 
         // Fill section markers
         double delta_angle = w_angle_e;
-        if (direction == -1) delta_angle = 2*M_PI - delta_angle;
+        if (direction == -1) delta_angle = 2 * M_PI - delta_angle;
 
         int pieces = 36;
         for (int i = 0; i < pieces; i++) {
@@ -416,7 +416,7 @@ double
 DubinsSectionController::wrapZeroToTwoPi(double angle) {
     // Wrap angle from [0 to 2*pi)
     angle = cola2::util::normalizeAngle(angle);
-    if (angle < 0.0) angle += 2*M_PI;
+    if (angle < 0.0) angle += 2 * M_PI;
     return angle;
 }
 
