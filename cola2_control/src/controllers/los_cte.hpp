@@ -72,18 +72,6 @@ LosCteController::compute(const control::State& current_state,
     // Compute desired surge and yaw
     double surge = _config.max_surge_velocity;
     double desired_yaw;
-    // Compute cross-track error
-    double alpha = atan2(section.final_position.y - section.initial_position.y,
-                         section.final_position.x - section.initial_position.x);
-
-    double e = -(current_state.pose.position.north - section.initial_position.x) * sin(alpha) +
-                (current_state.pose.position.east - section.initial_position.y) * cos(alpha);
-
-    double beta = atan2(current_state.velocity.linear.y, current_state.velocity.linear.x);
-
-    desired_yaw = cola2::util::normalizeAngle(alpha + atan2(-e, _config.delta) - beta);
-
-    double dist_angle = atan2(1 - _config.min_velocity_ratio, _config.distance_to_max_velocity);
 
     // Distance to current way-point
     double dist_final = sqrt(pow(section.final_position.x - current_state.pose.position.north, 2) +
@@ -93,13 +81,81 @@ LosCteController::compute(const control::State& current_state,
     double dist_origin = sqrt(pow(section.initial_position.x - current_state.pose.position.north, 2) +
                               pow(section.initial_position.y - current_state.pose.position.east, 2));
 
+    // Distance to previous way-point
+    double dist_waypoints = sqrt(pow(section.initial_position.x - section.final_position.x, 2) +
+                              pow(section.initial_position.y - section.final_position.y, 2));
+
+    // Compute cross-track error
+	// Angle of path
+    double alpha = atan2(section.final_position.y - section.initial_position.y,
+                         section.final_position.x - section.initial_position.x);
+
+	// Along-track distance (s) and cross-track error (e) (rotation)
+    double s = (current_state.pose.position.north - section.initial_position.x) * cos(alpha) +
+    		   (current_state.pose.position.east - section.initial_position.y) * sin(alpha);
+
+    double e = -(current_state.pose.position.north - section.initial_position.x) * sin(alpha) +
+                (current_state.pose.position.east - section.initial_position.y) * cos(alpha);
+
+	// Orthogonal projection
+    double x_proj = section.initial_position.x + s * cos(alpha);
+    double y_proj = section.initial_position.y + s * sin(alpha);
+
+	// Compute lookahead distance (los_delta). It is always positive
+    double delta = 0.0;
+	if(_config.distance_to_max_velocity > abs(e))
+        delta = sqrt(pow(_config.distance_to_max_velocity,2.0) - pow(e,2.0));
+
+	if(_config.distance_to_max_velocity > dist_final)
+        delta = sqrt(pow(section.final_position.x - x_proj,2.0) + pow(section.final_position.y - y_proj,2.0));
+
+	// Compute LOS vector
+	double LOSX;
+	double LOSY;
+	if(s < dist_waypoints)
+	{
+		LOSX = x_proj + delta * cos(alpha) - current_state.pose.position.north;
+		LOSY = y_proj + delta * sin(alpha) - current_state.pose.position.east;
+	}
+	else
+	{
+		LOSX = x_proj - delta * cos(alpha) - current_state.pose.position.north;
+		LOSY = y_proj - delta * sin(alpha) - current_state.pose.position.east;
+	}
+
+	// Compute surge
     // Take the smaller one
+	double dist_angle = atan2(1 - _config.min_velocity_ratio, _config.distance_to_max_velocity);
     double distance = std::min(dist_final, dist_origin);
     if (distance < _config.distance_to_max_velocity) {
         double ratio = _config.min_velocity_ratio + tan(dist_angle) * distance;
         surge = surge * ratio;
         if (surge < _config.min_surge_velocity) surge = _config.min_surge_velocity;
+//    	surge = _config.min_surge_velocity; //TODO
     }
+
+	// Compute yaw
+    double beta_low_speed = 0.25;
+    double beta_high_speed = 0.5;
+    //self.parameters.sparus_los.sway_correction is true was defined in old param list
+    bool sway_correction = true;
+    double beta_factor;
+    if (sway_correction)
+    {
+    	if(current_state.velocity.linear.x > beta_high_speed)
+    		beta_factor = 1.0;
+    	else if(current_state.velocity.linear.x < beta_low_speed)
+    		beta_factor = 0.0;
+    	else
+    		beta_factor = (current_state.velocity.linear.x - beta_low_speed) / (beta_high_speed - beta_low_speed);
+    }
+    else
+    	beta_factor = 0.0;
+
+    double beta = atan2(current_state.velocity.linear.y, current_state.velocity.linear.x);
+
+    //desired_yaw = cola2::util::normalizeAngle(alpha + atan2(-e, _config.delta) - beta); //TODO
+    desired_yaw = cola2::util::normalizeAngle(atan2(LOSY, LOSX) - beta_factor * beta);
 
     // define current z according to altitude_mde
     double current_z = current_state.pose.position.depth;

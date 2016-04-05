@@ -154,13 +154,13 @@ add_executable(keyboard src/keyboard.cpp)
 target_link_libraries(keyboard ${catkin_LIBRARIES})
 add_dependencies(keyboard cola2_msgs_gencpp)
 
-add_executable(pilot_new src/pilot.cpp)
-target_link_libraries(pilot_new ${catkin_LIBRARIES})
-add_dependencies(pilot_new cola2_msgs_gencpp ${PROJECT_NAME}_gencfg)
+add_executable(pilot src/pilot.cpp)
+target_link_libraries(pilot ${catkin_LIBRARIES})
+add_dependencies(pilot cola2_msgs_gencpp ${PROJECT_NAME}_gencfg)
 
-add_executable(captain_new src/captain.cpp)
-target_link_libraries(captain_new ${catkin_LIBRARIES})
-add_dependencies(captain_new cola2_msgs_gencpp)
+add_executable(captain src/captain.cpp)
+target_link_libraries(captain ${catkin_LIBRARIES})
+add_dependencies(captain cola2_msgs_gencpp)
 
 
 #############
