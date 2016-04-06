@@ -13,6 +13,7 @@ EkfRosBase::EkfRosBase(const std::string name, bool debug):
   _pub_nav_sts = _n.advertise< auv_msgs::NavSts >("/cola2_navigation/nav_sts", 1);
   _pub_landmarks = _n.advertise<visualization_msgs::MarkerArray>("/pose_ekf_slam/landmarks", 1);
   _pub_gps_ned = _n.advertise<geometry_msgs::PoseStamped>("/cola2_navigation/gps_ned", 1);
+  _pub_usbl_ned = _n.advertise<geometry_msgs::PointStamped>("/cola2_navigation/usbl_ned", 1);
 
   // _pub_covariance_marker = _n.advertise<visualization_msgs::Marker>("/pose_ekf_slam/covariance_marker", 1);
   _pub_altitude_range = _n.advertise<sensor_msgs::Range>("/cola2_perception/altitude", 1);

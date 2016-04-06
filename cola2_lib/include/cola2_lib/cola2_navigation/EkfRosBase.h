@@ -11,6 +11,7 @@
 #include <diagnostic_msgs/DiagnosticStatus.h>
 #include <sensor_msgs/Range.h>
 #include <geometry_msgs/PoseStamped.h>
+#include <geometry_msgs/PointStamped.h>
 #include <cola2_msgs/Map.h>
 #include <auv_msgs/NavSts.h>
 
@@ -55,6 +56,7 @@ class EkfRosBase
   ros::Publisher _pub_map;
   ros::Publisher _pub_nav_sts;
   ros::Publisher _pub_gps_ned;
+  ros::Publisher _pub_usbl_ned;
 
   // .. for visualization purposes only
   ros::Publisher _pub_landmarks;
