@@ -196,6 +196,7 @@ unsigned int EkfSlamAuv::landmarkUpdate(const std::string& sensor_id,
 {
   if (_is_imu_init && makePrediction( time_stamp, computeU()))
   {
+    std::cout << "landmark: " << landmark_id << std::endl;
     Eigen::Vector3d landmark_position_tmp;
     Eigen::Quaterniond landmark_orientation_tmp;
     Eigen::MatrixXd landmark_cov_tmp;
@@ -242,10 +243,9 @@ unsigned int EkfSlamAuv::landmarkUpdate(const std::string& sensor_id,
       landmark_position_tmp = transformations::landmarkPosition(landmark_position_tmp ,
                                                                 _auv_orientation,
                                                                 Eigen::Vector3d(_x(0), _x(1), _x(2)));
-      std::cout << "Landmark position in I:\n" << landmark_position_tmp << "\n";
       Eigen::VectorXd candidate = Eigen::MatrixXd::Zero(6, 1);
       candidate << landmark_position_tmp(0), landmark_position_tmp(1), landmark_position_tmp(2), angle(0), angle(1), angle(2);
-      std::cout << "candidate:\n" << candidate << "\n";
+      std::cout << "candidate (xyz rpy):\n" << candidate << "\n";
       // If candidate has been seen before
       if (_candidate_landmarks.find(landmark_id) != _candidate_landmarks.end())
       {
@@ -256,15 +256,16 @@ unsigned int EkfSlamAuv::landmarkUpdate(const std::string& sensor_id,
         // Check candidate
         if (isValidCandidate(_candidate_landmarks[landmark_id]))
         {
+          std::cout << "validated candidate.\n";
           _mapped_lamdmarks[landmark_id] = _number_of_landmarks;
           _id_to_mapped_lamdmark[_number_of_landmarks] = landmark_id;
           _landmark_last_update[_number_of_landmarks] = time_stamp;
           addLandmark(candidate, landmark_cov_tmp);
-          return 0;
+          return 0;  // just validated
         }
         else
         {
-          return 1;
+          return 1;  // not validated yet
         }
       }
       else
@@ -274,7 +275,7 @@ unsigned int EkfSlamAuv::landmarkUpdate(const std::string& sensor_id,
         std::vector< Eigen::VectorXd > tmp;
         tmp.push_back(candidate);
         _candidate_landmarks.insert(std::pair< std::string, std::vector<Eigen::VectorXd> >(landmark_id, tmp));
-        return 2;
+        return 2;  // first sight
       }
     }
 
@@ -294,17 +295,20 @@ unsigned int EkfSlamAuv::landmarkUpdate(const std::string& sensor_id,
     // std::cout << "h:\n" << h << "\n";
     // std::cout << "v:\n" << v << "\n";
 
+    // Save last update time for this landmark
+    _landmark_last_update[_mapped_lamdmarks[landmark_id]] = time_stamp;
+
     // Apply update
     if (!applyUpdate( z, r, h, v, 25.0))
     {
       // If the update fails update at leat the prediction
       updatePrediction();
+      return 3;  // update
     }
+    return 4;  // no update
 
-    // Save last update time for this landmark
-    _landmark_last_update[_mapped_lamdmarks[landmark_id]] = time_stamp;
   }
-  return 0;
+  return 5;  // no imu / no prediction
 }
 
 void EkfSlamAuv::addLandmark(const Eigen::VectorXd& landmark, const Eigen::MatrixXd& landmark_cov)
