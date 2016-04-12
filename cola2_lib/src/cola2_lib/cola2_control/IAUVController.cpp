@@ -6,13 +6,13 @@ IAUVController::IAUVController(double period, int n_dof, int n_thrusters, int n_
   _is_thruster_allocator_enable(true),
   _is_fin_allocator_enable(true),
   _n_dof(n_dof),
-  _pose_merge("pose_merge", "pose", period * 2),
+  _pose_merge("pose_merge", "pose", period * 3),
   _pose_feedback(n_dof, 0.0),
   _max_velocity(n_dof, 0.2),
-  _twist_merge("twist_merge", "twist", period * 2),
+  _twist_merge("twist_merge", "twist", period * 3),
   _twist_feedback(n_dof, 0.0),
   _max_wrench(n_dof, 100.0),
-  _wrench_merge("wrench_merge", "wrench", period * 2),
+  _wrench_merge("wrench_merge", "wrench", period * 3),
   _thruster_setpoints(n_thrusters),
   _fin_setpoints(n_fins)
 {
