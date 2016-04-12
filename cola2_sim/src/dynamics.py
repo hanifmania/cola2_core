@@ -18,6 +18,7 @@ import tf
 # Import msgs
 from nav_msgs.msg import Odometry
 from cola2_msgs.msg import Setpoints
+from auv_msgs.msg import BodyForceReq
 
 # Import srv
 from cola2_msgs.srv import SimulatedCurrents
@@ -55,6 +56,11 @@ class Dynamics :
         rospy.Subscriber(self.thrusters_topic,
                          Setpoints,
                          self.update_thrusters,
+                         queue_size = 1)
+
+        rospy.Subscriber(self.force_topic,
+                         BodyForceReq,
+                         self.update_force,
                          queue_size = 1)
 
         self.current_srv = rospy.Service(
@@ -114,7 +120,7 @@ class Dynamics :
         Mrb = np.array(Mrb).reshape(6, 6)
 
         # Inertia matrix of the rigid body
-        # Added Mass derivative
+        # Added Mass derivative TODO: This is not a valid added mass matrix!
         Ma=[m/2,    0,      0,      0,      0,      0,
             0,      m/2,    0,      0,      0,      0,
             0,      0,      m/2,    0,      0,      0,
@@ -131,6 +137,9 @@ class Dynamics :
         np.random.seed()
         #self.e_vc = np.random.normal(self.current_mean, self.current_sigma)
 
+        # Force message
+        self.force = BodyForceReq()
+
         # Initial thrusters setpoint
         self.u = np.zeros(self.thrusters)
         self.old_u = self.u # Previous setpoints
@@ -145,6 +154,11 @@ class Dynamics :
         self.old_u = self.u
         self.u = np.array( thrusters.setpoints ).clip(
            min=-abs(self.max_thrusters_rpm), max=abs(self.max_thrusters_rpm))
+
+
+    def update_force(self, force) :
+        """ Thruster callback, input in rpm """
+        self.force = force
 
 
     def update_fins(self, fins) :
@@ -282,18 +296,24 @@ class Dynamics :
 
     def gravity(self, pos):
         """ Gravity and weight matrix """
-        # Weight and Flotability
-        W = self.mass * self.g # [Kg]
+        # Weight and buoyancy from [Kg] to [N]
+        W = self.mass * self.g
+        B = self.buoyancy * self.g
 
         # If the vehicle moves out of the water the flotability decreases
-        if pos[2] < self.surface_radius:
-            r = self.radius + ( pos[2] - self.surface_radius )
-            if r < 0.0:
-                r = 0.0
-        else :
-            r = self.radius
-
-        F = ((4 * math.pi * pow(r,3))/3)*self.density*self.g
+        corr_pos = pos[2] + self.radius  # Corrected z position
+        if corr_pos >= self.radius:
+            F = B
+        elif corr_pos <= -self.radius:
+            F = 0.0
+        else:
+            r2 = pow(self.radius, 2.0)
+            total_area = math.pi * r2
+            c = np.sqrt(r2 - pow(corr_pos, 2.0))
+            area_segment = math.atan2(c, corr_pos) * r2
+            area_triangle = corr_pos * c
+            area_outside = area_segment - area_triangle
+            F = B * (1.0 - area_outside / total_area)
 
         # Gravity center position in the robot fixed frame (x',y',z') [m]
         zg = self.gravity_center[2]
@@ -311,16 +331,25 @@ class Dynamics :
         """ Given the setpoint for each thruster, the previous velocity
             and the previous position computes the v_dot """
         #rospy.loginfo('Current Value ' + str(current))
+        if self.use_force_topic:
+            a = np.array([self.force.wrench.force.x,
+                          self.force.wrench.force.y,
+                          self.force.wrench.force.z,
+                          self.force.wrench.torque.x,
+                          self.force.wrench.torque.y,
+                          self.force.wrench.torque.z])
+        else:
+            t = self.generalized_force(u)
+            f = self.compute_fins(vel, f)
+            a = t+f
         d = self.damping_matrix(vel+current)
-        t = self.generalized_force(u)
-        f = self.compute_fins(vel, f)
         c = self.coriolis_matrix(vel)
         g = self.gravity(pos)
         c_v = np.dot((c-d), vel+current)
         if self.contact_sensor_available:
-            v_dot = np.dot(self.IM, (t+f-c_v-g-self.collisionForce))
+            v_dot = np.dot(self.IM, (a-c_v-g-self.collisionForce))
         else:
-            v_dot = np.dot(self.IM, (t+f-c_v-g))
+            v_dot = np.dot(self.IM, (a-c_v-g))
 
         # Transforms a matrix into an array
         v_dot = np.squeeze(np.asarray(v_dot))
@@ -466,6 +495,8 @@ class Dynamics :
             exit(0)  # TODO: find a better way
 
         param_dict = {'thrusters': "dynamics/" + self.vehicle_name + "/number_of_thrusters",
+                      'force_topic': "dynamics/" + self.vehicle_name + "/force_topic",
+                      'use_force_topic': "dynamics/" + self.vehicle_name + "/use_force_topic",
                       'thrusters_topic': "dynamics/" + self.vehicle_name + "/thrusters_topic",
                       'thrusters_matrix': "dynamics/" + self.vehicle_name + "/thrusters_matrix",
                       'fins': "dynamics/" + self.vehicle_name + "/number_of_fins",
@@ -475,10 +506,10 @@ class Dynamics :
                       'k_cl_fins': "dynamics/" + self.vehicle_name + "/k_cl_fins",
                       'period': "dynamics/" + self.vehicle_name + "/period",
                       'mass': "dynamics/" + self.vehicle_name + "/mass",
+                      'buoyancy': "dynamics/" + self.vehicle_name + "/buoyancy",
                       'gravity_center': "dynamics/" + self.vehicle_name + "/gravity_center",
                       'g': "dynamics/" + self.vehicle_name + "/g",
                       'radius': "dynamics/" + self.vehicle_name + "/radius",
-                      'surface_radius': "dynamics/" + self.vehicle_name + "/surface_radius",
                       'max_thrusters_rpm': "dynamics/" + self.vehicle_name + "/max_thrusters_rpm",
                       'max_fins_angle': "dynamics/" + self.vehicle_name + "/max_fins_angle",
                       'ctf': "dynamics/" + self.vehicle_name + "/ctf",
