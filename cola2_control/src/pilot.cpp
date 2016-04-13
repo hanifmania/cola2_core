@@ -551,7 +551,7 @@ Pilot::getConfig() {
     cola2::rosutil::getParam("pilot/goto_surge_proportional_gain", _config.goto_config.surge_proportional_gain, 0.25);
 
     // DUBINS controller
-    cola2::rosutil::getParam("pilot/dubins_yaw_ki", _config.dubins_config.yaw_ki, 0.003);
+    cola2::rosutil::getParam("pilot/dubins_yaw_ki", _config.dubins_config.yaw_ki, 0.0);
     cola2::rosutil::getParam("pilot/dubins_yaw_kp", _config.dubins_config.yaw_kp, 0.09);
     cola2::rosutil::getParam("pilot/dubins_lookahead_sec", _config.dubins_config.lookahead_sec, 4.0);
     cola2::rosutil::getParam("pilot/dubins_acceptance_sec", _config.dubins_config.acceptance_sec, 3.0);

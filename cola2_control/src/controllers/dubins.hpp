@@ -396,9 +396,12 @@ DubinsSectionController::computeYaw(double e,
     if (surge < 0.01) surge = 0.01;
 
     // Compute psi using a PI controller
-    double e_dot = (e - _yaw_old_e) / period;
-    double psi_dot = -(_config.yaw_ki * e + _config.yaw_kp * e_dot) / surge;
-    double psi = _yaw_old_psi + psi_dot * period;  // - 0.01 * e_dot;
+    double psi = -_config.yaw_kp * e / surge;
+    if (_config.yaw_ki > 1e-3) {
+        double e_dot = (e - _yaw_old_e) / period;
+        double psi_dot = -(_config.yaw_ki * e + _config.yaw_kp * e_dot) / surge;
+        psi = _yaw_old_psi + psi_dot * period;  // - 0.01 * e_dot;
+    }
     if (psi > 1.0) psi = 1.0;
     else if (psi < -1.0) psi = -1.0;
 
