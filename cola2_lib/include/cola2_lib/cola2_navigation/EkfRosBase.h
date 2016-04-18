@@ -38,6 +38,10 @@ class EkfRosBase
 
   Eigen::Vector3d getPositionIncrementFrom(double time);
 
+  void rangeMarker(const std::string& landmark_id,
+                   const double range,
+                   const double sigma);
+
  protected:
   // EKF ptr
   EkfSlamAuv *_ekf_slam_auv;
@@ -57,6 +61,7 @@ class EkfRosBase
   ros::Publisher _pub_nav_sts;
   ros::Publisher _pub_gps_ned;
   ros::Publisher _pub_usbl_ned;
+  ros::Publisher _pub_range_update;
 
   // .. for visualization purposes only
   ros::Publisher _pub_landmarks;

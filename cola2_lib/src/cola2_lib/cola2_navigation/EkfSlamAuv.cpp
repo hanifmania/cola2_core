@@ -62,6 +62,14 @@ std::string EkfSlamAuv::getLandmarkId(const unsigned int id)
   return _id_to_mapped_lamdmark[ id ];
 }
 
+int EkfSlamAuv::getLandmarkPosition(const std::string& id)
+{
+    if (_mapped_lamdmarks.find(id) != _mapped_lamdmarks.end()) {
+        return _mapped_lamdmarks[id];
+    }
+    return -1;
+}
+
 double EkfSlamAuv::getLandmarkLastUpdate(unsigned int landmark_id)
 {
   return _landmark_last_update[landmark_id];
@@ -355,12 +363,12 @@ unsigned int EkfSlamAuv::rangeUpdate(const std::string& landmark_id,
     H(0, 6 + 6*landmark_number + 1) = -H(0, 1);
     H(0, 6 + 6*landmark_number + 2) = -H(0, 2);
 
-    std::cout << "_x_: " << _x_ << std::endl;
-    std::cout << "auv: " << auv_position << std::endl;
-    std::cout << "landmark: " << landmark_position << std::endl;
-    std::cout << "diff: " << diff << std::endl;
-    std::cout << "innovation: " << innovation << std::endl;
-    std::cout << "H: " << H << std::endl;
+    // std::cout << "_x_: " << _x_ << std::endl;
+    // std::cout << "auv: " << auv_position << std::endl;
+    // std::cout << "landmark: " << landmark_position << std::endl;
+    // std::cout << "diff: " << diff << std::endl;
+    // std::cout << "innovation: " << innovation << std::endl;
+    // std::cout << "H: " << H << std::endl;
 
     // Save last update time for this landmark
     _landmark_last_update[_mapped_lamdmarks[landmark_id]] = time_stamp;

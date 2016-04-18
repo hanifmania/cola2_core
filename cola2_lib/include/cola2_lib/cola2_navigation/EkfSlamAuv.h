@@ -33,6 +33,9 @@ class EkfSlamAuv: public EkfBase
 
   std::string getLandmarkId(const unsigned int id);
 
+  int getLandmarkPosition(const std::string& id);
+
+
   double getLandmarkLastUpdate(unsigned int landmark_id);
 
   void getImuData(Eigen::Quaterniond& orientation,

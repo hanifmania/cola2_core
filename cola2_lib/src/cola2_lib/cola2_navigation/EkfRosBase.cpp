@@ -12,6 +12,7 @@ EkfRosBase::EkfRosBase(const std::string name, bool debug):
   _pub_map = _n.advertise<cola2_msgs::Map>("/pose_ekf_slam/map", 1);
   _pub_nav_sts = _n.advertise< auv_msgs::NavSts >("/cola2_navigation/nav_sts", 1);
   _pub_landmarks = _n.advertise<visualization_msgs::MarkerArray>("/pose_ekf_slam/landmarks", 1);
+  _pub_range_update = _n.advertise<visualization_msgs::Marker>("/pose_ekf_slam/range_update", 1);
   _pub_gps_ned = _n.advertise<geometry_msgs::PoseStamped>("/cola2_navigation/gps_ned", 1);
   _pub_usbl_ned = _n.advertise<geometry_msgs::PointStamped>("/cola2_navigation/usbl_ned", 1);
 
@@ -347,4 +348,69 @@ Eigen::Vector3d EkfRosBase::getPositionIncrementFrom(double time)
   }
   // If not position found return a negative time
   return Eigen::Vector3d(-1.0, 0.0, 0.0);
+}
+
+
+void EkfRosBase::rangeMarker(const std::string& landmark_id,
+                             const double range,
+                             const double sigma)
+{
+    int i = _ekf_slam_auv->getLandmarkPosition(landmark_id);
+    if (i >= 0) {
+        visualization_msgs::Marker marker;
+        marker.header.frame_id = _world_frame_id;
+        marker.header.stamp = ros::Time::now();
+        marker.ns = "range";
+        marker.id = 0;
+        marker.type = visualization_msgs::Marker::LINE_LIST;
+        marker.action = visualization_msgs::Marker::ADD;
+
+        // Add points to it
+        geometry_msgs::Point init;
+        init.x = _ekf_slam_auv->getStateVector()[0];
+        init.y = _ekf_slam_auv->getStateVector()[1];
+        init.z = _ekf_slam_auv->getStateVector()[2];
+        marker.points.push_back(init);
+
+        geometry_msgs::Point end;
+        end.x = _ekf_slam_auv->getStateVector()[6+6*i];
+        end.y = _ekf_slam_auv->getStateVector()[6+6*i+1];
+        end.z = _ekf_slam_auv->getStateVector()[6+6*i+2];
+        marker.points.push_back(end);
+
+        double current_range = sqrt(pow(end.x - init.x, 2) +
+                                    pow(end.y - init.y, 2) +
+                                    pow(end.z - init.z, 2));
+
+        // std::cout << "current range: " << current_range << std::endl;
+        // std::cout << "range: " << range << std::endl;
+        // std::cout << "sigma: " << sigma << std::endl;
+
+
+        if (fabs(current_range - range) < sigma / 2.0) {
+            marker.color.r      = 0.0;
+            marker.color.g      = 1.0;
+            marker.color.b      = 0.0;
+        }
+        else if (fabs(current_range - range) < sigma) {
+            marker.color.r      = 1.0;
+            marker.color.g      = 1.0;
+            marker.color.b      = 0.0;
+        }
+        else if (fabs(current_range - range) < 2.0*sigma) {
+            marker.color.r      = 1.0;
+            marker.color.g      = 0.5;
+            marker.color.b      = 0.0;
+        }
+        else {
+            marker.color.r      = 1.0;
+            marker.color.g      = 0.0;
+            marker.color.b      = 0.0;
+        }
+        marker.scale.x      = 0.25;
+        marker.color.a      = 0.5;
+        marker.lifetime     = ros::Duration(1.5);
+        marker.frame_locked = false;
+        _pub_range_update.publish(marker);
+    }
 }
