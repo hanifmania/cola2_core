@@ -29,6 +29,12 @@ class EkfBase
                    const Eigen::MatrixXd v,
                    const double mahalanobis_distance_threshold);
 
+  bool applyNonLinearUpdate(const Eigen::VectorXd innovation,
+                            const Eigen::MatrixXd r,
+                            const Eigen::MatrixXd h,
+                            const Eigen::MatrixXd v,
+                            const double mahalanobis_distance_threshold);
+
   void showStateVector();
   Eigen::VectorXd getStateVector();
   Eigen::MatrixXd getCovarianceMatrix();

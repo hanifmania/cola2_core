@@ -16,7 +16,7 @@
 #include "./transformations.h"
 #include "./nav_utils.h"
 
-class EkfSlamAuv : public EkfBase
+class EkfSlamAuv: public EkfBase
 {
  public:
   EkfSlamAuv(const unsigned int state_vector_size, const Eigen::VectorXd q_var);
@@ -58,7 +58,14 @@ class EkfSlamAuv : public EkfBase
                               const Eigen::Quaterniond& landmark_measured_orientation,
                               const Eigen::MatrixXd& landmark_cov);
 
-  void addLandmark(const Eigen::VectorXd& landmark, const Eigen::MatrixXd& landmark_cov);
+  unsigned int rangeUpdate(const std::string& landmark_id,
+                           const double& time_stamp,
+                           const double& landmark_measured_range,
+                           const Eigen::MatrixXd& range_cov);
+
+  void addLandmark(const Eigen::VectorXd& landmark,
+                   const Eigen::MatrixXd& landmark_cov,
+                   const std::string landmark_id);
 
   void createLandmarkMeasure(const Eigen::Vector3d landmark_position,
                              const Eigen::Vector3d landmark_orientation_RPY,

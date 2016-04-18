@@ -94,18 +94,28 @@ bool EkfBase::applyUpdate(const Eigen::VectorXd z,
                           const Eigen::MatrixXd v,
                           const double mahalanobis_distance_threshold)
 {
-  double distance = mahalanobisDistance(z, r, h);
-  // std::cout << "mahalanobisDistance distance: " << distance << "\n";
-  if (_filter_updates < 100 || distance < mahalanobis_distance_threshold)
-  {
     Eigen::VectorXd innovation = z - h*_x_;
     normalizeInnovation(innovation);
     // std::cout << "Normalized innovation:\n" << innovation << "\n";
+    return applyNonLinearUpdate(innovation, r, h, v, mahalanobis_distance_threshold);
+}
+
+
+bool EkfBase::applyNonLinearUpdate(const Eigen::VectorXd innovation,
+                                   const Eigen::MatrixXd r,
+                                   const Eigen::MatrixXd H,
+                                   const Eigen::MatrixXd v,
+                                   const double mahalanobis_distance_threshold)
+{
+  double distance = mahalanobisDistance(innovation, r, H);
+  // std::cout << "mahalanobisDistance distance: " << distance << "\n";
+  if (_filter_updates < 100 || distance < mahalanobis_distance_threshold)
+  {
     // Compute updated state vector
-    Eigen::MatrixXd S = h * _P_ * h.transpose() + v * r * v.transpose();
+    Eigen::MatrixXd S = H * _P_ * H.transpose() + v * r * v.transpose();
     // std::cout << "S:\n" << S << "\n";
 
-    Eigen::MatrixXd K = _P_* h.transpose()* S.inverse();
+    Eigen::MatrixXd K = _P_* H.transpose()* S.inverse();
     // std::cout << "K:\n" << K << "\n";
 
     _x = _x_ + K*innovation;
@@ -113,11 +123,7 @@ bool EkfBase::applyUpdate(const Eigen::VectorXd z,
 
     // Compute updated covariance matrix
     unsigned int I_size = _x.size();
-    _P = (Eigen::MatrixXd::Identity(I_size, I_size) - K * h) * _P_;
-
-    // Alternative method to perform covariance update
-    // Eigen::MatrixXd T = Eigen::MatrixXd::Identity(I_size, I_size) - K * h;
-    // _P = T * _P_ * T.transpose() + K * r * K.transpose();
+    _P = (Eigen::MatrixXd::Identity(I_size, I_size) - K * H) * _P_;
 
     // Check integrity
     checkIntegrity();
@@ -130,6 +136,8 @@ bool EkfBase::applyUpdate(const Eigen::VectorXd z,
   }
   return true;
 }
+
+
 
 void EkfBase::showStateVector()
 {
@@ -168,13 +176,12 @@ void EkfBase::setTransformation(const std::string sensor_id,
 // *****************************************
 //          Utility functions
 // *****************************************
-double EkfBase::mahalanobisDistance(const Eigen::VectorXd z,
+double EkfBase::mahalanobisDistance(const Eigen::VectorXd innovation,
                                     const Eigen::MatrixXd r,
                                     const Eigen::MatrixXd h)
 {
-  Eigen::VectorXd v = z - h*_x;
   Eigen::MatrixXd S = h*_P*h.transpose() + r;
-  Eigen::VectorXd d = v.transpose() * S.inverse() * v;
+  Eigen::VectorXd d = innovation.transpose() * S.inverse() * innovation;
   return sqrt(d(0, 0));
 }
 

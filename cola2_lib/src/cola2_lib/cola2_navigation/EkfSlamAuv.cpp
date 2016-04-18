@@ -257,10 +257,10 @@ unsigned int EkfSlamAuv::landmarkUpdate(const std::string& sensor_id,
         if (isValidCandidate(_candidate_landmarks[landmark_id]))
         {
           std::cout << "validated candidate.\n";
-          _mapped_lamdmarks[landmark_id] = _number_of_landmarks;
-          _id_to_mapped_lamdmark[_number_of_landmarks] = landmark_id;
+          // _mapped_lamdmarks[landmark_id] = _number_of_landmarks;
+          // _id_to_mapped_lamdmark[_number_of_landmarks] = landmark_id;
           _landmark_last_update[_number_of_landmarks] = time_stamp;
-          addLandmark(candidate, landmark_cov_tmp);
+          addLandmark(candidate, landmark_cov_tmp, landmark_id);
           return 0;  // just validated
         }
         else
@@ -303,16 +303,98 @@ unsigned int EkfSlamAuv::landmarkUpdate(const std::string& sensor_id,
     {
       // If the update fails update at leat the prediction
       updatePrediction();
-      return 3;  // update
+      return 4;  // prediction only
     }
-    return 4;  // no update
+    return 3;  // update
 
   }
   return 5;  // no imu / no prediction
 }
 
-void EkfSlamAuv::addLandmark(const Eigen::VectorXd& landmark, const Eigen::MatrixXd& landmark_cov)
+
+
+
+unsigned int EkfSlamAuv::rangeUpdate(const std::string& landmark_id,
+                                     const double& time_stamp,
+                                     const double& landmark_measured_range,
+                                     const Eigen::MatrixXd& range_cov)
 {
+  // If the landmark is already mapped do a prediction.
+  if (_mapped_lamdmarks.find(landmark_id) != _mapped_lamdmarks.end() &&
+      makePrediction(time_stamp, computeU())) {
+
+    // If the landmark is already mapped ...
+    unsigned int landmark_number = _mapped_lamdmarks[landmark_id];
+    std::cout << "landmark: " << landmark_id << " (" << landmark_number << "), range: " << landmark_measured_range << std::endl;
+
+    // ... create landmark matrices to apply the update
+    Eigen::VectorXd z;
+    Eigen::MatrixXd v;
+
+    Eigen::Vector3d diff, auv_position, landmark_position;
+    Eigen::VectorXd innovation = Eigen::VectorXd::Zero(1);
+    Eigen::VectorXd h = Eigen::VectorXd::Zero(1);
+
+    auv_position(0) = _x_(0, 0);
+    auv_position(1) = _x_(1, 0);
+    auv_position(2) = _x_(2, 0);
+    landmark_position(0) = _x_(6 + 6*landmark_number);
+    landmark_position(1) = _x_(6 + 6*landmark_number + 1);
+    landmark_position(2) = _x_(6 + 6*landmark_number + 2);
+    diff = landmark_position - auv_position;
+    h(0) = diff.norm();
+    innovation(0) = landmark_measured_range - h(0);
+
+    // Linearization of h() into H
+    double inv = 1.0 / h(0);
+    Eigen::MatrixXd H = Eigen::MatrixXd::Zero(1, 6 + 6*getNumberOfLandmarks());
+    H(0, 0) = -diff(0) * inv;
+    H(0, 1) = -diff(1) * inv;
+    H(0, 2) = -diff(2) * inv;
+    H(0, 6 + 6*landmark_number) = -H(0, 0);
+    H(0, 6 + 6*landmark_number + 1) = -H(0, 1);
+    H(0, 6 + 6*landmark_number + 2) = -H(0, 2);
+
+    std::cout << "_x_: " << _x_ << std::endl;
+    std::cout << "auv: " << auv_position << std::endl;
+    std::cout << "landmark: " << landmark_position << std::endl;
+    std::cout << "diff: " << diff << std::endl;
+    std::cout << "innovation: " << innovation << std::endl;
+    std::cout << "H: " << H << std::endl;
+
+    // Save last update time for this landmark
+    _landmark_last_update[_mapped_lamdmarks[landmark_id]] = time_stamp;
+
+    // Apply update
+    if (!applyNonLinearUpdate(innovation,
+                              range_cov,
+                              H,
+                              Eigen::MatrixXd::Identity(1, 1),
+                              25.0)) {
+      // If the update fails update at least the prediction
+      updatePrediction();
+      return 4;  // prediction only
+    }
+    return 3;  // update
+  }
+  return 1;  // no validated landmark
+}
+
+
+
+
+
+
+
+void
+EkfSlamAuv::addLandmark(const Eigen::VectorXd& landmark,
+                        const Eigen::MatrixXd& landmark_cov,
+                        const std::string landmark_id)
+{
+  // Map landmark name
+  _mapped_lamdmarks[landmark_id] = _number_of_landmarks;
+  _id_to_mapped_lamdmark[_number_of_landmarks] = landmark_id;
+
   // Increase P matrix
   Eigen::MatrixXd new_P;
   new_P = Eigen::MatrixXd::Identity(_x.size() + 6, _x.size() + 6);
@@ -606,3 +688,60 @@ Eigen::VectorXd EkfSlamAuv::f(const Eigen::VectorXd x_1, const double t, const E
   x(5) = vz1;
   return x;
 }
+
+
+
+
+
+
+
+
+
+
+/*
+double EKF_SLAM::rangeUpdate(double z, double sigma, double th, bool reallydo) {
+    // Rest of values not initialized
+    if (!_imu_init || !_range_init) {
+        // Return
+        std::cout << "cannot range update!!" << std::endl;
+        return -1.0;
+    } else {
+        // Debug
+        if (DEBUG) {
+            std::cout << std::endl << "Range update with " << z << " " << sigma << "  th: " << th << std::endl;
+        }
+        // Range to beacon from robot position
+        // h(x) = sqrt( (xr-xb)^2 + (yr-yb)^2 + (zr-zb)^2 ) + wz
+        Eigen::Vector3d diff = _x.tail(3) - _x.head(3);
+        Eigen::VectorXd h = Eigen::VectorXd::Zero(1);
+        h(0) = diff.norm();
+
+        // Measurement
+        Eigen::VectorXd r = Eigen::VectorXd::Zero(1);
+        r(0) = z;
+
+        // Linearization of h() into H
+        double inv = 1.0 / h(0);
+        Eigen::MatrixXd H = Eigen::MatrixXd::Zero(1, 9);
+        H(0, 0) = -diff(0) * inv;
+        H(0, 1) = -diff(1) * inv;
+        H(0, 2) = -diff(2) * inv;
+        H(0, 6) = -H(0, 0);
+        H(0, 7) = -H(0, 1);
+        H(0, 8) = -H(0, 2);
+
+        // R matrix
+        Eigen::MatrixXd R = Eigen::MatrixXd::Zero(1, 1);
+        R(0,0) = sigma;
+
+        // Update
+        double y;
+        if (reallydo) {
+            y = make_update(h, r, H, R, th);
+        } else {
+            y = test_update(h, r, H, R, th);
+        }
+        // Return innovation for weighting
+        return y;
+    }
+} */

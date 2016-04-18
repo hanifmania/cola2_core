@@ -77,6 +77,7 @@ find_package(catkin REQUIRED COMPONENTS
    ImagenexSSS.msg
    RangeImageBeam.msg
    Detection.msg
+   RangeDetection.msg
  )
 
 ## Generate services in the 'srv' folder
@@ -99,6 +100,7 @@ add_service_files(
   ArisConfig.srv
   ImagenexSSSConfig.srv
   DeltaTConfig.srv
+  AddLandmark.srv
 )
 
 ## Generate actions in the 'action' folder
