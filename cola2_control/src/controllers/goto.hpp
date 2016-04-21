@@ -59,7 +59,7 @@ GotoController::compute(const control::State& current_state,
     controller_output.velocity.disable_axis.roll = true;
     controller_output.velocity.disable_axis.pitch = true;
     controller_output.velocity.disable_axis.yaw = true;
-    
+
     // Compute YAW error
     double inc_x = waypoint.position.north - current_state.pose.position.north;
     double inc_y = waypoint.position.east - current_state.pose.position.east;
@@ -83,7 +83,12 @@ GotoController::compute(const control::State& current_state,
     if(surge > 0.0 && surge < 0.25){
         surge = 0.25;
     }
-    surge = surge * _config.max_surge;
+
+    double velocity = waypoint.linear_velocity.x;
+    if (velocity == 0.0 || velocity > _config.max_surge * 3.0) {
+        velocity = _config.max_surge;
+    }
+    surge = surge * velocity;
 
     // Take desired and current Z
     double desired_z = waypoint.position.depth;

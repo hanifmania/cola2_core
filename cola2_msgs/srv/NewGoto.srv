@@ -19,5 +19,8 @@ auv_msgs/Bool6Axis disable_axis
 
 geometry_msgs/Vector3 position_tolerance
 auv_msgs/RPY orientation_tolerance
+
+geometry_msgs/Vector3 linear_velocity
+auv_msgs/RPY angular_velocity
 ---
 bool success

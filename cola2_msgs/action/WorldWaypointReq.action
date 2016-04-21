@@ -9,7 +9,7 @@ auv_msgs/NED position
 float32 altitude
 auv_msgs/RPY orientation
 
-# Axes of control to disable, in body frame. 
+# Axes of control to disable, in body frame.
 # * for GOTO X-Z-YAW enable x and z
 # * for Holonomic goto: enable x, yaw and z
 auv_msgs/Bool6Axis disable_axis
@@ -17,6 +17,10 @@ auv_msgs/Bool6Axis disable_axis
 # Tolerances are in body frame, zero indicates pilot default should be used.
 geometry_msgs/Vector3 position_tolerance
 auv_msgs/RPY orientation_tolerance
+
+# Velocity. WARNING! Right now only linear_velocity.x is used!
+geometry_msgs/Vector3 linear_velocity
+auv_msgs/RPY angular_velocity
 
 # Available modes are: (OBSOLETE!!! REPLACED BY controller_type)
 # - If ABSOLUTE_X_Z_YAW mode then: 'los' (if Line of Sight), whatever if waypoint.

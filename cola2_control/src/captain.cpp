@@ -202,6 +202,11 @@ Captain::update_nav(const ros::MessageEvent<auv_msgs::NavSts const> & msg)
     _nav.altitude = msg.getMessage()->altitude;
 }
 
+
+/**
+/* nav_goal implements the navigation goal option available in RVIZ to send
+/* 2D navigation goals from it.
+**/
 void
 Captain::nav_goal(const ros::MessageEvent<geometry_msgs::PoseStamped const> & msg)
 {
@@ -347,6 +352,11 @@ Captain::enable_goto(cola2_msgs::NewGoto::Request &req,
         waypoint.position_tolerance.y = req.position_tolerance.y;
         waypoint.position_tolerance.z = req.position_tolerance.z;
         waypoint.orientation_tolerance.yaw = req.orientation_tolerance.yaw;
+        waypoint.linear_velocity.x = req.linear_velocity.x;
+
+        if (req.linear_velocity.y != 0.0 || req.linear_velocity.z != 0.0 || req.angular_velocity.yaw != 0.0) {
+            ROS_WARN_STREAM(_name << ": GOTO velocity can only be defined in surge. Heave, sway and yaw depend on pose controller.");
+        }
 
         // Choose WorldWaypointReq mode taking into account disable axis & tolerance
         if (req.position_tolerance.x == 0.0 && req.position_tolerance.y == 0.0 && req.position_tolerance.z == 0.0 && !req.disable_axis.x && req.disable_axis.y && !req.disable_axis.yaw) {
@@ -369,7 +379,11 @@ Captain::enable_goto(cola2_msgs::NewGoto::Request &req,
         _is_waypoint_running = true;
 
         // Compute timeout
-        waypoint.timeout = (2.0 * distance_to_waypoint) / _min_goto_vel;
+        double min_vel = _min_goto_vel;
+        if (waypoint.linear_velocity.x != 0.0 and min_vel > waypoint.linear_velocity.x) {
+            min_vel = waypoint.linear_velocity.x;
+        }
+        waypoint.timeout = (2.0 * distance_to_waypoint) / min_vel;
 
         ROS_INFO_STREAM(_name << ": Send WorldWaypointRequest at " << waypoint.position.north << ", "  << waypoint.position.east << ", " << waypoint.position.depth << ". Timeout = " << waypoint.timeout << "\n");
         _waypoint_client->sendGoal(waypoint);

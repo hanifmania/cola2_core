@@ -61,6 +61,8 @@ namespace control {
         control::rpy orientation;
         control::point position_tolerance;
         control::rpy orientation_tolerance;
+        control::point linear_velocity;
+        control::rpy angular_velocity;
         unsigned int controller_type;
         unsigned int timeout;
         control::vector6d disable_axis;
@@ -90,6 +92,12 @@ namespace control {
             disable_axis.roll = true;
             disable_axis.pitch = true;
             disable_axis.yaw = true;
+            linear_velocity.x = 0.0;
+            linear_velocity.y = 0.0;
+            linear_velocity.z = 0.0;
+            angular_velocity.roll = 0.0;
+            angular_velocity.pitch = 0.0;
+            angular_velocity.yaw = 0.0;
         }
     };
 

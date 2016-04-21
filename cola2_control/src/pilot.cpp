@@ -186,6 +186,12 @@ Pilot::waypointServerCallback(const cola2_msgs::WorldWaypointReqGoalConstPtr& da
     waypoint.priority = data->goal.priority;
     waypoint.requester = data->goal.requester;
     waypoint.timeout = data->timeout;
+    waypoint.linear_velocity.x = data->linear_velocity.x;
+    waypoint.linear_velocity.y = data->linear_velocity.y;
+    waypoint.linear_velocity.z = data->linear_velocity.z;
+    waypoint.angular_velocity.roll = data->angular_velocity.roll;
+    waypoint.angular_velocity.pitch = data->angular_velocity.pitch;
+    waypoint.angular_velocity.yaw = data->angular_velocity.yaw;
 
     // Main loop
     double init_time = ros::Time::now().toSec();
