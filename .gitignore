@@ -5,6 +5,7 @@
 *.pyc
 *.gch
 *.o
+*.user
 
 # Folders
 bin/
@@ -12,6 +13,7 @@ build/
 msg_gen/
 srv_gen/
 doc/
+build-*/
 
 # Subfolders in src
 src/*/
