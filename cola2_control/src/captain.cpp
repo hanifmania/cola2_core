@@ -26,10 +26,12 @@ typedef struct {
     std::vector<bool> altitude_mode;
     std::vector<double> yaw;
     std::vector<double> surge;
+    std::vector<double> tolerance;
     std::string mode;
     unsigned int timeout;
     std::vector<double> wait;
     bool valid_trajectory;
+    bool force_initial_final_waypoints_at_surface;
 } Trajectory;
 
 typedef struct {
@@ -489,6 +491,15 @@ Captain::load_trajectory(std_srvs::Empty::Request &req,
     if (!ros::param::getCached("trajectory/mode", trajectory.mode)) valid_trajectory = false;
     ROS_ASSERT_MSG(trajectory.mode == "los_cte" || trajectory.mode == "dubins", "Invalid trajectory mode");
 
+    if (!ros::param::getCached("trajectory/force_initial_final_waypoints_at_surface", trajectory.force_initial_final_waypoints_at_surface)) {
+        trajectory.force_initial_final_waypoints_at_surface = true;
+    }
+
+    if(ros::param::has("trajectory/tolerance")) {
+        cola2::rosutil::loadVector("trajectory/tolerance", trajectory.tolerance);
+        ROS_ASSERT_MSG(trajectory.tolerance.size() == 6, "Invalid tolerance array");
+    }
+
     if(ros::param::has("trajectory/wait")) {
         cola2::rosutil::loadVector("trajectory/wait", trajectory.wait);
         ROS_ASSERT_MSG(trajectory.x.size() == trajectory.wait.size(), "Different mission array sizes");
@@ -502,9 +513,15 @@ Captain::load_trajectory(std_srvs::Empty::Request &req,
         cola2::rosutil::loadVector("trajectory/yaw", trajectory.yaw);
         ROS_ASSERT_MSG(trajectory.x.size() == trajectory.yaw.size(), "Different mission array sizes");
     }
+
     if(ros::param::has("trajectory/surge")) {
         cola2::rosutil::loadVector("trajectory/surge", trajectory.surge);
         ROS_ASSERT_MSG(trajectory.x.size() == trajectory.surge.size(), "Different mission array sizes");
+    }
+    else {
+        for (unsigned int i = 0; i < trajectory.x.size(); i++) {
+            trajectory.surge.push_back(0.0);
+        }
     }
 
     ROS_ASSERT_MSG(valid_trajectory, "Invalid mission parameter");
@@ -537,36 +554,49 @@ Captain::enable_trajectory(std_srvs::Empty::Request&,
 {
     if(check_no_request_running() && _trajectory.valid_trajectory){
         _is_trajectory_disabled = false;
-        // Move to initial waypoint on surface and then submerge to it
         cola2_msgs::NewGoto::Request req;
         cola2_msgs::NewGoto::Response res;
-        req.priority = auv_msgs::GoalDescriptor::PRIORITY_NORMAL;
-        req.altitude_mode = false;
-        req.blocking = true;
-        req.disable_axis.x = false;
-        req.disable_axis.y = true;
-        req.disable_axis.z = false;
-        req.disable_axis.yaw = false;
-        req.position.x = _trajectory.x.at(0);
-        req.position.y = _trajectory.y.at(0);
-        req.position.z = 0.0;
-        req.position_tolerance.x = 3.0;
-        req.position_tolerance.y = 3.0;
-        req.position_tolerance.z = 2.0;
-        req.reference = cola2_msgs::NewGoto::Request::REFERENCE_NED;
-        enable_goto(req, res);
-        ROS_ASSERT_MSG(res.success, "Impossible to reach initial waypoint");
-        if (!_is_trajectory_disabled) {
-            // Submerge until initial waypoint
+        if (_trajectory.force_initial_final_waypoints_at_surface) {
+            // Move to initial waypoint on surface and then submerge to it
+            req.priority = auv_msgs::GoalDescriptor::PRIORITY_NORMAL;
+            req.altitude_mode = false;
             req.blocking = true;
-            req.disable_axis.x = true;
-            req.yaw = _nav.yaw;
-            req.position.z = _trajectory.z.at(0);
-            req.altitude = _trajectory.z.at(0);
-            req.altitude_mode = _trajectory.altitude_mode.at(0);
+            req.disable_axis.x = false;
+            req.disable_axis.y = true;
+            req.disable_axis.z = false;
+            req.disable_axis.yaw = false;
+            req.position.x = _trajectory.x.at(0);
+            req.position.y = _trajectory.y.at(0);
+            req.position.z = 0.0;
+            if (_trajectory.tolerance.size() == 0) {
+                req.position_tolerance.x = _config.tolerance.x;
+                req.position_tolerance.y = _config.tolerance.y;
+                req.position_tolerance.z = _config.tolerance.z;
+            }
+            else {
+                req.position_tolerance.x = _trajectory.tolerance.at(0);
+                req.position_tolerance.y = _trajectory.tolerance.at(1);
+                req.position_tolerance.z = _trajectory.tolerance.at(2);
+            }
+
+            req.linear_velocity.x = _trajectory.surge.at(0);
+            req.reference = cola2_msgs::NewGoto::Request::REFERENCE_NED;
             enable_goto(req, res);
             ROS_ASSERT_MSG(res.success, "Impossible to reach initial waypoint");
+
+            if (!_is_trajectory_disabled) {
+                // Submerge until initial waypoint
+                req.blocking = true;
+                req.disable_axis.x = true;
+                req.yaw = _nav.yaw;
+                req.position.z = _trajectory.z.at(0);
+                req.altitude = _trajectory.z.at(0);
+                req.altitude_mode = _trajectory.altitude_mode.at(0);
+                enable_goto(req, res);
+                ROS_ASSERT_MSG(res.success, "Impossible to reach initial waypoint");
+            }
         }
+
         if (!_is_trajectory_disabled) {
             _is_section_running = true;
             // Create section
@@ -583,17 +613,28 @@ Captain::enable_trajectory(std_srvs::Empty::Request&,
             }
             section.disable_z = false;
 
-            section.tolerance.x = _config.tolerance.x;
-            section.tolerance.y = _config.tolerance.y;
-            section.tolerance.z = _config.tolerance.z;
+            if (_trajectory.tolerance.size() == 0) {
+                section.tolerance.x = _config.tolerance.x;
+                section.tolerance.y = _config.tolerance.y;
+                section.tolerance.z = _config.tolerance.z;
+            }
+            else {
+                section.tolerance.x = _trajectory.tolerance.at(0);
+                section.tolerance.y = _trajectory.tolerance.at(1);
+                section.tolerance.z = _trajectory.tolerance.at(2);
+            }
 
             unsigned int i = 1;
             while (i < _trajectory.x.size() &&  _is_section_running) {
                 // For each pair of waypoints:
                 // ...initial point of the section
+
+                // Set initial position
                 section.initial_position.x = _trajectory.x.at(i-1);
                 section.initial_position.y = _trajectory.y.at(i-1);
                 section.initial_position.z = _trajectory.z.at(i-1);
+
+                // Set initial yaw
                 if (_trajectory.yaw.size() > 0) {
                     section.initial_yaw = _trajectory.yaw.at(i-1);
                     section.use_initial_yaw = true;
@@ -602,10 +643,9 @@ Captain::enable_trajectory(std_srvs::Empty::Request&,
                     section.initial_yaw = 0.0;
                     section.use_initial_yaw = false;
                 }
-                if (_trajectory.surge.size() > 0 )
-                    section.initial_surge = _trajectory.surge.at(i-1);
-                else
-                    section.initial_surge = 0;
+
+                // Set velocity
+                section.initial_surge = _trajectory.surge.at(i-1);
 
                 // ...final point of the section
                 section.final_position.x = _trajectory.x.at(i);
@@ -622,10 +662,9 @@ Captain::enable_trajectory(std_srvs::Empty::Request&,
                     section.final_yaw = 0.0;
                     section.use_final_yaw = false;
                 //}
-                if (_trajectory.surge.size() > 0 )
-                    section.final_surge = _trajectory.surge.at(i);
-                else
-                    section.final_surge = 0;
+
+                // Set final surge
+                section.final_surge = _trajectory.surge.at(i);
 
                 // Altitude mode is defined by the initial waypoint
                 section.altitude_mode = _trajectory.altitude_mode.at(i-1);
@@ -637,7 +676,11 @@ Captain::enable_trajectory(std_srvs::Empty::Request&,
                                                              _trajectory.z.at(i),
                                                              _trajectory.z.at(i),
                                                              _trajectory.altitude_mode.at(i));
-                double timeout = (2*distance_to_end_section) / _min_loscte_vel;
+                double min_vel = _min_loscte_vel;
+                if (_trajectory.surge.at(i-1) != 0.0 && _trajectory.surge.at(i-1) < _min_loscte_vel) {
+                    min_vel = _trajectory.surge.at(i-1);
+                }
+                double timeout = (2*distance_to_end_section) / min_vel;
                 ROS_INFO_STREAM(_name << ": Section timeout = " << timeout << "\n");
                 _section_client->waitForResult(ros::Duration(timeout));
 
@@ -646,23 +689,25 @@ Captain::enable_trajectory(std_srvs::Empty::Request&,
             }
             if(_is_section_running){
                 _is_section_running = false;
-                // Move to final waypoint on surface
-                req.priority = auv_msgs::GoalDescriptor::PRIORITY_NORMAL;
-                req.altitude_mode = false;
-                req.blocking = true;
-                req.disable_axis.x = true;
-                req.disable_axis.y = true;
-                req.disable_axis.z = false;
-                req.disable_axis.yaw = true;
-                req.position.x = _trajectory.x.at(_trajectory.x.size()-1);
-                req.position.y = _trajectory.y.at(_trajectory.y.size()-1);
-                req.position.z = 0.0;
-                req.position_tolerance.x = 3.0;
-                req.position_tolerance.y = 3.0;
-                req.position_tolerance.z = 2.0;
-                req.reference = cola2_msgs::NewGoto::Request::REFERENCE_NED;
-                enable_goto(req, res);
-                ROS_ASSERT_MSG(res.success, "Impossible to reach final waypoint");
+                // Move to final waypoint on surface if necessary
+                if (_trajectory.force_initial_final_waypoints_at_surface) {
+                    req.priority = auv_msgs::GoalDescriptor::PRIORITY_NORMAL;
+                    req.altitude_mode = false;
+                    req.blocking = true;
+                    req.disable_axis.x = true;
+                    req.disable_axis.y = true;
+                    req.disable_axis.z = false;
+                    req.disable_axis.yaw = true;
+                    req.position.x = _trajectory.x.at(_trajectory.x.size()-1);
+                    req.position.y = _trajectory.y.at(_trajectory.y.size()-1);
+                    req.position.z = 0.0;
+                    req.position_tolerance.x = 3.0;
+                    req.position_tolerance.y = 3.0;
+                    req.position_tolerance.z = 2.0;
+                    req.reference = cola2_msgs::NewGoto::Request::REFERENCE_NED;
+                    enable_goto(req, res);
+                    ROS_ASSERT_MSG(res.success, "Impossible to reach final waypoint");
+                }
             }
         }
     }

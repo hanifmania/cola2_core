@@ -72,6 +72,7 @@ LosCteController::compute(const control::State& current_state,
     // std::cout << section.initial_position.x << ", " << section.initial_position.y << " to " << section.final_position.x << ", " << section.final_position.y << " \n";
     // Compute desired surge and yaw
     double surge = _config.max_surge_velocity;
+    if (section.final_surge != 0.0) surge = section.final_surge;
     double desired_yaw;
 
     // Distance to current way-point
