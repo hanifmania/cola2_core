@@ -14,7 +14,7 @@
 #include <string>
 #include <vector>
 
-#define MAX_COV 0.0025
+#define MAX_COV 0.025
 
 class EkfBase
 {
