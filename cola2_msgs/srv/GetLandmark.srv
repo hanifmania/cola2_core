@@ -1,0 +1,8 @@
+string id
+---
+bool success
+# Copy of Detection because I cannot compile it
+std_msgs/Header header
+bool detected
+string id
+geometry_msgs/PoseWithCovariance pose

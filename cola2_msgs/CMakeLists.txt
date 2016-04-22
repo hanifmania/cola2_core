@@ -101,6 +101,7 @@ add_service_files(
   ImagenexSSSConfig.srv
   DeltaTConfig.srv
   AddLandmark.srv
+  GetLandmark.srv
 )
 
 ## Generate actions in the 'action' folder
