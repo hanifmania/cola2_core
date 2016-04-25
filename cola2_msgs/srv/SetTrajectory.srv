@@ -1,5 +1,5 @@
-string LINE_OF_SIGHT="los_cte"
-string DUBINS="dubins"
+string LINE_OF_SIGHT=los_cte
+string DUBINS=dubins
 float64[] x
 float64[] y
 float64[] z

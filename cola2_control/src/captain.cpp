@@ -19,6 +19,7 @@
 #include "controllers/types.hpp"
 #include <cola2_lib/cola2_rosutils/RosUtil.h>
 #include "controllers/types.hpp"
+#include <string>
 #include <vector>
 
 typedef struct {
@@ -498,7 +499,7 @@ Captain::set_trajectory(cola2_msgs::SetTrajectory::Request &req,
         trajectory.altitude_mode[i] = req.altitude_mode[i];
 
     // Check sizes
-    if (trajectory.x.size() > 1)
+    if (trajectory.x.size() <= 1)
     {
         ROS_ERROR("Minimum mission size is 2");
         valid_trajectory = false;
@@ -516,7 +517,7 @@ Captain::set_trajectory(cola2_msgs::SetTrajectory::Request &req,
     // Check control mode
     if (trajectory.mode != "los_cte" && trajectory.mode != "dubins")
     {
-        ROS_ERROR("Invalid control mode");
+        ROS_ERROR("Invalid control mode: %s", trajectory.mode.c_str());
         valid_trajectory = false;
     }
 
