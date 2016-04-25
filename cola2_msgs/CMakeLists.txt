@@ -102,6 +102,7 @@ add_service_files(
   DeltaTConfig.srv
   AddLandmark.srv
   GetLandmark.srv
+  SetTrajectory.srv
 )
 
 ## Generate actions in the 'action' folder

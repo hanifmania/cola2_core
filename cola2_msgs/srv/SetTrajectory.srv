@@ -1,0 +1,14 @@
+string LINE_OF_SIGHT="los_cte"
+string DUBINS="dubins"
+float64[] x
+float64[] y
+float64[] z
+bool[] altitude_mode
+float64[] yaw
+float64[] surge
+float64[] wait
+uint16 timeout
+string mode
+bool is_local
+---
+bool valid

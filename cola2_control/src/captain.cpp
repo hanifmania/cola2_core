@@ -7,6 +7,7 @@
 #include <cola2_msgs/String.h>
 #include <cola2_msgs/NewGoto.h>
 #include <cola2_msgs/Submerge.h>
+#include <cola2_msgs/SetTrajectory.h>
 #include <std_srvs/Empty.h>
 #include <auv_msgs/GoalDescriptor.h>
 #include <nav_msgs/Path.h>
@@ -18,6 +19,7 @@
 #include "controllers/types.hpp"
 #include <cola2_lib/cola2_rosutils/RosUtil.h>
 #include "controllers/types.hpp"
+#include <vector>
 
 typedef struct {
     std::vector<double> x;
@@ -69,6 +71,7 @@ private:
     ros::ServiceServer _disable_goto_srv;
     ros::ServiceServer _submerge_srv;
     ros::ServiceServer _load_trajectory_srv;
+    ros::ServiceServer _set_trajectory_srv;
     ros::ServiceServer _enable_trajectory_srv;
     ros::ServiceServer _disable_trajectory_srv;
     ros::ServiceServer _enable_keep_position_holonomic_srv;
@@ -118,6 +121,9 @@ private:
 
     bool load_trajectory(std_srvs::Empty::Request&,
                          std_srvs::Empty::Response&);
+
+    bool set_trajectory(cola2_msgs::SetTrajectory::Request&,
+                        cola2_msgs::SetTrajectory::Response&);
 
     bool enable_trajectory(std_srvs::Empty::Request&,
                            std_srvs::Empty::Response&);
@@ -177,6 +183,7 @@ Captain::Captain():
     _submerge_srv = _n.advertiseService("/cola2_control/submerge", &Captain::submerge, this);
 
     _load_trajectory_srv = _n.advertiseService("/cola2_control/load_trajectory", &Captain::load_trajectory, this);
+    _set_trajectory_srv = _n.advertiseService("/cola2_control/load_trajectory", &Captain::set_trajectory, this);
     _enable_trajectory_srv = _n.advertiseService("/cola2_control/enable_trajectory", &Captain::enable_trajectory, this);
     _disable_trajectory_srv = _n.advertiseService("/cola2_control/disable_trajectory", &Captain::disable_trajectory, this);
     _enable_keep_position_holonomic_srv = _n.advertiseService("/cola2_control/enable_keep_position_g500", &Captain::enable_keep_position_holonomic, this);
@@ -442,6 +449,82 @@ Captain::disable_goto(std_srvs::Empty::Request&,
         _is_waypoint_running = false;
     }
     return true;
+}
+
+bool
+Captain::set_trajectory(cola2_msgs::SetTrajectory::Request &req,
+                        cola2_msgs::SetTrajectory::Response &res)
+{
+    // Set a mission file as a service
+    bool valid_trajectory = true;
+
+    // Copy data into structure
+    Trajectory trajectory;
+    trajectory.x = req.x;
+    trajectory.y = req.y;
+    trajectory.z = req.z;
+    trajectory.yaw = req.yaw;
+    trajectory.surge = req.surge;
+    trajectory.wait = req.wait;
+    trajectory.timeout = req.timeout;
+    trajectory.mode = req.mode;
+    // Special case for std::vector<bool> (from http://wiki.ros.org/msg)
+    // bool in C++ is aliased to uint8_t because of array types:
+    // std::vector<bool> is in fact a specialized form of vector that is not a
+    // container. See http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2007/n2160.html
+    // for more information.
+    // msg: bool[]  -->  c++: std::vector<uint8_t>
+    trajectory.altitude_mode.resize(req.altitude_mode.size());
+    for (int i = 0; i < req.altitude_mode.size(); i++)
+        trajectory.altitude_mode[i] = req.altitude_mode[i];
+
+    // Check sizes
+    if (trajectory.x.size() > 1)
+    {
+        ROS_ERROR("Minimum mission size is 2");
+        valid_trajectory = false;
+    }
+    if ((trajectory.x.size() != trajectory.y.size()) ||
+        (trajectory.x.size() != trajectory.z.size()) ||
+        (trajectory.x.size() != trajectory.altitude_mode.size()) ||
+        (trajectory.x.size() != trajectory.yaw.size()) ||
+        (trajectory.x.size() != trajectory.surge.size()) ||
+        (trajectory.x.size() != trajectory.wait.size()))
+        {
+            ROS_ERROR("Different mission array sizes");
+            valid_trajectory = false;
+        }
+    // Check control mode
+    if (trajectory.mode != "los_cte" && trajectory.mode != "dubins")
+    {
+        ROS_ERROR("Invalid control mode");
+        valid_trajectory = false;
+    }
+
+    // If the trajectory is defined globally, tranform from lat/lon to NED.
+    if(!req.is_local)
+    {
+        ROS_INFO_STREAM(_name << ": global trajectory");
+        double north, east, depth;
+        for (unsigned int i = 0; i < trajectory.x.size(); i++)
+        {
+            _ned->geodetic2Ned(trajectory.x.at(i), trajectory.y.at(i), 0.0,
+                               north, east, depth);
+            trajectory.x.at(i) = north;
+            trajectory.y.at(i) = east;
+        }
+    }
+    trajectory.valid_trajectory = valid_trajectory;
+
+    // generate path
+    if(valid_trajectory) {
+        nav_msgs::Path path = create_path_from_trajectory(trajectory);
+        _pub_path.publish(path);
+        _trajectory = trajectory;
+    }
+
+    res.valid = valid_trajectory;
+    return valid_trajectory;
 }
 
 bool
