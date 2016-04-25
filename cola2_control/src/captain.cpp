@@ -185,7 +185,7 @@ Captain::Captain():
     _submerge_srv = _n.advertiseService("/cola2_control/submerge", &Captain::submerge, this);
 
     _load_trajectory_srv = _n.advertiseService("/cola2_control/load_trajectory", &Captain::load_trajectory, this);
-    _set_trajectory_srv = _n.advertiseService("/cola2_control/load_trajectory", &Captain::set_trajectory, this);
+    _set_trajectory_srv = _n.advertiseService("/cola2_control/set_trajectory", &Captain::set_trajectory, this);
     _enable_trajectory_srv = _n.advertiseService("/cola2_control/enable_trajectory", &Captain::enable_trajectory, this);
     _disable_trajectory_srv = _n.advertiseService("/cola2_control/disable_trajectory", &Captain::disable_trajectory, this);
     _enable_keep_position_holonomic_srv = _n.advertiseService("/cola2_control/enable_keep_position_g500", &Captain::enable_keep_position_holonomic, this);
@@ -460,7 +460,23 @@ Captain::set_trajectory(cola2_msgs::SetTrajectory::Request &req,
     // Set a mission file as a service
     bool valid_trajectory = true;
 
-    // Copy data into structure
+    // Copy parameters
+    if (req.tolerance.size() == 6)
+    {
+        _config.tolerance.x = req.tolerance.at(0);
+        _config.tolerance.y = req.tolerance.at(1);
+        _config.tolerance.z = req.tolerance.at(2);
+        _config.tolerance.roll = req.tolerance.at(3);
+        _config.tolerance.pitch = req.tolerance.at(4);
+        _config.tolerance.yaw = req.tolerance.at(5);
+    }
+    else
+    {
+        ROS_ERROR("Invalid tolerance size");
+        valid_trajectory = false;
+    }
+
+    // Copy data into Trajectory structure
     Trajectory trajectory;
     trajectory.x = req.x;
     trajectory.y = req.y;
@@ -470,6 +486,7 @@ Captain::set_trajectory(cola2_msgs::SetTrajectory::Request &req,
     trajectory.wait = req.wait;
     trajectory.timeout = req.timeout;
     trajectory.mode = req.mode;
+    trajectory.force_initial_final_waypoints_at_surface = req.force_surface;
     // Special case for std::vector<bool> (from http://wiki.ros.org/msg)
     // bool in C++ is aliased to uint8_t because of array types:
     // std::vector<bool> is in fact a specialized form of vector that is not a
@@ -519,7 +536,8 @@ Captain::set_trajectory(cola2_msgs::SetTrajectory::Request &req,
     trajectory.valid_trajectory = valid_trajectory;
 
     // generate path
-    if(valid_trajectory) {
+    if (valid_trajectory)
+    {
         nav_msgs::Path path = create_path_from_trajectory(trajectory);
         _pub_path.publish(path);
         _trajectory = trajectory;

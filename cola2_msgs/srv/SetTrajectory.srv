@@ -9,6 +9,9 @@ float64[] surge
 float64[] wait
 uint16 timeout
 string mode
+float64[6] tolerance
 bool is_local
+# Force surface at init and end waypoints
+bool force_surface
 ---
 bool valid
