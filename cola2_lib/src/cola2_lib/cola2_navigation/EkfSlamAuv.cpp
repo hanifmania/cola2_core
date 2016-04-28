@@ -204,7 +204,7 @@ unsigned int EkfSlamAuv::landmarkUpdate(const std::string& sensor_id,
 {
   if (_is_imu_init && makePrediction( time_stamp, computeU()))
   {
-    std::cout << "landmark: " << landmark_id << std::endl;
+    // std::cout << "landmark: " << landmark_id << std::endl;
     Eigen::Vector3d landmark_position_tmp;
     Eigen::Quaterniond landmark_orientation_tmp;
     Eigen::MatrixXd landmark_cov_tmp;

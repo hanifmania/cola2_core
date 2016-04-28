@@ -55,6 +55,10 @@ LosCteController::compute(const control::State& current_state,
                           control::Feedback& feedback,
                           control::PointsList& marker)
 {
+    // If the user defines a surge smaller than min_surge
+    // the min_surge is not used
+    bool use_min_surge = true;
+
     // Set all axis as disabled by default
     controller_output.pose.disable_axis.x = true;
     controller_output.pose.disable_axis.y = true;
@@ -72,8 +76,13 @@ LosCteController::compute(const control::State& current_state,
     // std::cout << section.initial_position.x << ", " << section.initial_position.y << " to " << section.final_position.x << ", " << section.final_position.y << " \n";
     // Compute desired surge and yaw
     double surge = _config.max_surge_velocity;
-    if (section.final_surge != 0.0) surge = section.final_surge;
+    if (section.final_surge != 0.0) {
+        surge = section.final_surge;
+        if (surge < _config.min_surge_velocity) use_min_surge = false;
+    }
     double desired_yaw;
+
+    // std::cout << "Surge: " << surge << std::endl;
 
     // Distance to current way-point
     double dist_final = sqrt(pow(section.final_position.x - current_state.pose.position.north, 2) +
@@ -132,8 +141,7 @@ LosCteController::compute(const control::State& current_state,
     if (distance < _config.distance_to_max_velocity) {
         double ratio = _config.min_velocity_ratio + tan(dist_angle) * distance;
         surge = surge * ratio;
-        if (surge < _config.min_surge_velocity) surge = _config.min_surge_velocity;
-//    	surge = _config.min_surge_velocity; //TODO
+        if (use_min_surge && surge < _config.min_surge_velocity) surge = _config.min_surge_velocity;
     }
 
 	// Compute yaw
