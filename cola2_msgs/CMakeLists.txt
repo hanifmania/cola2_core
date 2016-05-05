@@ -103,6 +103,7 @@ add_service_files(
   AddLandmark.srv
   GetLandmark.srv
   SetTrajectory.srv
+  Action.srv
 )
 
 ## Generate actions in the 'action' folder
