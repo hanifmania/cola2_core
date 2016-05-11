@@ -8,6 +8,7 @@
 #include <cola2_msgs/NewGoto.h>
 #include <cola2_msgs/Submerge.h>
 #include <cola2_msgs/SetTrajectory.h>
+#include <cola2_msgs/Action.h>
 #include <std_srvs/Empty.h>
 #include <auv_msgs/GoalDescriptor.h>
 #include <nav_msgs/Path.h>
@@ -18,7 +19,7 @@
 #include <auv_msgs/NavSts.h>
 #include "controllers/types.hpp"
 #include <cola2_lib/cola2_rosutils/RosUtil.h>
-#include "controllers/types.hpp"
+#include "controllers/mission_types.hpp"
 #include <string>
 #include <vector>
 
@@ -40,6 +41,7 @@ typedef struct {
 typedef struct {
     double max_distance_to_waypoint;
     control::vector6d tolerance;
+    std::string mission_path;
 } CaptainConfig;
 
 class Captain {
@@ -57,6 +59,8 @@ private:
     bool _is_waypoint_running;
     bool _is_section_running;
     bool _is_trajectory_disabled;
+    bool _is_mission_running;
+
     ros::MultiThreadedSpinner _spinner;
     Trajectory _trajectory;
     Ned *_ned;
@@ -81,6 +85,9 @@ private:
     ros::ServiceServer _enable_keep_position_non_holonomic_srv;
     ros::ServiceServer _disable_keep_position_srv;
     ros::Subscriber _2D_nav_goal;
+
+    // mission related services
+    ros::ServiceServer _play_mission_srv;
 
     // Subscriber
     ros::Subscriber _sub_nav;
@@ -145,6 +152,22 @@ private:
 
     void update_nav(const ros::MessageEvent<auv_msgs::NavSts const> & msg);
     void nav_goal(const ros::MessageEvent<geometry_msgs::PoseStamped const> & msg);
+
+    // Mission related functions
+    bool playMission(cola2_msgs::String::Request&,
+                     cola2_msgs::String::Response&);
+
+    void addParamToParamServer(const std::string key,
+                               const std::string value);
+
+    void callAction(const std::string action_id,
+                    const std::vector<std::string> parameters);
+
+    bool worldWaypoint(const MissionWaypoint wp);
+
+    bool worldSection(const MissionSection sec);
+
+    void park(const MissionPark park);
 };
 
 
@@ -152,6 +175,7 @@ Captain::Captain():
     _is_waypoint_running(false),
     _is_section_running(false),
     _is_trajectory_disabled(false),
+    _is_mission_running(false),
     _spinner(2),
     _is_holonomic_keep_pose_enabled(false)
 {
@@ -192,6 +216,8 @@ Captain::Captain():
     _enable_keep_position_holonomic_srv = _n.advertiseService("/cola2_control/enable_keep_position_g500", &Captain::enable_keep_position_holonomic, this);
     _enable_keep_position_non_holonomic_srv = _n.advertiseService("/cola2_control/enable_keep_position_s2", &Captain::enable_keep_position_non_holonomic, this);
     _disable_keep_position_srv = _n.advertiseService("/cola2_control/disable_keep_position", &Captain::disable_keep_position, this);
+
+    _play_mission_srv = _n.advertiseService("/mission_manager/play", &Captain::playMission, this);
 
     // Subscriber
 
@@ -306,6 +332,12 @@ Captain::get_config() {
     cola2::rosutil::getParam("pilot/los_cte_max_surge_velocity", surge_los, 0.1);
     _min_goto_vel = std::min(heave, surge);
     _min_loscte_vel = std::min(heave, surge_los);
+
+    // Get path were missions are stored
+    if (!ros::param::getCached("captain/mission_path", _config.mission_path)) {
+        ROS_ASSERT_MSG(false, "Missions path not found in param server. Set as ./");
+        _config.mission_path = ".";
+    }
 }
 
 
@@ -832,6 +864,7 @@ Captain::disable_trajectory(std_srvs::Empty::Request&,
         _is_section_running = false;
         _section_client->cancelGoal();
     }
+    _is_mission_running = false;
     return true;
 }
 
@@ -964,6 +997,168 @@ Captain::create_path_from_trajectory(Trajectory trajectory)
     return path;
 }
 
+// ------------------ MISSION RELATED METHODS -------------------
+
+bool
+Captain::playMission(cola2_msgs::String::Request &req,
+                     cola2_msgs::String::Response &res)
+{
+    if (check_no_request_running()) {
+        std::string mission_path = _config.mission_path + "/" + req.mystring;
+        std::cout << "Load mission: " << mission_path << std::endl;
+        Mission mission;
+        mission.loadMission(mission_path);
+
+        _is_mission_running = true;
+        for (unsigned int i = 0; i < mission.size(); i++) {
+            if (!_is_mission_running) {
+                ROS_WARN_STREAM(_name << ": mission has been disabled.");
+                break;
+            }
+            MissionStep *step = mission.getStep(i);
+            if (step->step_type == MISSION_CONFIGURATION) {
+                MissionConfiguration *conf = dynamic_cast<MissionConfiguration*>(step);
+                this->addParamToParamServer(conf->key, conf->value);
+            }
+            else if (step->step_type == MISSION_ACTION) {
+                MissionAction *act = dynamic_cast<MissionAction*>(step);
+                this->callAction(act->action_id, act->parameters);
+            }
+            else if (step->step_type == MISSION_MANEUVER) {
+                MissionManeuver *m = dynamic_cast<MissionManeuver*>(step);
+                if (m->getManeuverType() == WAYPOINT_MANEUVER) {
+                    MissionWaypoint *wp = dynamic_cast<MissionWaypoint*>(m);
+                    std::cout << *wp << std::endl;
+                    if (!this->worldWaypoint(*wp)) {
+                        ROS_WARN_STREAM(_name << "Impossible to reach waypoint. Move to next mission step.");
+                    }
+                }
+                else if (m->getManeuverType() == SECTION_MANEUVER) {
+                    MissionSection *sec = dynamic_cast<MissionSection*>(m);
+                    std::cout << *sec << std::endl;
+                    if (!this->worldSection(*sec)) {
+                        ROS_WARN_STREAM(_name << "Impossible to reach section. Move to next mission step.");
+                    }
+                }
+                else if (m->getManeuverType() == PARK_MANEUVER) {
+                    MissionPark *park = dynamic_cast<MissionPark*>(m);
+                    std::cout << *park << std::endl;
+                    this->park(*park);
+                }
+            }
+        }
+        if (_is_mission_running) {
+            ROS_INFO_STREAM(_name << ": Mission finalized.");
+            _is_mission_running = false;
+        }
+    }
+    return true;
+}
+
+void
+Captain::addParamToParamServer(const std::string key,
+                               const std::string value)
+{
+    std::cout << "Set to param server -> " << key << ": " << value << std::endl;
+    _n.setParam(key, value);
+}
+
+void
+Captain::callAction(const std::string action_id,
+                    const std::vector<std::string> parameters)
+{
+    ros::ServiceClient action_client = _n.serviceClient<cola2_msgs::Action>(action_id);
+    cola2_msgs::Action action;
+    for (std::vector<std::string>::const_iterator i = parameters.begin(); i != parameters.end(); i++) {
+        action.request.param.push_back(*i);
+    }
+    action_client.call(action);
+    std::cout << "Call -> " << action_id << std::endl;
+}
+
+bool
+Captain::worldWaypoint(const MissionWaypoint wp)
+{
+    // Define waypoint attributes
+    cola2_msgs::NewGoto::Request goto_req;
+    cola2_msgs::NewGoto::Response goto_res;
+
+    goto_req.altitude = wp.position.z;
+    goto_req.altitude_mode = wp.position.altitude_mode;
+    goto_req.linear_velocity.x = wp.speed;
+    goto_req.position.x = wp.position.latitude;
+    goto_req.position.y = wp.position.longitude;
+    goto_req.position.z = wp.position.z;
+    goto_req.position_tolerance.x = wp.tolerance.x;
+    goto_req.position_tolerance.y = wp.tolerance.y;
+    goto_req.position_tolerance.z = wp.tolerance.z;
+    goto_req.blocking = true;
+    goto_req.disable_axis.x = false;
+    goto_req.disable_axis.y = true;
+    goto_req.disable_axis.z = false;
+    goto_req.disable_axis.roll = true;
+    goto_req.disable_axis.yaw = false;
+    goto_req.disable_axis.pitch = true;
+    goto_req.priority = auv_msgs::GoalDescriptor::PRIORITY_NORMAL;
+    goto_req.reference = cola2_msgs::NewGoto::Request::REFERENCE_GLOBAL;
+
+    // Call goto
+    return enable_goto(goto_req, goto_res);
+}
+
+bool
+Captain::worldSection(const MissionSection sec)
+{
+    cola2_msgs::WorldSectionReqGoal section;
+    section.priority = auv_msgs::GoalDescriptor::PRIORITY_NORMAL;
+    section.controller_type = cola2_msgs::WorldSectionReqGoal::LOSCTE;
+    section.disable_z = false;
+    section.tolerance.x = sec.tolerance.x;
+    section.tolerance.y = sec.tolerance.y;
+    section.tolerance.z = sec.tolerance.z;
+
+    double initial_north, initial_east, initial_depth;
+    _ned->geodetic2Ned(sec.initial_position.latitude, sec.initial_position.longitude, 0.0,
+                       initial_north, initial_east, initial_depth);
+    section.initial_position.x = initial_north;
+    section.initial_position.y = initial_east;
+    section.initial_position.z = sec.initial_position.z;
+    section.use_initial_yaw = false;
+    section.initial_surge = sec.speed;
+
+    double final_north, final_east, final_depth;
+    _ned->geodetic2Ned(sec.final_position.latitude, sec.final_position.longitude, 0.0,
+                       final_north, final_east, final_depth);
+    section.final_position.x = final_north;
+    section.final_position.y = final_east;
+    section.final_position.z = sec.final_position.z;
+    section.use_final_yaw = false;
+    section.final_surge = sec.speed;
+    section.altitude_mode = sec.initial_position.altitude_mode;
+
+    _section_client->sendGoal(section);
+
+    // Compute timeout
+    double distance_to_end_section = distance_to(final_north,
+                                                 final_east,
+                                                 sec.final_position.z,
+                                                 sec.final_position.z,
+                                                 sec.final_position.altitude_mode);
+    double min_vel = _min_loscte_vel;
+    if (sec.speed != 0.0 && sec.speed < _min_loscte_vel) {
+        min_vel = sec.speed;
+    }
+    double timeout = (2*distance_to_end_section) / min_vel;
+    ROS_INFO_STREAM(_name << ": Section timeout = " << timeout << "\n");
+    _section_client->waitForResult(ros::Duration(timeout));
+    return true;
+}
+
+void
+Captain::park(const MissionPark park)
+{
+    ROS_WARN_STREAM(_name << ": Park not implemented!");
+}
 
 int main(int argc, char **argv) {
     ros::init(argc, argv, "captain_new");
