@@ -121,6 +121,9 @@ catkin_package(
 ## Build ##
 ###########
 
+# TinyXML
+SET(LIBS_TINYXML -ltinyxml)
+
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 # include_directories(include)
@@ -159,7 +162,7 @@ target_link_libraries(pilot ${catkin_LIBRARIES})
 add_dependencies(pilot cola2_msgs_gencpp ${PROJECT_NAME}_gencfg)
 
 add_executable(captain src/captain.cpp)
-target_link_libraries(captain ${catkin_LIBRARIES})
+target_link_libraries(captain ${catkin_LIBRARIES} ${LIBS_TINYXML})
 add_dependencies(captain cola2_msgs_gencpp)
 
 
