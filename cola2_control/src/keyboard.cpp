@@ -225,7 +225,7 @@ public:
                 msg.buttons[iter] = 0 ;
             }
             pub.publish(msg) ; // Everything to 0
-            ros::Duration(0.1).sleep();
+            //ros::Duration(0.1).sleep();
         }
 
         tcsetattr(STDIN_FILENO, TCSANOW, &oldt) ;
