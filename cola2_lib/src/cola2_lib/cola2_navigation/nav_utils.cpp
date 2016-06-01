@@ -109,7 +109,7 @@ double dms2DegInt(const double degree_minutes, const int hemisphere)
   case 3:
     return dms2Deg(degree_minutes, static_cast<char>('E'));
   default:
-    std::cerr << "Invalid hemisphere: " << hemisphere << "\n";
+    // std::cerr << "Invalid hemisphere: " << hemisphere << "\n";
     return 0.0;
   }
 }
