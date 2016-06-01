@@ -20,6 +20,7 @@
 #include <cola2_lib/cola2_rosutils/RosUtil.h>
 #include <dynamic_reconfigure/server.h>
 #include <cola2_control/PilotConfig.h>
+#include <geometry_msgs/PointStamped.h>
 
 #define SECTION_MODE    0
 #define WAYPOINT_MODE   1
@@ -38,6 +39,7 @@ private:
     // ROS variables
     ros::Subscriber _sub_nav;
     ros::Publisher _pub_wwr, _pub_bvr, _pub_marker;
+    ros::Publisher _pub_goal;
 
     // Actionlib servers
     boost::shared_ptr< actionlib::SimpleActionServer<cola2_msgs::WorldSectionReqAction> > _section_server;
@@ -79,6 +81,7 @@ private:
     void publishMarkerSections(const control::PointsList);
     void getConfig();
     void setParams(cola2_control::PilotConfig&, uint32_t);
+    void publishGoal(const double, const double, const double);
 };
 
 Pilot::Pilot()
@@ -108,6 +111,8 @@ Pilot::Pilot()
         "/cola2_control/body_velocity_req", 1);
     _pub_marker = _nh.advertise<visualization_msgs::Marker>(
         "/cola2_control/waypoint_marker", 1);
+    _pub_goal = _nh.advertise<geometry_msgs::PointStamped>(
+        "/cola2_control/pilot_goal", 1, true);
 
     // Subscriber
     _sub_nav = _nh.subscribe("/cola2_navigation/nav_sts", 1,
@@ -256,6 +261,8 @@ Pilot::waypointServerCallback(const cola2_msgs::WorldWaypointReqGoalConstPtr& da
 
         publishMarkerSections(points);
 
+        publishGoal(waypoint.position.north, waypoint.position.east, waypoint.position.depth);
+
         // Check for success
         if (feedback.success) {
             ROS_INFO_STREAM(_node_name << ": waypoint success");
@@ -365,6 +372,10 @@ Pilot::sectionServerCallback(const cola2_msgs::WorldSectionReqGoalConstPtr& data
 
         publishMarkerSections(points);
 
+        publishGoal(section.final_position.x,
+                    section.final_position.y,
+                    section.final_position.z);
+
         // Check for success
         if (feedback.success) {
             ROS_INFO_STREAM(_node_name << ": section success");
@@ -396,6 +407,17 @@ Pilot::sectionServerCallback(const cola2_msgs::WorldSectionReqGoalConstPtr& data
     }
 }
 
+void
+Pilot::publishGoal(const double x, const double y, const double z)
+{
+    geometry_msgs::PointStamped goal;
+    goal.header.frame_id = "world";
+    goal.header.stamp = ros::Time::now();
+    goal.point.x = x;
+    goal.point.y = y;
+    goal.point.z = z;
+    _pub_goal.publish(goal);
+}
 
 void
 Pilot::publishControlCommands(const control::State& controller_output,

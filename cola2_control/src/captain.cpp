@@ -20,6 +20,7 @@
 #include "controllers/types.hpp"
 #include <cola2_lib/cola2_rosutils/RosUtil.h>
 #include "controllers/mission_types.hpp"
+#include "cola2_lib/cola2_rosutils/DiagnosticHelper.h"
 #include <string>
 #include <vector>
 
@@ -69,6 +70,9 @@ private:
     bool _is_holonomic_keep_pose_enabled;
     double _min_goto_vel;
     double _min_loscte_vel;
+
+    // Diagnostics
+    cola2::rosutils::DiagnosticHelper _diagnostic ;
 
     // Publishers
     ros::Publisher _pub_path;
@@ -177,7 +181,8 @@ Captain::Captain():
     _is_trajectory_disabled(false),
     _is_mission_running(false),
     _spinner(2),
-    _is_holonomic_keep_pose_enabled(false)
+    _is_holonomic_keep_pose_enabled(false),
+    _diagnostic(_n, ros::this_node::getName(), "soft")
 {
     // Node name
     _name = ros::this_node::getName();
@@ -236,6 +241,15 @@ Captain::update_nav(const ros::MessageEvent<auv_msgs::NavSts const> & msg)
     _nav.z = msg.getMessage()->position.depth;
     _nav.yaw = msg.getMessage()->orientation.yaw;
     _nav.altitude = msg.getMessage()->altitude;
+
+    if (_is_section_running) {
+        _diagnostic.add("trajectory_enabled", "True");
+        _diagnostic.setLevel(diagnostic_msgs::DiagnosticStatus::OK);
+    }
+    else {
+        _diagnostic.add("trajectory_enabled", "False");
+        _diagnostic.setLevel(diagnostic_msgs::DiagnosticStatus::OK);
+    }
 }
 
 
@@ -848,6 +862,7 @@ Captain::enable_trajectory(std_srvs::Empty::Request&,
     else {
         ROS_WARN_STREAM(_name << ": Is trajectory loaded?");
     }
+
     return true;
 }
 
@@ -910,6 +925,8 @@ bool
 Captain::enable_keep_position_non_holonomic(std_srvs::Empty::Request&,
                                             std_srvs::Empty::Response&)
 {
+    // TODO: To be modified for real non-holonomic keep pose controller!
+
     cola2_msgs::NewGoto::Request goto_req;
     cola2_msgs::NewGoto::Response goto_res;
 
