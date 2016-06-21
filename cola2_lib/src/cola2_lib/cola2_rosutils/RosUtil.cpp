@@ -48,6 +48,7 @@ void loadParam(std::string param_name, std::string& value)
 
 void loadParam(std::string param_name, std::vector<double>& vector)
 {
+  vector.clear();
   XmlRpc::XmlRpcValue my_list;
   if (ros::param::getCached(param_name, my_list))
   {
@@ -67,6 +68,7 @@ void loadParam(std::string param_name, std::vector<double>& vector)
 
 void loadParam(std::string param_name, std::vector<std::string>& vector)
 {
+  vector.clear();
   XmlRpc::XmlRpcValue my_list;
   if (ros::param::getCached( param_name, my_list))
   {
@@ -153,4 +155,3 @@ bool setUpSerialPort(cola2::io::SerialPort& serial_port, const cola2::rosutil::S
 
 }  // namespace rosutil
 }  // namespace cola2
-
