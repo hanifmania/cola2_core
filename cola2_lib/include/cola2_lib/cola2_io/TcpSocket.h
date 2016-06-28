@@ -2,6 +2,7 @@
 #define COLA2_LIB_INCLUDE_COLA2_LIB_COLA2_IO_TCPSOCKET_H_
 
 #include <boost/asio.hpp>
+#include <boost/optional.hpp>
 #include <boost/thread.hpp>
 #include <boost/lexical_cast.hpp>
 
@@ -43,4 +44,3 @@ class TcpSocket
 }  // namespace cola2
 
 #endif  // COLA2_LIB_INCLUDE_COLA2_LIB_COLA2_IO_TCPSOCKET_H_
-
