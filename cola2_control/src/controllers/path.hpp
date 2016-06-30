@@ -367,7 +367,7 @@ PathController::sectionListToPath(control::Path& path,
                     cos(angle_s + direction * delta_angle * i / pieces);
                 double ay = center_y + radius *
                     sin(angle_s + direction * delta_angle * i / pieces);
-                double az = section.initial_position.z + i / pieces *
+                double az = section.initial_position.z + ((double)i) / pieces *
                     (section.final_position.z - section.initial_position.z);
 
                 std::vector<double> point;
