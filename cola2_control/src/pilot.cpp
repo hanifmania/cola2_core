@@ -5,6 +5,7 @@
 #include <actionlib/server/simple_action_server.h>
 #include <cola2_msgs/WorldSectionReqAction.h>
 #include <cola2_msgs/WorldWaypointReqAction.h>
+#include <cola2_msgs/WorldPathReqAction.h>
 #include <boost/shared_ptr.hpp>
 #include <boost/bind.hpp>
 #include <auv_msgs/NavSts.h>
@@ -13,6 +14,7 @@
 #include <visualization_msgs/Marker.h>
 #include "controllers/types.hpp"
 #include "controllers/dubins.hpp"
+#include "controllers/path.hpp"
 #include "controllers/los_cte.hpp"
 #include "controllers/goto.hpp"
 #include "controllers/holonomic_goto.hpp"
@@ -24,6 +26,7 @@
 
 #define SECTION_MODE    0
 #define WAYPOINT_MODE   1
+#define PATH_MODE       2
 
 class Pilot {
 public:
@@ -44,6 +47,7 @@ private:
     // Actionlib servers
     boost::shared_ptr< actionlib::SimpleActionServer<cola2_msgs::WorldSectionReqAction> > _section_server;
     boost::shared_ptr< actionlib::SimpleActionServer<cola2_msgs::WorldWaypointReqAction> > _waypoint_server;
+    boost::shared_ptr< actionlib::SimpleActionServer<cola2_msgs::WorldPathReqAction> > _path_server;
 
     // Reconfigure parameters
     dynamic_reconfigure::Server<cola2_control::PilotConfig> _param_server;
@@ -54,12 +58,13 @@ private:
 
     // Controllers
     DubinsSectionController *_dubins_controller;
+    PathController *_path_controller;
     LosCteController *_los_cte_controller;
     GotoController *_goto_controller;
     HolonomicGotoController *_holonomic_goto_controller;
     AnchorController *_anchor_controller;
 
-    // Mutex between section and waypoint controllers
+    // Mutex between section, waypoint and path controllers
     // TODO: To be done
 
     // Config
@@ -68,6 +73,7 @@ private:
         GotoControllerConfig goto_config;
         HolonomicGotoControllerConfig holonomic_goto_config;
         DubinsSectionControllerConfig dubins_config;
+        PathControllerConfig path_config;
         AnchorControllerConfig anchor_config;
     } _config;
 
@@ -75,6 +81,7 @@ private:
     void navCallback(const auv_msgs::NavSts&);
     void sectionServerCallback(const cola2_msgs::WorldSectionReqGoalConstPtr&);
     void waypointServerCallback(const cola2_msgs::WorldWaypointReqGoalConstPtr&);
+    void pathServerCallback(const cola2_msgs::WorldPathReqGoalConstPtr&);
     void publishControlCommands(const control::State&, unsigned int);
     void publishFeedback(const control::Feedback&, unsigned int);
     void publishMarker(double, double, double);
@@ -101,6 +108,8 @@ Pilot::Pilot()
     _holonomic_goto_controller = new HolonomicGotoController(_config.holonomic_goto_config);
     // Dubins controller
     _dubins_controller = new DubinsSectionController(_config.dubins_config);
+    // Dubins controller
+    _path_controller = new PathController(_config.path_config);
     // Anchor controller (for keep position in non holonomic vehicles)
     _anchor_controller = new AnchorController(_config.anchor_config);
 
@@ -136,6 +145,14 @@ Pilot::Pilot()
         boost::bind(&Pilot::waypointServerCallback, this, _1), false));
     _waypoint_server->start();
 
+    // PATH action lib
+    _path_server = boost::shared_ptr<actionlib::SimpleActionServer<
+        cola2_msgs::WorldPathReqAction> >(
+        new actionlib::SimpleActionServer<cola2_msgs::WorldPathReqAction>(
+        _nh, "world_path_req",
+        boost::bind(&Pilot::pathServerCallback, this, _1), false));
+    _path_server->start();
+
     // Init dynamic reconfigure
     _f = boost::bind(&Pilot::setParams, this, _1, _2);
     _param_server.setCallback(_f);
@@ -163,7 +180,7 @@ Pilot::navCallback(const auv_msgs::NavSts& data) {
 
 void
 Pilot::waypointServerCallback(const cola2_msgs::WorldWaypointReqGoalConstPtr& data) {
-    // TODO: Avoid having a waypoint and a section controller running simultaneously.
+    // TODO: Avoid having a waypoint, a section or a path controller running simultaneously
 
     // Conversion from actionlib goal to internal Section type
     control::Waypoint waypoint;
@@ -296,7 +313,7 @@ Pilot::waypointServerCallback(const cola2_msgs::WorldWaypointReqGoalConstPtr& da
 
 void
 Pilot::sectionServerCallback(const cola2_msgs::WorldSectionReqGoalConstPtr& data) {
-    // TODO: Avoid having a waypoint and a section controller running simultaneously.
+    // TODO: Avoid having a waypoint, a section or a path controller running simultaneously
 
     // Conversion from actionlib goal to internal Section type
     control::Section section;
@@ -408,6 +425,105 @@ Pilot::sectionServerCallback(const cola2_msgs::WorldSectionReqGoalConstPtr& data
 }
 
 void
+Pilot::pathServerCallback(const cola2_msgs::WorldPathReqGoalConstPtr& data) {
+    // TODO: Avoid having a waypoint, a section or a path controller running simultaneously
+
+    // Check for empty path
+    cola2_msgs::WorldPathReqResult result_msg;
+    if (data->data.size() == 0) {
+        ROS_WARN_STREAM(_node_name << ": received empty path");
+        result_msg.final_status = cola2_msgs::WorldSectionReqResult::FAILURE;
+        _path_server->setAborted(result_msg);
+        return;
+    }
+
+    // Conversion from actionlib Path to internal Path type
+    std::vector<control::Section> section_list;
+    for (int i = 0; i < data->data.size(); i++) {
+        control::Section section;
+        section.initial_position.x      = data->data[i].initial_position.x;
+        section.initial_position.y      = data->data[i].initial_position.y;
+        section.initial_position.z      = data->data[i].initial_position.z;
+        section.initial_yaw             = data->data[i].initial_yaw;
+        section.use_initial_yaw         = data->data[i].use_initial_yaw;
+        section.final_position.x        = data->data[i].final_position.x;
+        section.final_position.y        = data->data[i].final_position.y;
+        section.final_position.z        = data->data[i].final_position.z;
+        section.final_yaw               = data->data[i].final_yaw;
+        section.use_final_yaw           = data->data[i].use_final_yaw;
+        section.altitude_mode           = data->data[i].altitude_mode;
+        section_list.push_back(section);
+    }
+    control::Path path;
+    _path_controller->sectionListToPath(path, section_list);
+
+    // Main loop
+    double init_time = ros::Time::now().toSec();
+    ros::Rate r(10);  // 10Hz
+    while (ros::ok()) {
+        // Declare some vars
+        control::State controller_output;
+        control::Feedback feedback;
+        control::PointsList points;
+
+        // Run controller
+        try {
+            _path_controller->compute(_current_state,
+                                      path,
+                                      1.0 / 10.0,
+                                      controller_output,
+                                      feedback,
+                                      points);
+        }
+        catch (std::exception& e) {
+            // Check for failure
+            ROS_ERROR_STREAM(_node_name << ": controller failure\n" << e.what());
+            result_msg.final_status = cola2_msgs::WorldPathReqResult::FAILURE;
+            _path_server->setAborted(result_msg);
+            break;
+        }
+
+        // Publish control commands
+        publishControlCommands(controller_output, data->priority);
+
+        // Publish actionlib feedback
+        publishFeedback(feedback, PATH_MODE);
+
+        // Publish marker
+        publishMarkerSections(points);
+
+        // Check for success
+        if (feedback.success) {
+            ROS_INFO_STREAM(_node_name << ": path success");
+            result_msg.final_status = cola2_msgs::WorldPathReqResult::SUCCESS;
+            _path_server->setSucceeded(result_msg);
+            break;
+        }
+
+        // Check for preempted. This happens upon user request (by preempting
+        // or cancelling)
+        if (_path_server->isPreemptRequested()) {
+            ROS_WARN_STREAM(_node_name << ": path preempted");
+            _path_server->setPreempted();
+            break;
+        }
+
+        // Check for timeout
+        if (data->timeout > 0.0) {
+            if ((ros::Time::now().toSec() - init_time) > data->timeout) {
+                ROS_WARN_STREAM(_node_name << ": path timeout");
+                result_msg.final_status = cola2_msgs::WorldPathReqResult::TIMEOUT;
+                _path_server->setAborted(result_msg);
+                break;
+            }
+        }
+
+        // Sleep
+        r.sleep();
+    }
+}
+
+void
 Pilot::publishGoal(const double x, const double y, const double z)
 {
     geometry_msgs::PointStamped goal;
@@ -496,11 +612,23 @@ Pilot::publishFeedback(const control::Feedback& feedback, unsigned int mode=SECT
             _waypoint_server->publishFeedback(msg);
             break;
         }
+        case PATH_MODE:
+        {
+            cola2_msgs::WorldPathReqFeedback msg;
+            msg.desired_surge           = feedback.desired_surge;
+            msg.desired_depth           = feedback.desired_depth;
+            msg.desired_yaw             = feedback.desired_yaw;
+            msg.cross_track_error       = feedback.cross_track_error;
+            msg.depth_error             = feedback.depth_error;
+            msg.yaw_error               = feedback.yaw_error;
+            msg.distance_to_section_end = feedback.distance_to_end;
+            _path_server->publishFeedback(msg);
+            break;
+        }
         default:
             std::cout << "Error, invalid feedback message!\n";
     }
 }
-
 
 void
 Pilot::publishMarker(double north, double east, double depth) {
@@ -584,6 +712,11 @@ Pilot::getConfig() {
     cola2::rosutil::getParam("pilot/dubins_lookahead_sec", _config.dubins_config.lookahead_sec, 4.0);
     cola2::rosutil::getParam("pilot/dubins_acceptance_sec", _config.dubins_config.acceptance_sec, 3.0);
 
+    // PATH controller
+    cola2::rosutil::getParam("pilot/path_tolerance", _config.path_config.tolerance, 10.0);
+    cola2::rosutil::getParam("pilot/path_lookahead", _config.path_config.lookahead, 20.0);
+    cola2::rosutil::getParam("pilot/path_surge_speed", _config.path_config.surge_speed, 1.5);
+
     // ANCHOR controller
     cola2::rosutil::getParam("pilot/anchor_kp", _config.anchor_config.kp, 0.1);
     cola2::rosutil::getParam("pilot/anchor_radius", _config.anchor_config.radius, 1.0);
@@ -615,6 +748,11 @@ Pilot::setParams(cola2_control::PilotConfig &config, uint32_t level)
     _config.dubins_config.acceptance_sec = config.dubins_acceptance_sec;
     _config.dubins_config.lookahead_sec = config.dubins_lookahead_sec;
     _dubins_controller->setConfig(_config.dubins_config);
+
+    _config.path_config.tolerance = config.path_tolerance;
+    _config.path_config.lookahead = config.path_lookahead;
+    _config.path_config.surge_speed = config.path_surge_speed;
+    _path_controller->setConfig(_config.path_config);
 }
 
 int main(int argc, char **argv) {

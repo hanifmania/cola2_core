@@ -150,6 +150,21 @@ namespace control {
     };
 
 
+    class Path {
+    public:
+        std::vector<std::vector<double> > data;
+        double old_total_s, old_section_s;
+        int  old_section_i;
+
+        // Constructor with default values
+        Path() {
+            old_total_s = 0.0;
+            old_section_i = 0;
+            old_section_s = 0.0;
+        }
+    };
+
+
     class State {
     public:
         // Position

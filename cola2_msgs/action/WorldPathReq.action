@@ -1,0 +1,34 @@
+# Define the REQUEST
+
+# Section list
+cola2_msgs/Section[] data
+
+# Priority
+uint64 priority
+
+# Timeout
+float64 timeout
+
+---
+
+# Define the RESULT
+# Possible section ending conditions
+uint64 final_status
+uint64 SUCCESS=0
+uint64 TIMEOUT=1
+uint64 FAILURE=2
+uint64 BUSY=3
+
+---
+
+# Define a FEEDBACK
+# Current output of the controller
+float64 desired_surge
+float64 desired_depth
+float64 desired_yaw
+
+# Errors
+float64 cross_track_error
+float64 depth_error
+float64 yaw_error
+float64 distance_to_section_end
