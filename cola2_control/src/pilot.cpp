@@ -452,6 +452,7 @@ Pilot::pathServerCallback(const cola2_msgs::WorldPathReqGoalConstPtr& data) {
         section.final_yaw               = data->data[i].final_yaw;
         section.use_final_yaw           = data->data[i].use_final_yaw;
         section.altitude_mode           = data->data[i].altitude_mode;
+        section.final_surge           	= data->data[i].surge_speed;
         section_list.push_back(section);
     }
     control::Path path;

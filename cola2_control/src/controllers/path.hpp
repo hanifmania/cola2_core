@@ -156,6 +156,8 @@ PathController::compute(const control::State& current_state,
                 goal.push_back(path.data[i][2] + desired_s / length *
                     (path.data[i + 1][2] - path.data[i][2]));
             }
+            //add surge speed into the goal
+            goal.push_back(path.data[i][3]);
         }
     }
     if (goal.size() == 0) {
@@ -163,6 +165,8 @@ PathController::compute(const control::State& current_state,
         goal.push_back(path.data.back()[0]);
         goal.push_back(path.data.back()[1]);
         goal.push_back(path.data.back()[2]);
+        //add surge speed into the goal
+        goal.push_back(path.data.back()[3]);
     }
 
     // Desired yaw points towards intermediate goal
@@ -170,7 +174,11 @@ PathController::compute(const control::State& current_state,
                                goal[0] - current_state.pose.position.north);
 
     // Surge speed comes from the config
-    double desired_surge = _config.surge_speed;
+    double desired_surge;
+	if(goal[3] > 0.0)//if the velocity provided within the goal, i.e., from the path (sections)
+		desired_surge = goal[3];
+	else//otherwise keep the one provided by the configuration file
+		desired_surge = _config.surge_speed;
 
     // Compute depth as linear interpolation (already done)
     double desired_depth = goal[2];
@@ -247,6 +255,8 @@ PathController::sectionListToPath(control::Path& path,
             point.push_back(section.initial_position.x);
             point.push_back(section.initial_position.y);
             point.push_back(section.initial_position.z);
+            //add surge speed into the path
+            point.push_back(section.final_surge);
             path.data.push_back(point);
             continue;
         }
@@ -286,6 +296,8 @@ PathController::sectionListToPath(control::Path& path,
             point.push_back(section.initial_position.x);
             point.push_back(section.initial_position.y);
             point.push_back(section.initial_position.z);
+            //add surge speed into the path
+            point.push_back(section.final_surge);
             path.data.push_back(point);
             continue;
         }
@@ -296,6 +308,8 @@ PathController::sectionListToPath(control::Path& path,
             point.push_back(section.initial_position.x);
             point.push_back(section.initial_position.y);
             point.push_back(section.initial_position.z);
+            //add surge speed into the path
+            point.push_back(section.final_surge);
             path.data.push_back(point);
             continue;
         }
@@ -374,6 +388,8 @@ PathController::sectionListToPath(control::Path& path,
                 point.push_back(ax);
                 point.push_back(ay);
                 point.push_back(az);
+                //add surge speed into the path
+                point.push_back(section.final_surge);
                 path.data.push_back(point);
             }
         }
@@ -386,6 +402,8 @@ PathController::sectionListToPath(control::Path& path,
         point.push_back(section_list[i].final_position.x);
         point.push_back(section_list[i].final_position.y);
         point.push_back(section_list[i].final_position.z);
+        //add surge speed into the path
+        point.push_back(section_list[i].final_surge);
         path.data.push_back(point);
     }
 }
