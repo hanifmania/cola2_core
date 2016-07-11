@@ -37,10 +37,10 @@ class SafeDepthAltitude(object):
 
         # Set up diagnostics
         self.diagnostic = DiagnosticHelper(self.name, "soft")
-        
+
         # Publisher
         self.pub_body_velocity_req = rospy.Publisher(
-            "/cola2_control/body_velocity_req", 
+            "/cola2_control/body_velocity_req",
             BodyVelocityReq,
             queue_size = 2)
 
@@ -51,9 +51,9 @@ class SafeDepthAltitude(object):
                          queue_size = 1)
 
         # Create dynamic reconfigure servoce
-        self.dynamic_reconfigure_srv = Server( SafeDepthAltitudeConfig, 
+        self.dynamic_reconfigure_srv = Server( SafeDepthAltitudeConfig,
                                                self.dynamic_reconfigure_callback )
-        
+
         # Show message
         rospy.loginfo("%s: initialized", self.name)
 
@@ -63,19 +63,19 @@ class SafeDepthAltitude(object):
         self.max_depth = config.max_depth
         self.min_altitude = config.min_altitude
         return config
-  
-  
+
+
     def update_nav_sts(self, nav):
         """ This is the callback of the navigation, but it is used as
             the main method """
-        
+
         self.diagnostic.add("altitude", str(nav.altitude))
         self.diagnostic.add("depth", str(nav.position.depth))
-        
+
         if ((nav.altitude > 0 and nav.altitude < self.min_altitude and nav.position.depth > 0.5) or
             (nav.position.depth > self.max_depth)):
             # Show message
-            self.diagnostic.setLevel(DiagnosticStatus.WARN, 'Invalid depth/altitude! Moving vehicle up.')            
+            self.diagnostic.setLevel(DiagnosticStatus.WARN, 'Invalid depth/altitude! Moving vehicle up.')
             if (nav.altitude > 0 and nav.altitude < self.min_altitude and nav.position.depth > 0.5):
                 rospy.logwarn("%s: invalid altitude: %s", self.name, nav.altitude)
             if (nav.position.depth > self.max_depth):
@@ -95,12 +95,12 @@ class SafeDepthAltitude(object):
             bvr.disable_axis.roll = True
             bvr.disable_axis.pitch = True
             bvr.disable_axis.yaw = False
-            bvr.goal.priority =  GoalDescriptor.PRIORITY_MANUAL_OVERRIDE + 1
+            bvr.goal.priority =  GoalDescriptor.PRIORITY_SAFETY_HIGH
             bvr.goal.requester = self.name
             bvr.header.stamp = rospy.Time.now()
             self.pub_body_velocity_req.publish(bvr)
         else:
-            self.diagnostic.setLevel(DiagnosticStatus.OK) 
+            self.diagnostic.setLevel(DiagnosticStatus.OK)
 
     def get_config(self):
         param_dict = {'max_depth': 'safe_depth_altitude/max_depth',

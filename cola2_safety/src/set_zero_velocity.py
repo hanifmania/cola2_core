@@ -50,7 +50,7 @@ class SetZeroVelocity(object):
 
         # Publisher
         self.pub_body_velocity_req = rospy.Publisher(
-            "/cola2_control/body_velocity_req", 
+            "/cola2_control/body_velocity_req",
             BodyVelocityReq,
             queue_size = 10)
 
@@ -59,12 +59,12 @@ class SetZeroVelocity(object):
                          NavSts,
                          self.update_nav_sts,
                          queue_size = 1)
-                         
+
         rospy.Subscriber("/cola2_control/world_waypoint_req",
                          WorldWaypointReq,
                          self.update_req,
                          queue_size = 1)
-                         
+
         rospy.Subscriber("/cola2_control/body_velocity_req",
                          BodyVelocityReq,
                          self.update_req,
@@ -100,10 +100,10 @@ class SetZeroVelocity(object):
                     if not req.disable_axis.pitch:
                         self.current_enabled_axis[4] = True
                     if not req.disable_axis.yaw:
-                        self.current_enabled_axis[5] = True                        
+                        self.current_enabled_axis[5] = True
         self.lock.release()
-        
-        
+
+
     def update_nav_sts(self, nav):
         """ Updates vehicle depth """
         self.navigation = nav
@@ -112,7 +112,7 @@ class SetZeroVelocity(object):
     def set_zero_velocity(self, event):
         """ Send zero velocity requests if the vehicle is below the
             desired depth """
-            
+
         self.lock.acquire()
         if self.navigation.position.depth > self.set_zero_velocity_depth:
             bvr = BodyVelocityReq()
@@ -123,38 +123,38 @@ class SetZeroVelocity(object):
             bvr.twist.angular.y = 0.0
             bvr.twist.angular.z = 0.0
 
-            bvr.goal.priority =  GoalDescriptor.PRIORITY_LOW + 1
+            bvr.goal.priority =  GoalDescriptor.PRIORITY_SAFETY_LOW
             bvr.header.stamp = rospy.Time.now()
 
             for i in range(len(self.set_zero_velocity_axis)):
                 if self.current_enabled_axis[0]:
-                    bvr.disable_axis.x = True 
+                    bvr.disable_axis.x = True
                 else:
                     bvr.disable_axis.x = self.set_zero_velocity_axis[i][0]
 
                 if self.current_enabled_axis[1]:
-                    bvr.disable_axis.y = True 
+                    bvr.disable_axis.y = True
                 else:
                     bvr.disable_axis.y = self.set_zero_velocity_axis[i][1]
 
                 if self.current_enabled_axis[2]:
-                    bvr.disable_axis.z = True 
+                    bvr.disable_axis.z = True
                 else:
                     bvr.disable_axis.z = self.set_zero_velocity_axis[i][2]
 
                 if self.current_enabled_axis[3]:
-                    bvr.disable_axis.roll = True 
+                    bvr.disable_axis.roll = True
                 else:
                     bvr.disable_axis.roll = self.set_zero_velocity_axis[i][3]
 
                 if self.current_enabled_axis[4]:
-                    bvr.disable_axis.pitch = True 
+                    bvr.disable_axis.pitch = True
                 else:
                     bvr.disable_axis.pitch = self.set_zero_velocity_axis[i][4]
 
                 if self.current_enabled_axis[5]:
-                    bvr.disable_axis.yaw = True 
-                else:                
+                    bvr.disable_axis.yaw = True
+                else:
                     bvr.disable_axis.yaw = self.set_zero_velocity_axis[i][5]
 
                 # Set Zero Velocity

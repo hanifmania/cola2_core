@@ -33,7 +33,7 @@ class SafeDepthAltitude(object):
 
         # Publisher
         self.pub_body_velocity_req = rospy.Publisher(
-            "/cola2_control/body_velocity_req", 
+            "/cola2_control/body_velocity_req",
             BodyVelocityReq,
             queue_size = 2)
 
@@ -90,7 +90,7 @@ class SafeDepthAltitude(object):
         bvr.disable_axis.roll = True
         bvr.disable_axis.pitch = True
         bvr.disable_axis.yaw = False
-        bvr.goal.priority =  GoalDescriptor.PRIORITY_MANUAL_OVERRIDE - 1
+        bvr.goal.priority =  GoalDescriptor.PRIORITY_NORMAL_HIGH
         bvr.goal.requester = self.name
 
         # Step 1: Move backwards

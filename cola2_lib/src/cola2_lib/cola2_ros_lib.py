@@ -86,7 +86,7 @@ def requestBodyVelocity(vx, vy, vz, vyaw, pub):
 
     message.header.stamp = rospy.Time.now()
 
-    message.goal.priority = GoalDescriptor.PRIORITY_AVOID_OBSTACLE
+    message.goal.priority = GoalDescriptor.PRIORITY_NORMAL_HIGH
     message.goal.requester = rospy.get_name()
 
     message.twist.linear.x = vx

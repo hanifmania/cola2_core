@@ -43,14 +43,14 @@ class SetPose(object):
 
         # Publisher
         self.pub_world_waypoint_req = rospy.Publisher(
-            "/cola2_control/world_waypoint_req", 
+            "/cola2_control/world_waypoint_req",
             WorldWaypointReq,
             queue_size = 2)
 
         # Subscriber
         rospy.Subscriber("/cola2_navigation/nav_sts",
                          NavSts,
-                         self.update_nav_sts, 
+                         self.update_nav_sts,
                          queue_size = 1)
 
         # Timer
@@ -78,7 +78,7 @@ class SetPose(object):
             wwr.orientation.pitch = self.desired_pose[4]
             wwr.orientation.yaw = self.desired_pose[5]
             wwr.altitude_mode = False
-            wwr.goal.priority =  GoalDescriptor.PRIORITY_LOW + 1
+            wwr.goal.priority =  GoalDescriptor.PRIORITY_SAFETY_LOW
             wwr.header.stamp = rospy.Time.now()
 
             for i in range(len(self.set_pose_axis)):

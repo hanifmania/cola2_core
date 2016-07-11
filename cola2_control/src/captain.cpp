@@ -467,7 +467,7 @@ Captain::submerge(cola2_msgs::Submerge::Request &req,
     cola2_msgs::NewGoto::Request goto_req;
     cola2_msgs::NewGoto::Response goto_res;
 
-    goto_req.priority = auv_msgs::GoalDescriptor::PRIORITY_MANUAL_OVERRIDE + 10;
+    goto_req.priority = auv_msgs::GoalDescriptor::PRIORITY_SAFETY_HIGH;
     goto_req.altitude = req.z;
     goto_req.altitude_mode = req.altitude_mode;
     goto_req.blocking = false;

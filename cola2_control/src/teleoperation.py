@@ -133,7 +133,7 @@ class Teleoperation(object):
                     DiagnosticStatus.WARN,
                     'Communication with map_ack lost!')
                 body_velocity_req = BodyVelocityReq()
-                body_velocity_req.goal.priority = GoalDescriptor.PRIORITY_LOW
+                body_velocity_req.goal.priority = GoalDescriptor.PRIORITY_TELEOPERATION_LOW
                 body_velocity_req.goal.requester = self.name + '_vel'
                 body_velocity_req.twist.linear.x = 0.0
                 body_velocity_req.twist.linear.y = 0.0
@@ -151,7 +151,7 @@ class Teleoperation(object):
                 self.pub_body_velocity_req.publish(body_velocity_req)
 
                 world_waypoint_req = WorldWaypointReq()
-                world_waypoint_req.goal.priority = GoalDescriptor.PRIORITY_LOW
+                world_waypoint_req.goal.priority = GoalDescriptor.PRIORITY_TELEOPERATION_LOW
                 world_waypoint_req.goal.requester = self.name + '_pose'
                 world_waypoint_req.disable_axis.x = True
                 world_waypoint_req.disable_axis.y = True
@@ -207,7 +207,7 @@ class Teleoperation(object):
         if self.nav_init:
             # Positions
             world_waypoint_req = WorldWaypointReq()
-            world_waypoint_req.goal.priority = GoalDescriptor.PRIORITY_MANUAL_OVERRIDE
+            world_waypoint_req.goal.priority = GoalDescriptor.PRIORITY_TELEOPERATION
             world_waypoint_req.goal.requester = self.name + '_pose'
             world_waypoint_req.position.north = desired[0]
             world_waypoint_req.position.east = desired[1]
@@ -232,13 +232,13 @@ class Teleoperation(object):
                     world_waypoint_req.disable_axis.roll and
                     world_waypoint_req.disable_axis.pitch and
                     world_waypoint_req.disable_axis.yaw):
-                world_waypoint_req.goal.priority = GoalDescriptor.PRIORITY_LOW
+                world_waypoint_req.goal.priority = GoalDescriptor.PRIORITY_TELEOPERATION_LOW
 
             self.pub_world_waypoint_req.publish(world_waypoint_req)
 
             # Velocities
             body_velocity_req = BodyVelocityReq()
-            body_velocity_req.goal.priority = GoalDescriptor.PRIORITY_MANUAL_OVERRIDE
+            body_velocity_req.goal.priority = GoalDescriptor.PRIORITY_TELEOPERATION
             body_velocity_req.goal.requester = self.name + '_vel'
             body_velocity_req.twist.linear.x = desired[6]
             body_velocity_req.twist.linear.y = desired[7]
@@ -279,7 +279,7 @@ class Teleoperation(object):
                     body_velocity_req.disable_axis.roll and
                     body_velocity_req.disable_axis.pitch and
                     body_velocity_req.disable_axis.yaw):
-                body_velocity_req.goal.priority = GoalDescriptor.PRIORITY_LOW
+                body_velocity_req.goal.priority = GoalDescriptor.PRIORITY_TELEOPERATION_LOW
 
             # Publish message
             body_velocity_req.header.stamp = rospy.Time().now()
