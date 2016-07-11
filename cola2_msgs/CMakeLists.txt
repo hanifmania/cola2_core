@@ -78,6 +78,7 @@ find_package(catkin REQUIRED COMPONENTS
    RangeImageBeam.msg
    Detection.msg
    RangeDetection.msg
+   Section.msg
  )
 
 ## Generate services in the 'srv' folder
@@ -111,6 +112,7 @@ add_action_files(
   FILES
   WorldSectionReq.action
   WorldWaypointReq.action
+  WorldPathReq.action
 )
 
 ## Generate added messages and services with any dependencies listed here
