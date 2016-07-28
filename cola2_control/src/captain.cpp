@@ -218,8 +218,8 @@ Captain::Captain():
     _set_trajectory_srv = _n.advertiseService("/cola2_control/set_trajectory", &Captain::set_trajectory, this);
     _enable_trajectory_srv = _n.advertiseService("/cola2_control/enable_trajectory", &Captain::enable_trajectory, this);
     _disable_trajectory_srv = _n.advertiseService("/cola2_control/disable_trajectory", &Captain::disable_trajectory, this);
-    _enable_keep_position_holonomic_srv = _n.advertiseService("/cola2_control/enable_keep_position_g500", &Captain::enable_keep_position_holonomic, this);
-    _enable_keep_position_non_holonomic_srv = _n.advertiseService("/cola2_control/enable_keep_position_s2", &Captain::enable_keep_position_non_holonomic, this);
+    _enable_keep_position_holonomic_srv = _n.advertiseService("/cola2_control/enable_keep_position_4dof", &Captain::enable_keep_position_holonomic, this);
+    _enable_keep_position_non_holonomic_srv = _n.advertiseService("/cola2_control/enable_keep_position_3dof", &Captain::enable_keep_position_non_holonomic, this);
     _disable_keep_position_srv = _n.advertiseService("/cola2_control/disable_keep_position", &Captain::disable_keep_position, this);
 
     _play_mission_srv = _n.advertiseService("/mission_manager/play", &Captain::playMission, this);
