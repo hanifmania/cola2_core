@@ -389,7 +389,7 @@ Captain::enable_goto(cola2_msgs::NewGoto::Request &req,
                                                   req.altitude,
                                                   req.altitude_mode);
 
-        if(distance_to_waypoint > _config.max_distance_to_waypoint) {
+        if(!(req.disable_axis.x && req.disable_axis.y) && (distance_to_waypoint > _config.max_distance_to_waypoint)) {
             ROS_WARN_STREAM(_name << ": Max distance to waypoint is " <<
                             _config.max_distance_to_waypoint << " requested waypoint is at "
                             << distance_to_waypoint);
@@ -440,6 +440,7 @@ Captain::enable_goto(cola2_msgs::NewGoto::Request &req,
             min_vel = waypoint.linear_velocity.x;
         }
         waypoint.timeout = (2.0 * distance_to_waypoint) / min_vel;
+        if (waypoint.timeout < 30.0) waypoint.timeout = 30.0;
 
         ROS_INFO_STREAM(_name << ": Send WorldWaypointRequest at " << waypoint.position.north << ", "  << waypoint.position.east << ", " << waypoint.position.depth << ". Timeout = " << waypoint.timeout << "\n");
         _waypoint_client->sendGoal(waypoint);
