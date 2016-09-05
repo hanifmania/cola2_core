@@ -10,6 +10,3 @@ build/
 msg_gen/
 srv_gen/
 doc/
-
-# Subfolders in src
-src/*/

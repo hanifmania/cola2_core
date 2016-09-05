@@ -441,6 +441,11 @@ Captain::enable_goto(cola2_msgs::NewGoto::Request &req,
         }
         waypoint.timeout = (2.0 * distance_to_waypoint) / min_vel;
         if (waypoint.timeout < 30.0) waypoint.timeout = 30.0;
+        if (req.position_tolerance.x == 0.0 && req.position_tolerance.y == 0.0
+            && req.position_tolerance.z == 0.0 && req.orientation_tolerance.yaw == 0.0) {
+              ROS_INFO_STREAM(_name << "Tolerance is at 0.0. Is it a Keep position request?. Setting timeout to 3600s.");
+              waypoint.timeout = 3600;
+            }
 
         ROS_INFO_STREAM(_name << ": Send WorldWaypointRequest at " << waypoint.position.north << ", "  << waypoint.position.east << ", " << waypoint.position.depth << ". Timeout = " << waypoint.timeout << "\n");
         _waypoint_client->sendGoal(waypoint);
