@@ -726,6 +726,7 @@ Captain::enable_trajectory(std_srvs::Empty::Request&,
         else {
           req.altitude_mode = _trajectory.altitude_mode.at(0);
           req.position.z = _trajectory.z.at(0);
+          req.altitude = _trajectory.z.at(0);
         }
         if (_trajectory.tolerance.size() == 0) {
             req.position_tolerance.x = _config.tolerance.x;
@@ -741,6 +742,7 @@ Captain::enable_trajectory(std_srvs::Empty::Request&,
         req.linear_velocity.x = _trajectory.surge.at(0);
         req.reference = cola2_msgs::NewGoto::Request::REFERENCE_NED;
         enable_goto(req, res);
+
         ROS_ASSERT_MSG(res.success, "Impossible to reach initial waypoint");
 
         if (!_is_trajectory_disabled) {
