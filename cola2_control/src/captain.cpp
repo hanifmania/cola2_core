@@ -196,7 +196,7 @@ Captain::Captain():
 
     // Actionlib client. Smart pointer is used so that client construction is
     // delayed after configuration is loaded
-    ROS_WARN_STREAM(_name << ": Wait for pilot action libs");
+    ROS_INFO_STREAM(_name << ": Wait for pilot action libs ...");
     _section_client = boost::shared_ptr<actionlib::SimpleActionClient<
         cola2_msgs::WorldSectionReqAction> >(
         new actionlib::SimpleActionClient<cola2_msgs::WorldSectionReqAction>(
@@ -208,6 +208,7 @@ Captain::Captain():
         new actionlib::SimpleActionClient<cola2_msgs::WorldWaypointReqAction>(
         "world_waypoint_req", true));
     _waypoint_client->waitForServer();  // Wait for infinite time
+    ROS_INFO_STREAM(_name << ": Done!");
 
     // Init services
     _enable_goto_srv = _n.advertiseService("/cola2_control/enable_goto", &Captain::enable_goto, this);
@@ -613,16 +614,22 @@ Captain::load_trajectory(std_srvs::Empty::Request &req,
     double ned_longitude;
     Trajectory trajectory;
 
-    if(cola2::rosutil::loadVector("trajectory/north", trajectory.x) &&
-       cola2::rosutil::loadVector("trajectory/east", trajectory.y)){
-        ROS_INFO_STREAM(_name << ": loading local trajectory ...");
-        is_trajectory_local = true;
+    if(ros::param::has("trajectory/north")) {
+      if(cola2::rosutil::loadVector("trajectory/north", trajectory.x) &&
+         cola2::rosutil::loadVector("trajectory/east", trajectory.y)){
+          ROS_INFO_STREAM(_name << ": loading local trajectory ...");
+          is_trajectory_local = true;
+      }
     }
-    if (cola2::rosutil::loadVector("trajectory/latitude", trajectory.x) &&
-        cola2::rosutil::loadVector("trajectory/longitude", trajectory.y)){
-        ROS_INFO_STREAM(_name << ": loading global trajectory ...");
-        is_trajectory_global = true;
+
+    if(ros::param::has("trajectory/latitude")) {
+      if (cola2::rosutil::loadVector("trajectory/latitude", trajectory.x) &&
+          cola2::rosutil::loadVector("trajectory/longitude", trajectory.y)){
+          ROS_INFO_STREAM(_name << ": loading global trajectory ...");
+          is_trajectory_global = true;
+      }
     }
+
     if(is_trajectory_global && is_trajectory_local) {
         ROS_WARN_STREAM(_name << ": invalid trajectory. Found North/East and Latitude/Longitude waypoints in param server!");
         _trajectory.valid_trajectory = false;
@@ -698,6 +705,8 @@ Captain::load_trajectory(std_srvs::Empty::Request &req,
         _trajectory = trajectory;
     }
 
+    if (valid_trajectory) ROS_INFO_STREAM(_name << ": Done!");
+    else ROS_INFO_STREAM(_name << ": Errors found!");
     return valid_trajectory;
 }
 
