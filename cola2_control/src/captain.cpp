@@ -5,7 +5,7 @@
 #include <cola2_msgs/WorldWaypointReqAction.h>
 #include <boost/shared_ptr.hpp>
 #include <cola2_msgs/String.h>
-#include <cola2_msgs/NewGoto.h>
+#include <cola2_msgs/Goto.h>
 #include <cola2_msgs/Submerge.h>
 #include <cola2_msgs/SetTrajectory.h>
 #include <cola2_msgs/Action.h>
@@ -124,8 +124,8 @@ private:
     double distance_to(const double, const double, const double, const double, const bool);
 
     // ... services callbacks
-    bool enable_goto(cola2_msgs::NewGoto::Request&,
-                     cola2_msgs::NewGoto::Response&);
+    bool enable_goto(cola2_msgs::Goto::Request&,
+                     cola2_msgs::Goto::Response&);
 
     bool submerge(cola2_msgs::Submerge::Request&,
                   cola2_msgs::Submerge::Response&);
@@ -275,12 +275,13 @@ Captain::nav_goal(const ros::MessageEvent<geometry_msgs::PoseStamped const> & ms
         if (msg.getMessage()->header.frame_id == "rviz") y = -1.0 * msg.getMessage()->pose.position.y;
 
         ROS_INFO_STREAM(_name << "Received 2D Nav Goal to " << x << ", " << y);
-        cola2_msgs::NewGoto::Request goto_req;
-        cola2_msgs::NewGoto::Response goto_res;
+        cola2_msgs::Goto::Request goto_req;
+        cola2_msgs::Goto::Response goto_res;
 
         goto_req.priority = auv_msgs::GoalDescriptor::PRIORITY_NORMAL;
         goto_req.altitude_mode = false;
         goto_req.blocking = false;
+        goto_req.keep_position = false;
         goto_req.disable_axis.x = false;
         goto_req.disable_axis.y = true;
         goto_req.disable_axis.z = false;
@@ -294,7 +295,7 @@ Captain::nav_goal(const ros::MessageEvent<geometry_msgs::PoseStamped const> & ms
         goto_req.position_tolerance.y = 2.0;
         goto_req.position_tolerance.z = 1.0;
         goto_req.orientation_tolerance.yaw = 0.1;
-        goto_req.reference = cola2_msgs::NewGoto::Request::REFERENCE_NED;
+        goto_req.reference = cola2_msgs::Goto::Request::REFERENCE_NED;
 
         enable_goto(goto_req, goto_res);
     }
@@ -357,8 +358,8 @@ Captain::get_config() {
 
 
 bool
-Captain::enable_goto(cola2_msgs::NewGoto::Request &req,
-                     cola2_msgs::NewGoto::Response &res)
+Captain::enable_goto(cola2_msgs::Goto::Request &req,
+                     cola2_msgs::Goto::Response &res)
 {
     if(check_no_request_running()){
         cola2_msgs::WorldWaypointReqGoal waypoint;
@@ -368,11 +369,11 @@ Captain::enable_goto(cola2_msgs::NewGoto::Request &req,
         waypoint.altitude = req.altitude;
 
         // Check req.reference to transform req.position to appropiate reference frame.
-        if(req.reference == cola2_msgs::NewGotoRequest::REFERENCE_NED){
+        if(req.reference == cola2_msgs::GotoRequest::REFERENCE_NED){
             waypoint.position.north = req.position.x;
             waypoint.position.east = req.position.y;
         }
-        else if (req.reference == cola2_msgs::NewGotoRequest::REFERENCE_GLOBAL){
+        else if (req.reference == cola2_msgs::GotoRequest::REFERENCE_GLOBAL){
             double north, east, depth;
             _ned->geodetic2Ned(req.position.x, req.position.y, 0.0,
                                north, east, depth);
@@ -442,13 +443,18 @@ Captain::enable_goto(cola2_msgs::NewGoto::Request &req,
         }
         waypoint.timeout = (2.0 * distance_to_waypoint) / min_vel;
         if (waypoint.timeout < 30.0) waypoint.timeout = 30.0;
-        if (req.position_tolerance.x == 0.0 && req.position_tolerance.y == 0.0
-            && req.position_tolerance.z == 0.0 && req.orientation_tolerance.yaw == 0.0) {
-              ROS_INFO_STREAM(_name << "Tolerance is at 0.0. Is it a Keep position request?. Setting timeout to 3600s.");
+        if (req.keep_position) {
+              ROS_INFO_STREAM(_name << ": Keep position TRUE. Setting timeout to 3600s.");
               waypoint.timeout = 3600;
             }
 
-        ROS_INFO_STREAM(_name << ": Send WorldWaypointRequest at " << waypoint.position.north << ", "  << waypoint.position.east << ", " << waypoint.position.depth << ". Timeout = " << waypoint.timeout << "\n");
+        if (waypoint.altitude_mode) {
+            ROS_INFO_STREAM(_name << ": Send WorldWaypointRequest at " << waypoint.position.north << ", "  << waypoint.position.east << ", " << waypoint.altitude << " altitude. Timeout = " << waypoint.timeout << "\n");
+        }
+        else {
+            ROS_INFO_STREAM(_name << ": Send WorldWaypointRequest at " << waypoint.position.north << ", "  << waypoint.position.east << ", " << waypoint.position.depth << " depth. Timeout = " << waypoint.timeout << "\n");
+        }
+
         _waypoint_client->sendGoal(waypoint);
         res.success = true;
         // If blocking wait for the result
@@ -471,13 +477,14 @@ bool
 Captain::submerge(cola2_msgs::Submerge::Request &req,
                   cola2_msgs::Submerge::Response &res)
 {
-    cola2_msgs::NewGoto::Request goto_req;
-    cola2_msgs::NewGoto::Response goto_res;
+    cola2_msgs::Goto::Request goto_req;
+    cola2_msgs::Goto::Response goto_res;
 
     goto_req.priority = auv_msgs::GoalDescriptor::PRIORITY_SAFETY_HIGH;
     goto_req.altitude = req.z;
     goto_req.altitude_mode = req.altitude_mode;
     goto_req.blocking = false;
+    goto_req.keep_position = false;
     goto_req.disable_axis.x = true;
     goto_req.disable_axis.y = true;
     goto_req.disable_axis.z = false;
@@ -488,7 +495,7 @@ Captain::submerge(cola2_msgs::Submerge::Request &req,
     goto_req.position_tolerance.z = 1.0;
     goto_req.yaw = _nav.yaw;
     goto_req.orientation_tolerance.yaw = 0.1;
-    goto_req.reference = cola2_msgs::NewGoto::Request::REFERENCE_NED;
+    goto_req.reference = cola2_msgs::Goto::Request::REFERENCE_NED;
 
     enable_goto(goto_req, goto_res);
     res.attempted = goto_res.success;
@@ -717,11 +724,12 @@ Captain::enable_trajectory(std_srvs::Empty::Request&,
 {
     if(check_no_request_running() && _trajectory.valid_trajectory){
         _is_trajectory_disabled = false;
-        cola2_msgs::NewGoto::Request req;
-        cola2_msgs::NewGoto::Response res;
+        cola2_msgs::Goto::Request req;
+        cola2_msgs::Goto::Response res;
         // Move to initial waypoint on surface or not and then continue
         req.priority = auv_msgs::GoalDescriptor::PRIORITY_NORMAL;
         req.blocking = true;
+        req.keep_position = false;
         req.disable_axis.x = false;
         req.disable_axis.y = true;
         req.disable_axis.z = false;
@@ -749,7 +757,7 @@ Captain::enable_trajectory(std_srvs::Empty::Request&,
         }
 
         req.linear_velocity.x = _trajectory.surge.at(0);
-        req.reference = cola2_msgs::NewGoto::Request::REFERENCE_NED;
+        req.reference = cola2_msgs::Goto::Request::REFERENCE_NED;
         enable_goto(req, res);
 
         ROS_ASSERT_MSG(res.success, "Impossible to reach initial waypoint");
@@ -757,6 +765,7 @@ Captain::enable_trajectory(std_srvs::Empty::Request&,
         if (!_is_trajectory_disabled) {
             // Submerge until initial waypoint
             req.blocking = true;
+            req.keep_position = false;
             req.disable_axis.x = true;
             req.yaw = _nav.yaw;
             req.position.z = _trajectory.z.at(0);
@@ -863,6 +872,7 @@ Captain::enable_trajectory(std_srvs::Empty::Request&,
                     req.priority = auv_msgs::GoalDescriptor::PRIORITY_NORMAL;
                     req.altitude_mode = false;
                     req.blocking = true;
+                    req.keep_position = false;
                     req.disable_axis.x = true;
                     req.disable_axis.y = true;
                     req.disable_axis.z = false;
@@ -873,7 +883,7 @@ Captain::enable_trajectory(std_srvs::Empty::Request&,
                     req.position_tolerance.x = 3.0;
                     req.position_tolerance.y = 3.0;
                     req.position_tolerance.z = 2.0;
-                    req.reference = cola2_msgs::NewGoto::Request::REFERENCE_NED;
+                    req.reference = cola2_msgs::Goto::Request::REFERENCE_NED;
                     enable_goto(req, res);
                     ROS_ASSERT_MSG(res.success, "Impossible to reach final waypoint");
                 }
@@ -908,12 +918,13 @@ bool
 Captain::enable_keep_position_holonomic(std_srvs::Empty::Request &req,
                                         std_srvs::Empty::Response &res)
 {
-    cola2_msgs::NewGoto::Request goto_req;
-    cola2_msgs::NewGoto::Response goto_res;
+    cola2_msgs::Goto::Request goto_req;
+    cola2_msgs::Goto::Response goto_res;
 
     goto_req.priority = auv_msgs::GoalDescriptor::PRIORITY_NORMAL;
     goto_req.altitude_mode = false;
     goto_req.blocking = false;
+    goto_req.keep_position = true;
     goto_req.disable_axis.x = false;
     goto_req.disable_axis.y = false;
     goto_req.disable_axis.z = false;
@@ -936,7 +947,7 @@ Captain::enable_keep_position_holonomic(std_srvs::Empty::Request &req,
                     << ", " << _nav.y << ", " << _nav.z << ", "
                     << _nav.yaw << ".\n");
     _is_holonomic_keep_pose_enabled = true;
-    goto_req.reference = cola2_msgs::NewGoto::Request::REFERENCE_NED;
+    goto_req.reference = cola2_msgs::Goto::Request::REFERENCE_NED;
     enable_goto(goto_req, goto_res);
 
     return true;
@@ -948,12 +959,13 @@ Captain::enable_keep_position_non_holonomic(std_srvs::Empty::Request&,
 {
     // TODO: To be modified for real non-holonomic keep pose controller!
 
-    cola2_msgs::NewGoto::Request goto_req;
-    cola2_msgs::NewGoto::Response goto_res;
+    cola2_msgs::Goto::Request goto_req;
+    cola2_msgs::Goto::Response goto_res;
 
     goto_req.priority = auv_msgs::GoalDescriptor::PRIORITY_NORMAL;
     goto_req.altitude_mode = false;
     goto_req.blocking = false;
+    goto_req.keep_position = true;
     goto_req.disable_axis.x = false;
     goto_req.disable_axis.y = true;
     goto_req.disable_axis.z = false;
@@ -976,7 +988,7 @@ Captain::enable_keep_position_non_holonomic(std_srvs::Empty::Request&,
                     << ", " << _nav.y << ", " << _nav.z << ", "
                     << _nav.yaw << ".\n");
     _is_holonomic_keep_pose_enabled = true;
-    goto_req.reference = cola2_msgs::NewGoto::Request::REFERENCE_NED;
+    goto_req.reference = cola2_msgs::Goto::Request::REFERENCE_NED;
     enable_goto(goto_req, goto_res);
 
     return true;
@@ -1118,8 +1130,8 @@ bool
 Captain::worldWaypoint(const MissionWaypoint wp)
 {
     // Define waypoint attributes
-    cola2_msgs::NewGoto::Request goto_req;
-    cola2_msgs::NewGoto::Response goto_res;
+    cola2_msgs::Goto::Request goto_req;
+    cola2_msgs::Goto::Response goto_res;
 
     goto_req.altitude = wp.position.z;
     goto_req.altitude_mode = wp.position.altitude_mode;
@@ -1131,6 +1143,7 @@ Captain::worldWaypoint(const MissionWaypoint wp)
     goto_req.position_tolerance.y = wp.tolerance.y;
     goto_req.position_tolerance.z = wp.tolerance.z;
     goto_req.blocking = true;
+    goto_req.keep_position = false;
     goto_req.disable_axis.x = false;
     goto_req.disable_axis.y = true;
     goto_req.disable_axis.z = false;
@@ -1138,7 +1151,7 @@ Captain::worldWaypoint(const MissionWaypoint wp)
     goto_req.disable_axis.yaw = false;
     goto_req.disable_axis.pitch = true;
     goto_req.priority = auv_msgs::GoalDescriptor::PRIORITY_NORMAL;
-    goto_req.reference = cola2_msgs::NewGoto::Request::REFERENCE_GLOBAL;
+    goto_req.reference = cola2_msgs::Goto::Request::REFERENCE_GLOBAL;
 
     // Call goto
     return enable_goto(goto_req, goto_res);
