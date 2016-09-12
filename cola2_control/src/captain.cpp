@@ -726,7 +726,9 @@ Captain::enable_trajectory(std_srvs::Empty::Request&,
         _is_trajectory_disabled = false;
         cola2_msgs::Goto::Request req;
         cola2_msgs::Goto::Response res;
+        // *************************************************************
         // Move to initial waypoint on surface or not and then continue
+        // *************************************************************
         req.priority = auv_msgs::GoalDescriptor::PRIORITY_NORMAL;
         req.blocking = true;
         req.keep_position = false;
@@ -759,11 +761,12 @@ Captain::enable_trajectory(std_srvs::Empty::Request&,
         req.linear_velocity.x = _trajectory.surge.at(0);
         req.reference = cola2_msgs::Goto::Request::REFERENCE_NED;
         enable_goto(req, res);
-
         ROS_ASSERT_MSG(res.success, "Impossible to reach initial waypoint");
 
-        if (!_is_trajectory_disabled) {
-            // Submerge until initial waypoint
+        if (!_is_trajectory_disabled && _trajectory.force_initial_final_waypoints_at_surface) {
+            // **************************************************************
+            // If first waypoint in surface submerge until initial waypoint
+            // **************************************************************
             req.blocking = true;
             req.keep_position = false;
             req.disable_axis.x = true;
@@ -845,7 +848,7 @@ Captain::enable_trajectory(std_srvs::Empty::Request&,
                 section.final_surge = _trajectory.surge.at(i);
 
                 // Altitude mode is defined by the initial waypoint
-                section.altitude_mode = _trajectory.altitude_mode.at(i-1);
+                section.altitude_mode = _trajectory.altitude_mode.at(i);
                 _section_client->sendGoal(section);
 
                 // Compute timeout
