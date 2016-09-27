@@ -25,6 +25,7 @@ find_package(catkin REQUIRED COMPONENTS
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
 
+find_package(Boost REQUIRED COMPONENTS thread)
 
 ## Uncomment this if the package has a setup.py. This macro ensures
 ## modules and global scripts declared therein get installed
@@ -120,6 +121,8 @@ catkin_package(
 ###########
 ## Build ##
 ###########
+# Boost thread
+SET(BOOST_THREAD -lboost_thread)
 
 # TinyXML
 SET(LIBS_TINYXML -ltinyxml)
@@ -127,9 +130,7 @@ SET(LIBS_TINYXML -ltinyxml)
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 # include_directories(include)
-include_directories(
-  ${catkin_INCLUDE_DIRS}
-)
+include_directories(include ${catkin_INCLUDE_DIRS})
 
 ## Declare a C++ library
 # add_library(cola2_control
@@ -161,10 +162,12 @@ add_executable(pilot src/pilot.cpp)
 target_link_libraries(pilot ${catkin_LIBRARIES})
 add_dependencies(pilot cola2_msgs_gencpp ${PROJECT_NAME}_gencfg)
 
-add_executable(captain src/captain.cpp)
-target_link_libraries(captain ${catkin_LIBRARIES} ${LIBS_TINYXML})
-add_dependencies(captain cola2_msgs_gencpp)
-
+if(Boost_FOUND)
+  include_directories(${Boost_INCLUDE_DIRS})
+  add_executable(captain src/captain.cpp)
+  target_link_libraries(captain ${catkin_LIBRARIES} ${LIBS_TINYXML} ${Boost_LIBRARIES})
+  add_dependencies(captain cola2_msgs_gencpp)
+endif()
 
 #############
 ## Install ##

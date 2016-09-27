@@ -23,6 +23,8 @@
 #include "cola2_lib/cola2_rosutils/DiagnosticHelper.h"
 #include <string>
 #include <vector>
+#include <boost/thread.hpp>
+
 
 typedef struct {
     std::vector<double> x;
@@ -84,6 +86,7 @@ private:
     ros::ServiceServer _load_trajectory_srv;
     ros::ServiceServer _set_trajectory_srv;
     ros::ServiceServer _enable_trajectory_srv;
+    ros::ServiceServer _enable_trajectory_non_block_srv;
     ros::ServiceServer _disable_trajectory_srv;
     ros::ServiceServer _enable_keep_position_holonomic_srv;
     ros::ServiceServer _enable_keep_position_non_holonomic_srv;
@@ -142,6 +145,9 @@ private:
     bool enable_trajectory(std_srvs::Empty::Request&,
                            std_srvs::Empty::Response&);
 
+    bool enable_trajectory_non_block(std_srvs::Empty::Request&,
+                                     std_srvs::Empty::Response&);
+
     bool disable_trajectory(std_srvs::Empty::Request&,
                             std_srvs::Empty::Response&);
 
@@ -158,6 +164,8 @@ private:
     void nav_goal(const ros::MessageEvent<geometry_msgs::PoseStamped const> & msg);
 
     // Mission related functions
+    void run_trajectory();
+
     bool playMission(cola2_msgs::String::Request&,
                      cola2_msgs::String::Response&);
 
@@ -218,6 +226,7 @@ Captain::Captain():
     _load_trajectory_srv = _n.advertiseService("/cola2_control/load_trajectory", &Captain::load_trajectory, this);
     _set_trajectory_srv = _n.advertiseService("/cola2_control/set_trajectory", &Captain::set_trajectory, this);
     _enable_trajectory_srv = _n.advertiseService("/cola2_control/enable_trajectory", &Captain::enable_trajectory, this);
+    _enable_trajectory_non_block_srv = _n.advertiseService("/cola2_control/enable_trajectory_non_block", &Captain::enable_trajectory_non_block, this);
     _disable_trajectory_srv = _n.advertiseService("/cola2_control/disable_trajectory", &Captain::disable_trajectory, this);
     _enable_keep_position_holonomic_srv = _n.advertiseService("/cola2_control/enable_keep_position_4dof", &Captain::enable_keep_position_holonomic, this);
     _enable_keep_position_non_holonomic_srv = _n.advertiseService("/cola2_control/enable_keep_position_3dof", &Captain::enable_keep_position_non_holonomic, this);
@@ -717,10 +726,24 @@ Captain::load_trajectory(std_srvs::Empty::Request &req,
     return valid_trajectory;
 }
 
+bool
+Captain::enable_trajectory_non_block(std_srvs::Empty::Request&,
+                                     std_srvs::Empty::Response&)
+{
+    boost::thread *t;
+    t = new boost::thread(&Captain::run_trajectory, this);
+    return true;
+}
 
 bool
 Captain::enable_trajectory(std_srvs::Empty::Request&,
                            std_srvs::Empty::Response&)
+{
+    run_trajectory();
+    return true;
+}
+
+void Captain::run_trajectory()
 {
     if(check_no_request_running() && _trajectory.valid_trajectory){
         _is_trajectory_disabled = false;
@@ -896,8 +919,6 @@ Captain::enable_trajectory(std_srvs::Empty::Request&,
     else {
         ROS_WARN_STREAM(_name << ": Is trajectory loaded?");
     }
-
-    return true;
 }
 
 bool
