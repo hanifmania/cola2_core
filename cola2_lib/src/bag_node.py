@@ -35,7 +35,7 @@ class LogBag:
         if self.bag_enabled:
             nodes = subprocess.check_output(['rosnode', 'list']).split()
             for node in nodes:
-                if node.startswith("/record_g500"):
+                if node.startswith("/record_auv"):
                     subprocess.call(['rosnode', 'kill', node])
                     time.sleep(1.0)
 

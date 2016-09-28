@@ -1,14 +1,17 @@
 <!-- THIS LAUNCH FILE IS INTENDED TO BE USED FROM THE NODE cola2_lib bag_node.py -->
 <launch>
-    <arg name="vehiclename" default="g500"/>
-    <node name="record_g500_bags" output="screen" pkg="rosbag" type="record" args="
-        -a -x '/stereo_camera(.*)|/octo(.*)|/camera(.*)'
+    <arg name="vehiclename" default="auv"/>
+    <node name="record_auv_bags" output="screen" pkg="rosbag" type="record" args="
+        -a -x '/stereo_camera(.*)|/octo(.*)|/camera(.*)|/guppy(.*)'
         --split --size 2048 -o $(env HOME)/$(arg vehiclename)" />
 
-    <node name="record_g500_image" output="screen" pkg="rosbag" type="record" args="
+    <node name="record_auv_image" output="screen" pkg="rosbag" type="record" args="
         /pose_ekf_slam/odometry
-	    /camera/camera_info
-	    /camera/image_raw
+	      /camera/camera_info
+	      /camera/image_raw
+        /camera/image_color
+        /guppy/camera/camera_info
+        /guppy/camera/image_raw
         /stereo_camera/left/camera_info
         /stereo_camera/left/image_raw
         /stereo_camera/right/camera_info
