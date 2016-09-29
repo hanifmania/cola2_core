@@ -9,6 +9,7 @@
 #include <cola2_msgs/Submerge.h>
 #include <cola2_msgs/SetTrajectory.h>
 #include <cola2_msgs/Action.h>
+#include <cola2_msgs/MissionStatus.h>
 #include <std_srvs/Empty.h>
 #include <auv_msgs/GoalDescriptor.h>
 #include <nav_msgs/Path.h>
@@ -72,12 +73,14 @@ private:
     bool _is_holonomic_keep_pose_enabled;
     double _min_goto_vel;
     double _min_loscte_vel;
+    cola2_msgs::MissionStatus _mission_status;
 
     // Diagnostics
     cola2::rosutils::DiagnosticHelper _diagnostic ;
 
     // Publishers
     ros::Publisher _pub_path;
+    ros::Publisher _pub_mission_status;
 
     // Services
     ros::ServiceServer _enable_goto_srv;
@@ -98,6 +101,9 @@ private:
 
     // Subscriber
     ros::Subscriber _sub_nav;
+
+    // Timer
+    ros::Timer _mission_status_timer;
 
     // Actionlib client
     boost::shared_ptr<actionlib::SimpleActionClient<
@@ -180,6 +186,8 @@ private:
     bool worldSection(const MissionSection sec);
 
     void park(const MissionPark park);
+
+    void mission_status_timer(const ros::TimerEvent&);
 };
 
 
@@ -201,6 +209,7 @@ Captain::Captain():
 
     // Init publishers
     _pub_path = _n.advertise<nav_msgs::Path>("/cola2_control/trajectory_path", 1, true);
+    _pub_mission_status = _n.advertise<cola2_msgs::MissionStatus>("/cola2_control/mission_status", 1, true);
 
     // Actionlib client. Smart pointer is used so that client construction is
     // delayed after configuration is loaded
@@ -222,7 +231,6 @@ Captain::Captain():
     _enable_goto_srv = _n.advertiseService("/cola2_control/enable_goto", &Captain::enable_goto, this);
     _disable_goto_srv = _n.advertiseService("/cola2_control/disable_goto", &Captain::disable_goto, this);
     _submerge_srv = _n.advertiseService("/cola2_control/submerge", &Captain::submerge, this);
-
     _load_trajectory_srv = _n.advertiseService("/cola2_control/load_trajectory", &Captain::load_trajectory, this);
     _set_trajectory_srv = _n.advertiseService("/cola2_control/set_trajectory", &Captain::set_trajectory, this);
     _enable_trajectory_srv = _n.advertiseService("/cola2_control/enable_trajectory", &Captain::enable_trajectory, this);
@@ -231,16 +239,29 @@ Captain::Captain():
     _enable_keep_position_holonomic_srv = _n.advertiseService("/cola2_control/enable_keep_position_4dof", &Captain::enable_keep_position_holonomic, this);
     _enable_keep_position_non_holonomic_srv = _n.advertiseService("/cola2_control/enable_keep_position_3dof", &Captain::enable_keep_position_non_holonomic, this);
     _disable_keep_position_srv = _n.advertiseService("/cola2_control/disable_keep_position", &Captain::disable_keep_position, this);
-
     _play_mission_srv = _n.advertiseService("/mission_manager/play", &Captain::playMission, this);
 
-    // Subscriber
-
+    // Subscribers
     _sub_nav = _n.subscribe("/cola2_navigation/nav_sts", 1, &Captain::update_nav, this);
     _2D_nav_goal = _n.subscribe("/move_base_simple/goal", 1, &Captain::nav_goal, this);
 
+    // Mission Status
+    _mission_status.current_wp = 0;
+    _mission_status.total_wp = 0;
+    _mission_status.wp_north = 0.0;
+    _mission_status.wp_east = 0.0;
+    _mission_status.altitude_mode = 0.0;
+    _mission_status.wp_depth_altitude = 0.0;
+    _mission_status_timer = _n.createTimer(ros::Duration(2.0), &Captain::mission_status_timer, this);
+
     // test();
     _spinner.spin();
+}
+
+void
+Captain::mission_status_timer(const ros::TimerEvent & event)
+{
+    _pub_mission_status.publish(_mission_status);
 }
 
 void
@@ -746,6 +767,13 @@ Captain::enable_trajectory(std_srvs::Empty::Request&,
 void Captain::run_trajectory()
 {
     if(check_no_request_running() && _trajectory.valid_trajectory){
+        // Mission Status
+        _mission_status.current_wp = 1;
+        _mission_status.total_wp = _trajectory.x.size();
+        _mission_status.wp_north = _trajectory.x.at(0);
+        _mission_status.wp_east = _trajectory.y.at(0);
+        _mission_status.wp_depth_altitude = _trajectory.z.at(0);
+
         _is_trajectory_disabled = false;
         cola2_msgs::Goto::Request req;
         cola2_msgs::Goto::Response res;
@@ -764,11 +792,13 @@ void Captain::run_trajectory()
         if (_trajectory.force_initial_final_waypoints_at_surface) {
           req.altitude_mode = false;
           req.position.z = 0.0;
+          _mission_status.altitude_mode = false;
         }
         else {
           req.altitude_mode = _trajectory.altitude_mode.at(0);
           req.position.z = _trajectory.z.at(0);
           req.altitude = _trajectory.z.at(0);
+          _mission_status.altitude_mode = true;
         }
         if (_trajectory.tolerance.size() == 0) {
             req.position_tolerance.x = _config.tolerance.x;
@@ -886,6 +916,16 @@ void Captain::run_trajectory()
                 }
                 double timeout = (2*distance_to_end_section) / min_vel;
                 ROS_INFO_STREAM(_name << ": Section timeout = " << timeout << "\n");
+
+                // Fill mission_status message
+                _mission_status.current_wp = i + 1;
+                _mission_status.total_wp = _trajectory.z.size();
+                _mission_status.wp_north = _trajectory.x.at(i);
+                _mission_status.wp_east = _trajectory.y.at(i);
+                _mission_status.altitude_mode = _trajectory.altitude_mode.at(i);
+                _mission_status.wp_depth_altitude = _trajectory.z.at(i);
+                // _mission_status.wp_remaining_time = self.trajectory.wait[i]
+
                 _section_client->waitForResult(ros::Duration(timeout));
 
                 // Move to next waypoint
@@ -915,6 +955,13 @@ void Captain::run_trajectory()
                 }
             }
         }
+        // Mission finalized
+        _mission_status.current_wp = 0;
+        _mission_status.total_wp = 0;
+        _mission_status.wp_north = 0.0;
+        _mission_status.wp_east = 0.0;
+        _mission_status.altitude_mode = 0.0;
+        _mission_status.wp_depth_altitude = 0.0;
     }
     else {
         ROS_WARN_STREAM(_name << ": Is trajectory loaded?");
