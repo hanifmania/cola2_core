@@ -69,7 +69,7 @@ bool EkfBase::makePrediction(const double now, Eigen::VectorXd u)
       _last_prediction = now;
       return true;
     }
-    else if (period > -0.1 && period <= 0.0)
+    else if (period > -0.15 && period <= 0.0)
     {
       _x_ = _x;
       _P_ = _P;
