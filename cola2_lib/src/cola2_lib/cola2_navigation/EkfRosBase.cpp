@@ -250,9 +250,9 @@ void EkfRosBase::publish(ros::Time stamp)
     marker.pose.orientation.y = quat.y();
     marker.pose.orientation.z = quat.z();
 
-    marker.scale.x = 0.8;
-    marker.scale.y = 0.4;
-    marker.scale.z = 0.2;
+    marker.scale.x = 0.1;
+    marker.scale.y = 0.71;
+    marker.scale.z = 0.505;
     marker.color.r = 0.1;
     marker.color.g = 0.1;
     marker.color.b = 1.0;
