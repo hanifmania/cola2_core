@@ -98,19 +98,22 @@ LosCteController::compute(const control::State& current_state,
 
     // Compute cross-track error
 	// Angle of path
-    double alpha = atan2(section.final_position.y - section.initial_position.y,
-                         section.final_position.x - section.initial_position.x);
+    double beta = atan2(section.final_position.y - section.initial_position.y,
+                         section.final_position.x - section.initial_position.x);//Fossen LOS, Sec. 10.3.2
+
+    double sbeta = sin(beta);
+    double cbeta = cos(beta);
 
 	// Along-track distance (s) and cross-track error (e) (rotation)
-    double s = (current_state.pose.position.north - section.initial_position.x) * cos(alpha) +
-    		   (current_state.pose.position.east - section.initial_position.y) * sin(alpha);
+    double s = (current_state.pose.position.north - section.initial_position.x) * cbeta +
+    		   (current_state.pose.position.east - section.initial_position.y) * sbeta;
 
-    double e = -(current_state.pose.position.north - section.initial_position.x) * sin(alpha) +
-                (current_state.pose.position.east - section.initial_position.y) * cos(alpha);
+    double e = -(current_state.pose.position.north - section.initial_position.x) * sbeta +
+                (current_state.pose.position.east - section.initial_position.y) * cbeta;
 
 	// Orthogonal projection
-    double x_proj = section.initial_position.x + s * cos(alpha);
-    double y_proj = section.initial_position.y + s * sin(alpha);
+    double x_proj = section.initial_position.x + (s + _config.delta) * cbeta;
+    double y_proj = section.initial_position.y + (s + _config.delta) * sbeta;
 
 	// Compute lookahead distance (los_delta). It is always positive
     double delta = 0.0;
@@ -125,13 +128,13 @@ LosCteController::compute(const control::State& current_state,
 	double LOSY;
 	if(s < dist_waypoints)
 	{
-		LOSX = x_proj + delta * cos(alpha) - current_state.pose.position.north;
-		LOSY = y_proj + delta * sin(alpha) - current_state.pose.position.east;
+		LOSX = x_proj - current_state.pose.position.north;
+		LOSY = y_proj - current_state.pose.position.east;
 	}
 	else
 	{
-		LOSX = x_proj - delta * cos(alpha) - current_state.pose.position.north;
-		LOSY = y_proj - delta * sin(alpha) - current_state.pose.position.east;
+		LOSX = x_proj - current_state.pose.position.north;
+		LOSY = y_proj - current_state.pose.position.east;
 	}
 
 	// Compute surge
@@ -162,10 +165,10 @@ LosCteController::compute(const control::State& current_state,
     else
     	beta_factor = 0.0;
 
-    double beta = atan2(current_state.velocity.linear.y, current_state.velocity.linear.x);
+    //double beta = atan2(current_state.velocity.linear.y, current_state.velocity.linear.x);
 
     //desired_yaw = cola2::util::normalizeAngle(alpha + atan2(-e, _config.delta) - beta); //TODO
-    desired_yaw = cola2::util::normalizeAngle(atan2(LOSY, LOSX) - beta_factor * beta);
+    desired_yaw = cola2::util::normalizeAngle(atan2(LOSY, LOSX));
 
     // define current z according to altitude_mode
     double current_z = current_state.pose.position.depth;
@@ -246,8 +249,8 @@ LosCteController::compute(const control::State& current_state,
     // Set desired Z
     double desired_depth = section.final_position.z;
     if ((!section.altitude_mode) && (_config.heave_in_3D)) {
-        double s = (current_state.pose.position.north - section.initial_position.x) * cos(alpha) +
-                   (current_state.pose.position.east - section.initial_position.y) * sin(alpha);
+        double s = (current_state.pose.position.north - section.initial_position.x) * cbeta +
+                   (current_state.pose.position.east - section.initial_position.y) * sbeta;
         double section_dx = (section.final_position.x - section.initial_position.x);
         double section_dy = (section.final_position.y - section.initial_position.y);
         double section_length = sqrt(pow(section_dx, 2.0) + pow(section_dy, 2.0));
