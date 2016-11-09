@@ -388,11 +388,22 @@ unsigned int EkfSlamAuv::rangeUpdate(const std::string& landmark_id,
   return 1;  // no validated landmark
 }
 
-
-
-
-
-
+void EkfSlamAuv::resetLandmarks() {
+    // Remove all landmarks from the filter
+    _mapped_lamdmarks.clear();
+    _id_to_mapped_lamdmark.clear();
+    _number_of_landmarks = 0;
+    Eigen::MatrixXd new_P;
+    new_P = Eigen::MatrixXd::Identity(6, 6);
+    new_P = _P.block(0, 0, 6, 6);
+    _P = new_P;
+    std::cout << "New P:\n" << new_P << "\n\n";
+    Eigen::MatrixXd new_x;
+    new_x = Eigen::MatrixXd::Zero(6, 1);
+    new_x = _x.block(0, 0, 6, 1);
+    _x = new_x;
+    std::cout << "New x:\n" << new_x << "\n\n";
+}
 
 void
 EkfSlamAuv::addLandmark(const Eigen::VectorXd& landmark,

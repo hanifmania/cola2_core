@@ -66,6 +66,8 @@ class EkfSlamAuv: public EkfBase
                            const double& landmark_measured_range,
                            const Eigen::MatrixXd& range_cov);
 
+  void resetLandmarks();
+  
   void addLandmark(const Eigen::VectorXd& landmark,
                    const Eigen::MatrixXd& landmark_cov,
                    const std::string landmark_id);
