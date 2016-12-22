@@ -3,8 +3,12 @@
 EkfSlamAuv::EkfSlamAuv(const unsigned int state_vector_size, const Eigen::VectorXd q_var):
   EkfBase(state_vector_size, q_var),
   _is_imu_init(false),
-  _number_of_landmarks(0)
+  _number_of_landmarks(0),
+  _auv_orientation(1.0, 0.0, 0.0, 0.0)
 {
+  _auv_orientation_cov      = Eigen::Matrix3d::Zero();  // TODO: initializer list? How?
+  _auv_angular_velocity     = Eigen::Vector3d::Zero();
+  _auv_angular_velocity_cov = Eigen::Matrix3d::Zero();
 }
 
 void EkfSlamAuv::setImuInput(const std::string sensor_id,
@@ -37,6 +41,7 @@ void EkfSlamAuv::setImuInput(const std::string sensor_id,
   }
   else
   {
+    std::cout << "EkfSlamAuv warning: IMU data stored without appropriate TF\n";
     // Save imu data
     _auv_orientation = orientation_dev;
     _auv_orientation_cov = orientation_cov;
