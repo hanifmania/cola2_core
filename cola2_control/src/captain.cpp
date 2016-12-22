@@ -178,7 +178,8 @@ private:
     void addParamToParamServer(const std::string key,
                                const std::string value);
 
-    void callAction(const std::string action_id,
+    void callAction(const bool is_empty,
+                    const std::string action_id,
                     const std::vector<std::string> parameters);
 
     bool worldWaypoint(const MissionWaypoint wp);
@@ -1143,7 +1144,7 @@ Captain::playMission(cola2_msgs::String::Request &req,
             }
             else if (step->step_type == MISSION_ACTION) {
                 MissionAction *act = dynamic_cast<MissionAction*>(step);
-                this->callAction(act->action_id, act->parameters);
+                this->callAction(act->_is_empty, act->action_id, act->parameters);
             }
             else if (step->step_type == MISSION_MANEUVER) {
                 MissionManeuver *m = dynamic_cast<MissionManeuver*>(step);
@@ -1185,15 +1186,23 @@ Captain::addParamToParamServer(const std::string key,
 }
 
 void
-Captain::callAction(const std::string action_id,
+Captain::callAction(const bool is_empty,
+                    const std::string action_id,
                     const std::vector<std::string> parameters)
 {
-    ros::ServiceClient action_client = _n.serviceClient<cola2_msgs::Action>(action_id);
-    cola2_msgs::Action action;
-    for (std::vector<std::string>::const_iterator i = parameters.begin(); i != parameters.end(); i++) {
-        action.request.param.push_back(*i);
+    if (is_empty) {
+        ros::ServiceClient action_client = _n.serviceClient<std_srvs::Empty>(action_id);
+        std_srvs::Empty params;
+        action_client.call(params);
     }
-    action_client.call(action);
+    else {
+        ros::ServiceClient action_client = _n.serviceClient<cola2_msgs::Action>(action_id);
+        cola2_msgs::Action params;
+        for (std::vector<std::string>::const_iterator i = parameters.begin(); i != parameters.end(); i++) {
+            params.request.param.push_back(*i);
+        }
+        action_client.call(params);
+    }
     std::cout << "Call -> " << action_id << std::endl;
 }
 

@@ -261,17 +261,22 @@ public:
                   std::vector<std::string> parameters_):
         MissionStep(MISSION_ACTION),
         action_id(action_id_),
-        parameters(parameters_)
-    {}
+        parameters(parameters_),
+        _is_empty(true)
+    {
+        if (parameters_.size() > 0) _is_empty = false;
+    }
 
     friend std::ostream& operator<< (std::ostream& stream,
                                      const MissionAction& a)
     {
-        stream << "Action "<< a.action_id << ": with ";
-        stream << a.parameters.size() << " params";
-        //for (std::vector<std::string>::const_iterator i = a.parameters.begin(); i != a.parameters.end(); i++) {
-        //    stream << *i << ", ";
-        //}
+        stream << "Action "<< a.action_id;
+        if (!a._is_empty) {
+            stream << ": with " << a.parameters.size() << " params";
+            for (std::vector<std::string>::const_iterator i = a.parameters.begin(); i != a.parameters.end(); i++) {
+                stream << *i << ", ";
+            }
+        }
     }
 
     void show()
@@ -281,6 +286,7 @@ public:
 
     std::string action_id;
     std::vector<std::string> parameters;
+    bool _is_empty;
 };
 
 class Mission {
