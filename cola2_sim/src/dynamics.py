@@ -19,6 +19,7 @@ import tf
 from nav_msgs.msg import Odometry
 from cola2_msgs.msg import Setpoints
 from auv_msgs.msg import BodyForceReq
+from gazebo_msgs.msg import ModelState
 
 # Import srv
 from cola2_msgs.srv import SimulatedCurrents
@@ -51,6 +52,10 @@ class Dynamics :
         self.pub_odom = rospy.Publisher(self.odom_topic_name,
                                         Odometry,
                                         queue_size = 2)
+
+        self.pub_odom_gazebo = rospy.Publisher('/gazebo/set_model_state',
+                                               ModelState,
+                                               queue_size=2)
 
         # Create subscribers
         rospy.Subscriber(self.thrusters_topic,
@@ -479,6 +484,14 @@ class Dynamics :
         odom.twist.twist.angular.z = self.v[5]
 
         self.pub_odom.publish(odom)
+
+        # Publish position for gazebo
+        gazebo_odom = ModelState()
+        gazebo_odom.model_name = 'girona500'
+        gazebo_odom.pose = odom.pose.pose
+        gazebo_odom.twist = odom.twist.twist
+        gazebo_odom.reference_frame = 'world'
+        self.pub_odom_gazebo.publish(gazebo_odom)
 
         # Broadcast transform
         br = tf.TransformBroadcaster()
