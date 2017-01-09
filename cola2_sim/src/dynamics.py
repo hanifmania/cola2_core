@@ -487,51 +487,8 @@ class Dynamics :
 
         # Publish position for gazebo
         gazebo_odom = ModelState()
-        gazebo_odom.model_name = 'girona500_mb'
-        # position = np.matrix([odom.pose.pose.position.x,
-        #                       odom.pose.pose.position.y,
-        #                       odom.pose.pose.position.z,
-        #                       1.0])
-        # position.resize(4, 1)
-        # down_to_up_rot = tf.transformations.euler_matrix(0.0, 0.0, math.pi)
-        # new_position = down_to_up_rot * position
-        # auv_rot = tf.transformations.quaternion_matrix([
-        #     odom.pose.pose.orientation.x,
-        #     odom.pose.pose.orientation.y,
-        #     odom.pose.pose.orientation.z,
-        #     odom.pose.pose.orientation.w])
-        # new_auv_rot = down_to_up_rot * auv_rot
-        # new_auv_quat = tf.transformations.quaternion_from_matrix(new_auv_rot)
-        # gazebo_odom.pose.position.x = new_position[0, 0]
-        # gazebo_odom.pose.position.y = new_position[1, 0]
-        # gazebo_odom.pose.position.z = 15.0 + new_position[2, 0]
-        # gazebo_odom.pose.orientation.x = new_auv_quat[0]
-        # gazebo_odom.pose.orientation.y = new_auv_quat[1]
-        # gazebo_odom.pose.orientation.z = new_auv_quat[2]
-        # gazebo_odom.pose.orientation.w = new_auv_quat[3]
-
-
+        gazebo_odom.model_name = 'girona500'
         gazebo_odom.pose = odom.pose.pose
-        gazebo_odom.pose.position.z = 15 - odom.pose.pose.position.z
-        gazebo_odom.pose.position.y = -1.0 * odom.pose.pose.position.y
-
-        auv_euler = tf.transformations.euler_from_quaternion([
-         odom.pose.pose.orientation.x,
-         odom.pose.pose.orientation.y,
-         odom.pose.pose.orientation.z,
-         odom.pose.pose.orientation.w])
-        new_auv_euler = (auv_euler[0],
-                         auv_euler[1],
-                         cola2_lib.wrapAngle(auv_euler[2]+math.pi))
-        new_quat = tf.transformations.quaternion_from_euler(new_auv_euler[0],
-                                                            new_auv_euler[1],
-                                                            new_auv_euler[2])
-        # gazebo_odom.pose.orientation.x = new_quat[0]
-        # gazebo_odom.pose.orientation.y = new_quat[1]
-        # gazebo_odom.pose.orientation.z = new_quat[2]
-        # gazebo_odom.pose.orientation.w = new_quat[3]
-
-        # gazebo_odom.twist = odom.twist.twist
         gazebo_odom.reference_frame = 'world'
         self.pub_odom_gazebo.publish(gazebo_odom)
 
