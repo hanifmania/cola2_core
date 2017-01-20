@@ -40,6 +40,7 @@ class Dynamics :
         """ Simulates the dynamics of an AUV """
         self.name = name
         self.contact_sensor_available = False
+        self.sea_bottom_depth = 10.0
 
         # Load dynamic parameters
         self.get_config()
@@ -487,8 +488,37 @@ class Dynamics :
 
         # Publish position for gazebo
         gazebo_odom = ModelState()
+
+        rot = tf.transformations.euler_matrix(math.pi, 0.0, 0.0)
+        position = np.matrix([odom.pose.pose.position.x,
+                              odom.pose.pose.position.y,
+                              odom.pose.pose.position.z,
+                              1.0]).reshape(4, 1)
+        # print 'position:\n', position
+
+        ###### TODO: WARNING! Gazebo uses Z up configuraton!!!  ###
+        # I've created a custom rotation that rotates the position 180 degress
+        # in roll, but the orientation transformation is only yaw = -yaw.
+        # CHECK WHAT HAPPENS WHITH ROLL AND PITCH! 
+        ROLL AND PITCH NEEDS
+
+        new_position = rot * position
+        eulr = tf.transformations.euler_from_quaternion([odom.pose.pose.orientation.x,
+                                                         odom.pose.pose.orientation.y,
+                                                         odom.pose.pose.orientation.z,
+                                                         odom.pose.pose.orientation.w])
+        new_quat = tf.transformations.quaternion_from_euler(eulr[0], eulr[1], -eulr[2])
+        ##################################################################
+
         gazebo_odom.model_name = 'girona500'
-        gazebo_odom.pose = odom.pose.pose
+        gazebo_odom.pose.position.x = float(new_position[0])
+        gazebo_odom.pose.position.y = float(new_position[1])
+        gazebo_odom.pose.position.z = float(new_position[2]) + self.sea_bottom_depth
+        gazebo_odom.pose.orientation = odom.pose.pose.orientation
+        gazebo_odom.pose.orientation.x = new_quat[0]
+        gazebo_odom.pose.orientation.y = new_quat[1]
+        gazebo_odom.pose.orientation.z = new_quat[2]
+        gazebo_odom.pose.orientation.w = new_quat[3]
         gazebo_odom.reference_frame = 'world'
         self.pub_odom_gazebo.publish(gazebo_odom)
 
@@ -496,6 +526,16 @@ class Dynamics :
         br = tf.TransformBroadcaster()
         br.sendTransform((self.p[0], self.p[1], self.p[2]), orientation,
                          odom.header.stamp, odom.header.frame_id,
+                         self.world_frame_id)
+
+        # Brodcast world to girona50000_gazebo_link
+        br = tf.TransformBroadcaster()
+        br.sendTransform((gazebo_odom.pose.position.x,
+                          gazebo_odom.pose.position.y,
+                          gazebo_odom.pose.position.z),
+                         new_quat,
+                         odom.header.stamp,
+                         "girona500_gazebo_link",
                          self.world_frame_id)
 
     def get_config(self):
@@ -543,7 +583,8 @@ class Dynamics :
                       'current_min': "dynamics/current_min",
                       'current_max': "dynamics/current_max",
                       'current_enabled': "dynamics/current_enabled",
-                      'collisions_topic': "dynamics/" + self.vehicle_name + "/uwsim_contact_sensor"}
+                      'collisions_topic': "dynamics/" + self.vehicle_name + "/uwsim_contact_sensor",
+                      'sea_bottom_depth': "sea_bottom_depth"}
 
         if not cola2_ros_lib.getRosParams(self, param_dict, self.name):
             rospy.logfatal("%s: shutdown due to invalid config parameters!", self.name)
