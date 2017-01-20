@@ -17,6 +17,7 @@ names, logos, or trademarks of contributors.
 # ROS imports
 import rospy
 import subprocess
+import sys
 import psutil
 from cola2_msgs.msg import ComputerData
 
@@ -31,7 +32,7 @@ class ComputerLogger(object):
 
         # Publisher
         self.pub_computer_data = rospy.Publisher(
-             "/cola2_safety/computer_logger", 
+             "/cola2_safety/computer_logger",
              ComputerData,
              queue_size = 2)
 
@@ -74,7 +75,7 @@ class ComputerLogger(object):
 
             # Use psutil to get cpu and ram usage
             cpu_usage = psutil.cpu_percent()
-            ram_usage = ram = psutil.phymem_usage().percent
+            ram_usage = ram = psutil.virtual_memory().percent
 
             msg = ComputerData()
             msg.header.stamp = rospy.Time.now()
@@ -84,7 +85,7 @@ class ComputerLogger(object):
             self.pub_computer_data.publish(msg)
 
         except:
-            rospy.logwarn("%s: unable to get data!", self.name)
+            rospy.logwarn("%s: unable to get data: %s", self.name, sys.exc_info()[0])
 
 
 if __name__ == '__main__':
