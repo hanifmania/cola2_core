@@ -499,8 +499,7 @@ class Dynamics :
         ###### TODO: WARNING! Gazebo uses Z up configuraton!!!  ###
         # I've created a custom rotation that rotates the position 180 degress
         # in roll, but the orientation transformation is only yaw = -yaw.
-        # CHECK WHAT HAPPENS WHITH ROLL AND PITCH! 
-        ROLL AND PITCH NEEDS
+        # CHECK WHAT HAPPENS WHITH ROLL AND PITCH!
 
         new_position = rot * position
         eulr = tf.transformations.euler_from_quaternion([odom.pose.pose.orientation.x,
