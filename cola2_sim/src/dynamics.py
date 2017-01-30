@@ -486,20 +486,28 @@ class Dynamics :
 
         self.pub_odom.publish(odom)
 
-        # Publish position for gazebo
-        gazebo_odom = ModelState()
 
-        rot = tf.transformations.euler_matrix(math.pi, 0.0, 0.0)
-        position = np.matrix([odom.pose.pose.position.x,
-                              odom.pose.pose.position.y,
-                              odom.pose.pose.position.z,
-                              1.0]).reshape(4, 1)
-        # print 'position:\n', position
+        # Broadcast transform
+        br = tf.TransformBroadcaster()
+        br.sendTransform((self.p[0], self.p[1], self.p[2]), orientation,
+                         odom.header.stamp, odom.header.frame_id,
+                         self.world_frame_id)
+
+
+        ################################################################
+        ###########     Publish position for gazebo     ################
+        ################################################################
+        gazebo_odom = ModelState()
 
         ###### TODO: WARNING! Gazebo uses Z up configuraton!!!  ###
         # I've created a custom rotation that rotates the position 180 degress
         # in roll, but the orientation transformation is only yaw = -yaw.
         # CHECK WHAT HAPPENS WHITH ROLL AND PITCH!
+        """rot = tf.transformations.euler_matrix(math.pi, 0.0, 0.0)
+        position = np.matrix([odom.pose.pose.position.x,
+                          odom.pose.pose.position.y,
+                          odom.pose.pose.position.z,
+                          1.0]).reshape(4, 1)
 
         new_position = rot * position
         eulr = tf.transformations.euler_from_quaternion([odom.pose.pose.orientation.x,
@@ -507,7 +515,6 @@ class Dynamics :
                                                          odom.pose.pose.orientation.z,
                                                          odom.pose.pose.orientation.w])
         new_quat = tf.transformations.quaternion_from_euler(eulr[0], eulr[1], -eulr[2])
-        ##################################################################
 
         gazebo_odom.model_name = 'girona500'
         gazebo_odom.pose.position.x = float(new_position[0])
@@ -521,12 +528,6 @@ class Dynamics :
         gazebo_odom.reference_frame = 'world'
         self.pub_odom_gazebo.publish(gazebo_odom)
 
-        # Broadcast transform
-        br = tf.TransformBroadcaster()
-        br.sendTransform((self.p[0], self.p[1], self.p[2]), orientation,
-                         odom.header.stamp, odom.header.frame_id,
-                         self.world_frame_id)
-
         # Brodcast world to girona50000_gazebo_link
         br = tf.TransformBroadcaster()
         br.sendTransform((gazebo_odom.pose.position.x,
@@ -535,7 +536,16 @@ class Dynamics :
                          new_quat,
                          odom.header.stamp,
                          "girona500_gazebo_link",
-                         self.world_frame_id)
+                         self.world_frame_id) """
+
+        ##################################################################
+        #       ALTERNATIVE WITH NO ROTATIONS                       #####
+        gazebo_odom.model_name = 'girona500'
+        gazebo_odom.pose = odom.pose.pose
+        gazebo_odom.reference_frame = 'world'
+        self.pub_odom_gazebo.publish(gazebo_odom)
+
+        ##################################################################
 
     def get_config(self):
         """ Get config from config file """
