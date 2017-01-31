@@ -476,7 +476,7 @@ void EkfSlamAuv::createLandmarkMeasure(const Eigen::Vector3d landmark_position,
   if (landmark_id < _number_of_landmarks)
   {
     h.block(0, 0, 3, 3) = -1*rot;
-    h.block(0, 6, 3, 3) = rot;
+    h.block(0, 6+landmark_id*6, 3, 3) = rot;
     h.block(3, 9+landmark_id*6, 3, 3) = Eigen::MatrixXd::Identity(3, 3);
   }
   else
