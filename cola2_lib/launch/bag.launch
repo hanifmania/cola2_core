@@ -3,7 +3,7 @@
     <arg name="vehiclename" default="auv"/>
     <node name="record_auv_bags" output="screen" pkg="rosbag" type="record" args="
         -a -x '/stereo_camera(.*)|/octo(.*)|/camera(.*)|/guppy(.*)'
-        --split --size 2048 -o $(env HOME)/$(arg vehiclename)" />
+        --split --size 2048 -o $(env HOME)/bags/$(arg vehiclename)" />
 
     <node name="record_auv_image" output="screen" pkg="rosbag" type="record" args="
         /pose_ekf_slam/odometry
@@ -16,5 +16,5 @@
         /stereo_camera/left/image_raw
         /stereo_camera/right/camera_info
         /stereo_camera/right/image_raw
-        --split --size 2048 -o $(env HOME)/$(arg vehiclename)_image" />
+        --split --size 2048 -o $(env HOME)/bags/$(arg vehiclename)_image" />
 </launch>
