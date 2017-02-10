@@ -25,7 +25,7 @@
 #include <string>
 #include <vector>
 #include <boost/thread.hpp>
-
+#include <unistd.h>
 
 typedef struct {
     std::vector<double> x;
@@ -928,6 +928,14 @@ void Captain::run_trajectory()
                 // _mission_status.wp_remaining_time = self.trajectory.wait[i]
 
                 _section_client->waitForResult(ros::Duration(timeout));
+
+                if (_trajectory.wait.at(i) > 0)
+                {
+                  // Wait after reaching waypoint
+                  ROS_INFO_STREAM(_name << ": Wait for " << _trajectory.wait.at(i) << " seconds\n");
+                  usleep(_trajectory.wait.at(i)*1000000);
+                }
+
 
                 // Move to next waypoint
                 i++;
