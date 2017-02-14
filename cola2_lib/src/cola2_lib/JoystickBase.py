@@ -10,6 +10,8 @@ from std_msgs.msg import String
 import numpy as np
 # from cola2_lib import cola2_lib, cola2_ros_lib
 
+from threading import Lock
+
 class JoystickBase(object):
     """ This is a base class required to transform the joy messages
     that comes from a joystick to be defined to the messages required
@@ -58,6 +60,7 @@ class JoystickBase(object):
         self.joy_msg = Joy()
         self.joy_msg.axes = [0]*12 # 6 pose + 6 twist
         self.joy_msg.buttons = [0]*12 # 6 pose + 6 twist
+        self.mutual_exclusion = Lock()
 
         # Create publisher
         self.pub_map_ack_data = rospy.Publisher(
@@ -97,14 +100,15 @@ class JoystickBase(object):
 
     def update_joy(self, joy):
         """ This method must be overloaded!"""
+        self.mutual_exclusion.acquire()
         rospy.loginfo("%s: Method update_joy must be overloaded")
-
+        self.mutual_exclusion.release()
 
     def iterate(self, event):
         """ This method is a callback of a timer. This is used to publish the
             output joy message """
-
+        self.mutual_exclusion.acquire()
         # Publish message
         self.pub_map_ack_data.publish(self.joy_msg)
-
+        self.mutual_exclusion.release()
         # Reset buttons
