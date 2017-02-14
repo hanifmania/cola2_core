@@ -58,10 +58,12 @@ class MissionWait():
         rospy.set_param('/trajectory/mode', mode)
         rospy.set_param('/trajectory/timeout', timeout)
         rospy.set_param('/trajectory/tolerance', tolerance)
+        rospy.set_param('/trajectory/surge', [0.5, 0.5, 0.5])
         rospy.set_param('/trajectory/force_initial_final_waypoints_at_surface',
                         force_initial_final_waypoints_at_surface)
         rospy.loginfo("Load trajectory to captain and execute it.")
         try:
+            rospy.sleep(1.0)
             self.load_trajectory_srv(EmptyRequest())
             rospy.sleep(1.0)
             self.enable_trajectory_srv(EmptyRequest())
