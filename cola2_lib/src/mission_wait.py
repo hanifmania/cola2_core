@@ -15,9 +15,9 @@ class MissionWait():
         self.load_trajectory_srv = rospy.ServiceProxy(
             '/cola2_control/load_trajectory', Empty)
 
-        rospy.wait_for_service('/cola2_control/enable_trajectory')
+        rospy.wait_for_service('/cola2_control/enable_trajectory_non_block')
         self.enable_trajectory_srv = rospy.ServiceProxy(
-            '/cola2_control/enable_trajectory', Empty)
+            '/cola2_control/enable_trajectory_non_block', Empty)
 
         # Create service
         self.enable_mission_wait = rospy.Service('/enable_mission_wait',
@@ -58,16 +58,17 @@ class MissionWait():
         rospy.set_param('/trajectory/mode', mode)
         rospy.set_param('/trajectory/timeout', timeout)
         rospy.set_param('/trajectory/tolerance', tolerance)
+        rospy.set_param('/trajectory/surge', [0.5, 0.5, 0.5])
         rospy.set_param('/trajectory/force_initial_final_waypoints_at_surface',
                         force_initial_final_waypoints_at_surface)
-
         rospy.loginfo("Load trajectory to captain and execute it.")
         try:
+            rospy.sleep(1.0)
             self.load_trajectory_srv(EmptyRequest())
             rospy.sleep(1.0)
             self.enable_trajectory_srv(EmptyRequest())
         except rospy.ServiceException as exc:
-            rospy.logerror(
+            rospy.logerr(
                 "Service Load/Enable trajectory did not process request: "
                 + str(exc))
 
