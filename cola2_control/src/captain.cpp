@@ -802,14 +802,14 @@ void Captain::run_trajectory()
           _mission_status.altitude_mode = true;
         }
         if (_trajectory.tolerance.size() == 0) {
-            req.position_tolerance.x = _config.tolerance.x;
-            req.position_tolerance.y = _config.tolerance.y;
-            req.position_tolerance.z = _config.tolerance.z;
+            req.position_tolerance.x = _config.tolerance.x * 3.0;
+            req.position_tolerance.y = _config.tolerance.y * 3.0;
+            req.position_tolerance.z = _config.tolerance.z * 2.0;
         }
         else {
-            req.position_tolerance.x = _trajectory.tolerance.at(0);
-            req.position_tolerance.y = _trajectory.tolerance.at(1);
-            req.position_tolerance.z = _trajectory.tolerance.at(2);
+            req.position_tolerance.x = _trajectory.tolerance.at(0) * 3.0;
+            req.position_tolerance.y = _trajectory.tolerance.at(1) * 3.0;
+            req.position_tolerance.z = _trajectory.tolerance.at(2) * 2.0;
         }
 
         req.linear_velocity.x = _trajectory.surge.at(0);
@@ -915,7 +915,7 @@ void Captain::run_trajectory()
                 if (_trajectory.surge.at(i-1) != 0.0 && _trajectory.surge.at(i-1) < _min_loscte_vel) {
                     min_vel = _trajectory.surge.at(i-1);
                 }
-                double timeout = (2*distance_to_end_section) / min_vel;
+                double timeout = 10 + (2*distance_to_end_section) / min_vel;
                 ROS_INFO_STREAM(_name << ": Section timeout = " << timeout << "\n");
 
                 // Fill mission_status message
@@ -957,7 +957,7 @@ void Captain::run_trajectory()
                     req.position.z = 0.0;
                     req.position_tolerance.x = 3.0;
                     req.position_tolerance.y = 3.0;
-                    req.position_tolerance.z = 2.0;
+                    req.position_tolerance.z = 2.0; // Only checks z = 0
                     req.reference = cola2_msgs::Goto::Request::REFERENCE_NED;
                     enable_goto(req, res);
                     ROS_ASSERT_MSG(res.success, "Impossible to reach final waypoint");
