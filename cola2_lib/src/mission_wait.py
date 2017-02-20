@@ -46,7 +46,7 @@ class MissionWait():
         altitude_mode = [False, altitude_mode, False]
         mode = 'los_cte'
         timeout = float(req.param[4])/60.0 + 10
-        tolerance = [2.0, 2.0, 1.0, 0.5, 0.5, 0.3]
+        tolerance = [1.5, 1.5, 0.5, 0.5, 0.5, 0.3]
         force_initial_final_waypoints_at_surface = False
 
         rospy.loginfo("Load trajectory wait params to param server.")
