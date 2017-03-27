@@ -53,9 +53,11 @@ def save_params_callback(req):
 if __name__ == '__main__':
     # Init node
     global params_path
-    params_path = str(sys.argv[1])
-    rospy.loginfo("Save params path: " + params_path)
     rospy.init_node('param_logger')
+    params_path = "."
+    if len(sys.argv) > 1:
+        params_path = str(sys.argv[1])
+    rospy.loginfo("Save params path: " + params_path)
     pub = rospy.Publisher('/params_string', String, queue_size=1, latch=True)
     tim = rospy.Timer(rospy.Duration(120), callback, oneshot=True)
     s = rospy.Service('/save_params_to_file', Empty, save_params_callback)
