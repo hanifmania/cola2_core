@@ -1138,43 +1138,43 @@ Captain::playMission(cola2_msgs::String::Request &req,
         std::cout << "Load mission: " << mission_path << std::endl;
         Mission mission;
         mission.loadMission(mission_path);
-
+        std::cout << "Mission loaded!\n";
         _is_mission_running = true;
+
         for (unsigned int i = 0; i < mission.size(); i++) {
             if (!_is_mission_running) {
                 ROS_WARN_STREAM(_name << ": mission has been disabled.");
                 break;
             }
             MissionStep *step = mission.getStep(i);
-            if (step->step_type == MISSION_CONFIGURATION) {
-                MissionConfiguration *conf = dynamic_cast<MissionConfiguration*>(step);
-                this->addParamToParamServer(conf->key, conf->value);
+            std::cout << "Step " << i << std::endl;
+
+			// Play mission step maneuver
+            if (step->getManeuver()->getManeuverType() == WAYPOINT_MANEUVER) {
+                MissionWaypoint *wp = dynamic_cast<MissionWaypoint*>(step->getManeuver());
+                // std::cout << *wp << std::endl;
+                if (!this->worldWaypoint(*wp)) {
+                    ROS_WARN_STREAM(_name << "Impossible to reach waypoint. Move to next mission step.");
+                }
             }
-            else if (step->step_type == MISSION_ACTION) {
-                MissionAction *act = dynamic_cast<MissionAction*>(step);
-                this->callAction(act->_is_empty, act->action_id, act->parameters);
+            else if (step->getManeuver()->getManeuverType() == SECTION_MANEUVER) {
+                MissionSection *sec = dynamic_cast<MissionSection*>(step->getManeuver());
+                // std::cout << *sec << std::endl;
+                if (!this->worldSection(*sec)) {
+                    ROS_WARN_STREAM(_name << "Impossible to reach section. Move to next mission step.");
+                }
             }
-            else if (step->step_type == MISSION_MANEUVER) {
-                MissionManeuver *m = dynamic_cast<MissionManeuver*>(step);
-                if (m->getManeuverType() == WAYPOINT_MANEUVER) {
-                    MissionWaypoint *wp = dynamic_cast<MissionWaypoint*>(m);
-                    std::cout << *wp << std::endl;
-                    if (!this->worldWaypoint(*wp)) {
-                        ROS_WARN_STREAM(_name << "Impossible to reach waypoint. Move to next mission step.");
-                    }
-                }
-                else if (m->getManeuverType() == SECTION_MANEUVER) {
-                    MissionSection *sec = dynamic_cast<MissionSection*>(m);
-                    std::cout << *sec << std::endl;
-                    if (!this->worldSection(*sec)) {
-                        ROS_WARN_STREAM(_name << "Impossible to reach section. Move to next mission step.");
-                    }
-                }
-                else if (m->getManeuverType() == PARK_MANEUVER) {
-                    MissionPark *park = dynamic_cast<MissionPark*>(m);
-                    std::cout << *park << std::endl;
-                    this->park(*park);
-                }
+            else if (step->getManeuver()->getManeuverType() == PARK_MANEUVER) {
+                MissionPark *park = dynamic_cast<MissionPark*>(step->getManeuver());
+                // std::cout << *park << std::endl;
+                this->park(*park);
+            }
+
+            // Play mission_step actions
+            std::vector<MissionAction> actions = step->getActions();
+            for (std::vector<MissionAction>::iterator action = actions.begin(); action != actions.end(); ++action)
+            {
+                this->callAction(action->_is_empty, action->action_id, action->parameters);
             }
         }
         if (_is_mission_running) {
@@ -1182,8 +1182,21 @@ Captain::playMission(cola2_msgs::String::Request &req,
             _is_mission_running = false;
         }
     }
+
     return true;
 }
+
+
+
+
+// if (step->step_type == MISSION_CONFIGURATION) {
+// 	MissionConfiguration *conf = dynamic_cast<MissionConfiguration*>(step);
+// 	this->addParamToParamServer(conf->key, conf->value);
+// }
+// else if (step->step_type == MISSION_ACTION) {
+// 	MissionAction *act = dynamic_cast<MissionAction*>(step);
+// 	this->callAction(act->_is_empty, act->action_id, act->parameters);
+// }
 
 void
 Captain::addParamToParamServer(const std::string key,
@@ -1217,6 +1230,8 @@ Captain::callAction(const bool is_empty,
 bool
 Captain::worldWaypoint(const MissionWaypoint wp)
 {
+    std::cout << "Execute mission waypoint\n";
+
     // Define waypoint attributes
     cola2_msgs::Goto::Request goto_req;
     cola2_msgs::Goto::Response goto_res;

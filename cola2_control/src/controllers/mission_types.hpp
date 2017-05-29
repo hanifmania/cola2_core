@@ -486,7 +486,7 @@ public:
         bool position = false;
         bool speed = false;
         bool tolerance = false;
-
+        std::cout << "Load maneuver waypoint\n";
         for(pElem; pElem; pElem=pElem->NextSiblingElement())
 		{
             std::string wp_tag = pElem->Value();
@@ -502,7 +502,7 @@ public:
             }
             if (position && speed && tolerance) break;
         }
-        std::cout << "Load: " << waypoint << std::endl;
+        // std::cout << "Loaded!" << std::endl;
         return (position && speed && tolerance);
     }
 
@@ -533,7 +533,7 @@ public:
             }
             if (initial_position && final_position && speed && tolerance) break;
         }
-        std::cout << "Load: " << section << std::endl;
+        // std::cout << "Loadede " << section << std::endl;
         return (initial_position && final_position && speed && tolerance);
     }
 
@@ -560,7 +560,7 @@ public:
             }
             if (position && time && tolerance) break;
         }
-        std::cout << "Load: " << park << std::endl;
+        // std::cout << "Load: " << park << std::endl;
         return (position && time && tolerance);
     }
 
