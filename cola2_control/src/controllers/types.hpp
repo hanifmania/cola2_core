@@ -66,6 +66,7 @@ namespace control {
         unsigned int controller_type;
         unsigned int timeout;
         control::vector6d disable_axis;
+		bool keep_position;
 
         Waypoint() {
             requester = "requester_not_defined";
@@ -98,6 +99,7 @@ namespace control {
             angular_velocity.roll = 0.0;
             angular_velocity.pitch = 0.0;
             angular_velocity.yaw = 0.0;
+            keep_position = false;
         }
     };
 

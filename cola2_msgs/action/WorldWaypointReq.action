@@ -36,6 +36,9 @@ uint8 ANCHOR=2 # to keep position with non holonomic vehicles
 
 # Max time to achieve waypoint. If timeout <= 0, time is not finite.
 int16 timeout
+
+# Is a keep position request?
+bool keep_position
 ---
 
 # Define the result

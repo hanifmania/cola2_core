@@ -186,7 +186,7 @@ private:
 
     bool worldSection(const MissionSection sec);
 
-    void park(const MissionPark park);
+    bool park(const MissionPark park);
 
     void mission_status_timer(const ros::TimerEvent&);
 };
@@ -448,8 +448,9 @@ Captain::enable_goto(cola2_msgs::Goto::Request &req,
         }
 
         // Choose WorldWaypointReq mode taking into account disable axis & tolerance
-        if (req.position_tolerance.x == 0.0 && req.position_tolerance.y == 0.0 && req.position_tolerance.z == 0.0 && !req.disable_axis.x && req.disable_axis.y && !req.disable_axis.yaw) {
+        if (req.keep_position && !req.disable_axis.x && req.disable_axis.y && !req.disable_axis.yaw) {
             // Non holonomic keep position
+            ROS_INFO_STREAM(_name << ": ANCHOR mode on!\n");
             waypoint.controller_type = cola2_msgs::WorldWaypointReqGoal::ANCHOR;
         }
         else if (!req.disable_axis.x && req.disable_axis.y && !req.disable_axis.yaw) {
@@ -465,6 +466,10 @@ Captain::enable_goto(cola2_msgs::Goto::Request &req,
             waypoint.controller_type = cola2_msgs::WorldWaypointReqGoal::GOTO;
         }
 
+        // Is a goto request to keep position?
+        waypoint.keep_position = req.keep_position;
+
+        // Indicate that a waypoint is under execution
         _is_waypoint_running = true;
 
         // Compute timeout
@@ -474,10 +479,25 @@ Captain::enable_goto(cola2_msgs::Goto::Request &req,
         }
         waypoint.timeout = (2.0 * distance_to_waypoint) / min_vel;
         if (waypoint.timeout < 30.0) waypoint.timeout = 30.0;
-        if (req.keep_position) {
-              ROS_INFO_STREAM(_name << ": Keep position TRUE. Setting timeout to 3600s.");
-              waypoint.timeout = 3600;
-            }
+        if (req.timeout > 0 && req.timeout < waypoint.timeout)
+        {
+          std::cout << "Warning! Goto request timeout is " << req.timeout << " while computed timeout is " << waypoint.timeout << ". Override.\n";
+          waypoint.timeout = req.timeout;
+        }
+
+        if (req.keep_position)
+        {
+          if (req.timeout > 0)
+          {
+            ROS_INFO_STREAM(_name << ": Keep position TRUE. Setting timeout to GOTO request value: " << req.timeout << "\n");
+            waypoint.timeout = req.timeout;
+          }
+          else
+          {
+            ROS_INFO_STREAM(_name << ": Keep position TRUE but timeout GOTO request value is 0. Set timeout to 3600\n");
+            waypoint.timeout = 3600;
+          }
+        }
 
         if (waypoint.altitude_mode) {
             ROS_INFO_STREAM(_name << ": Send WorldWaypointRequest at " << waypoint.position.north << ", "  << waypoint.position.east << ", " << waypoint.altitude << " altitude. Timeout = " << waypoint.timeout << "\n");
@@ -1167,7 +1187,9 @@ Captain::playMission(cola2_msgs::String::Request &req,
             else if (step->getManeuver()->getManeuverType() == PARK_MANEUVER) {
                 MissionPark *park = dynamic_cast<MissionPark*>(step->getManeuver());
                 // std::cout << *park << std::endl;
-                this->park(*park);
+                if (!this->park(*park)) {
+                    ROS_WARN_STREAM(_name << "Impossible to reach park waypoint. Move to next mission step.");
+                }
             }
 
             // Play mission_step actions
@@ -1308,10 +1330,47 @@ Captain::worldSection(const MissionSection sec)
     return true;
 }
 
-void
+bool
 Captain::park(const MissionPark park)
 {
-    ROS_WARN_STREAM(_name << ": Park not implemented!");
+    std::cout << "Execute mission park: Reaching park waypoint\n";
+
+    // Define waypoint attributes
+    cola2_msgs::Goto::Request goto_req;
+    cola2_msgs::Goto::Response goto_res;
+
+    goto_req.altitude = park.position.z;
+    goto_req.altitude_mode = park.position.altitude_mode;
+    goto_req.linear_velocity.x = 0.3; // Fixed velocity when reaching park waypoint
+    goto_req.position.x = park.position.latitude;
+    goto_req.position.y = park.position.longitude;
+    goto_req.position.z = park.position.z;
+    goto_req.position_tolerance.x = 3.0;
+    goto_req.position_tolerance.y = 3.0;
+    goto_req.position_tolerance.z = 1.5;
+    goto_req.blocking = true;
+    goto_req.keep_position = false;
+    goto_req.disable_axis.x = false;
+    goto_req.disable_axis.y = true;
+    goto_req.disable_axis.z = false;
+    goto_req.disable_axis.roll = true;
+    goto_req.disable_axis.yaw = false;
+    goto_req.disable_axis.pitch = true;
+    goto_req.priority = auv_msgs::GoalDescriptor::PRIORITY_NORMAL;
+    goto_req.reference = cola2_msgs::Goto::Request::REFERENCE_GLOBAL;
+
+    // Call goto
+    if (enable_goto(goto_req, goto_res))
+    {
+      std::cout << "Execute mission park: Wait for " << park.time << " seconds\n";
+      goto_req.keep_position = true;
+      goto_req.position_tolerance.x = 0.0;
+      goto_req.position_tolerance.y = 0.0;
+      goto_req.position_tolerance.z = 0.0;
+      goto_req.timeout = park.time;
+      return enable_goto(goto_req, goto_res);
+    }
+    return false;
 }
 
 int main(int argc, char **argv) {
