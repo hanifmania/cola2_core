@@ -1185,6 +1185,11 @@ Captain::playMission(cola2_msgs::String::Request &req,
                 ROS_WARN_STREAM(_name << ": mission has been disabled.");
                 break;
             }
+            // Mission Status
+            _mission_status.current_wp = i + 1;
+            _mission_status.total_wp = mission.size();
+            // TODO: Pass north, east, down values
+            
             MissionStep *step = mission.getStep(i);
             std::cout << "Step " << i << std::endl;
 
@@ -1222,6 +1227,14 @@ Captain::playMission(cola2_msgs::String::Request &req,
             ROS_INFO_STREAM(_name << ": Mission finalized.");
             _is_mission_running = false;
         }
+
+        // Set mission status to missioin disabled
+        _mission_status.current_wp = 0;
+        _mission_status.total_wp = 0;
+        _mission_status.wp_north = 0.0;
+        _mission_status.wp_east = 0.0;
+        _mission_status.altitude_mode = 0.0;
+        _mission_status.wp_depth_altitude = 0.0;
     }
 
     return true;
