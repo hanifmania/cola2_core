@@ -13,7 +13,7 @@ import rospy
 import dynamic_reconfigure.client
 from dynamic_reconfigure.server import Server
 
-from std_srvs.srv import Empty, EmptyRequest
+from std_srvs.srv import Empty, EmptyRequest, EmptyResponse
 from std_msgs.msg import Int16
 from diagnostic_msgs.msg import DiagnosticArray
 from diagnostic_msgs.msg import DiagnosticStatus
@@ -120,8 +120,17 @@ class Cola2Safety(object):
         self.dynamic_reconfigure_srv = Server( SafetyConfig,
                                                self.dynamic_reconfigure_callback )
                                                # Define mission timeout
+	    # Create service
+        self.reload_params_srv = rospy.Service('/cola2_safety/reload_safety_params',
+											   Empty,
+											   self.reload_params_srv)
 
-
+    def reload_params_srv(self, req):
+        """ Callback of reload params service """
+        rospy.loginfo('%s: received reload params service', self.name)
+        self.get_config()
+        return EmptyResponse()
+        
     def dynamic_reconfigure_callback(self, config, level):
         rospy.loginfo("""Reconfigure Request: {timeout}""".format(**config))
         self.timeout_reset = 10
