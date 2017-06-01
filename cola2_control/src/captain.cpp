@@ -90,6 +90,7 @@ private:
     ros::ServiceServer _set_trajectory_srv;
     ros::ServiceServer _enable_trajectory_srv;
     ros::ServiceServer _enable_trajectory_non_block_srv;
+    ros::ServiceServer _play_default_mission_non_block_srv;
     ros::ServiceServer _disable_trajectory_srv;
     ros::ServiceServer _enable_keep_position_holonomic_srv;
     ros::ServiceServer _enable_keep_position_non_holonomic_srv;
@@ -153,6 +154,9 @@ private:
 
     bool enable_trajectory_non_block(std_srvs::Empty::Request&,
                                      std_srvs::Empty::Response&);
+
+    bool play_default_mission_non_block(std_srvs::Empty::Request&,
+                                        std_srvs::Empty::Response&);
 
     bool disable_trajectory(std_srvs::Empty::Request&,
                             std_srvs::Empty::Response&);
@@ -236,6 +240,7 @@ Captain::Captain():
     _set_trajectory_srv = _n.advertiseService("/cola2_control/set_trajectory", &Captain::set_trajectory, this);
     _enable_trajectory_srv = _n.advertiseService("/cola2_control/enable_trajectory", &Captain::enable_trajectory, this);
     _enable_trajectory_non_block_srv = _n.advertiseService("/cola2_control/enable_trajectory_non_block", &Captain::enable_trajectory_non_block, this);
+    _play_default_mission_non_block_srv = _n.advertiseService("/cola2_control/play_default_mission_non_block", &Captain::play_default_mission_non_block, this);
     _disable_trajectory_srv = _n.advertiseService("/cola2_control/disable_trajectory", &Captain::disable_trajectory, this);
     _enable_keep_position_holonomic_srv = _n.advertiseService("/cola2_control/enable_keep_position_4dof", &Captain::enable_keep_position_holonomic, this);
     _enable_keep_position_non_holonomic_srv = _n.advertiseService("/cola2_control/enable_keep_position_3dof", &Captain::enable_keep_position_non_holonomic, this);
@@ -774,6 +779,18 @@ Captain::enable_trajectory_non_block(std_srvs::Empty::Request&,
 {
     boost::thread *t;
     t = new boost::thread(&Captain::run_trajectory, this);
+    return true;
+}
+
+bool
+Captain::play_default_mission_non_block(std_srvs::Empty::Request&,
+                                        std_srvs::Empty::Response&)
+{
+    boost::thread *t;
+	cola2_msgs::String::Request req;
+	cola2_msgs::String::Response res;
+	req.mystring = "last_mission.xml";
+    t = new boost::thread(&Captain::playMission, this, req, res);
     return true;
 }
 
