@@ -95,6 +95,11 @@ class Teleoperation(object):
             Empty,
             self.set_axes_velocity)
 
+        self.reload_config_srv = rospy.Service(
+             '/cola2_control/reload_joystick_config',
+             Empty,
+             self.reload_joystick_config_srv)
+
         # Init periodic check timer
         rospy.Timer(rospy.Duration(1.0), self.check_map_ack)
 
@@ -322,6 +327,12 @@ class Teleoperation(object):
 
         self.map_ack_data_callback(data)
 
+        return EmptyResponse()
+
+    def reload_joystick_config_srv(self, req):
+        """ Reload joystick config values."""
+        rospy.loginfo("%s: Reload teleopertion configurations.", self.name)
+        self.get_config()
         return EmptyResponse()
 
 
