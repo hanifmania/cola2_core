@@ -130,7 +130,7 @@ class Cola2Safety(object):
         rospy.loginfo('%s: received reload params service', self.name)
         self.get_config()
         return EmptyResponse()
-        
+
     def dynamic_reconfigure_callback(self, config, level):
         rospy.loginfo("""Reconfigure Request: {timeout}""".format(**config))
         self.timeout_reset = 10
@@ -142,7 +142,7 @@ class Cola2Safety(object):
     def updateMissionStatus(self, mission_status):
         """ Update ERROR CODE with the mission status information. """
 
-        current_wp = bin(mission_status.current_wp % 64)
+        current_wp = bin(mission_status.current_wp % 256)
         for b in range(len(current_wp) - 2):
             self.error_code[cola2_lib.ErrorCode.CURRENT_WAYPOINT_BASE - b] = current_wp[-(1+b)]
 
