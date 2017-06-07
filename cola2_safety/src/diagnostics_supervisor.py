@@ -356,9 +356,9 @@ class Cola2Safety(object):
 
 
             # Rule: Water Leack --> S2
-            if __getDiagnostic__( status, '/safety/ mon_control_board') or __getDiagnostic__( status, '/control/ actuators'):
-                water_main = __getDiagnostic__(status, '/safety/ mon_control_board', 'water_inside', 'False')
-                water_fins = __getDiagnostic__(status, '/control/ actuators', 'water_inside_fins', 'False')
+            if __getDiagnostic__( status, '/safety/ s2_mon_control_board') or __getDiagnostic__( status, '/control/ s2_actuators'):
+                water_main = __getDiagnostic__(status, '/safety/ s2_mon_control_board', 'water_inside', 'False')
+                water_fins = __getDiagnostic__(status, '/control/ s2_actuators', 'water_inside_fins', 'False')
 
                 if water_main == 'True' or water_fins == 'True':
                     self.diagnostic.add('s2_water', 'True')
@@ -370,7 +370,6 @@ class Cola2Safety(object):
                 else:
                     rospy.loginfo("%s: S2 no water", self.name)
                     self.diagnostic.add('s2_water', 'False')
-
 
 
             # Rule: High Temperature
@@ -398,7 +397,7 @@ class Cola2Safety(object):
                 up_time = __getDiagnostic__(status, '/safety/ up_time', 'up_time', '0.0')
                 self.diagnostic.add('up_time', up_time)
                 if float(up_time) > self.timeout and self.timeout_reset < 0:
-                    self.error_code[cola2_lib.ErrorCode.INTERNAL_SENSORS_ERROR] = '1'
+                    # self.error_code[cola2_lib.ErrorCode.INTERNAL_SENSORS_ERROR] = '1'
                     self.call_recovery_action(
                                     "Absolute Timeout reached!",
                                      RecoveryActionRequest.ABORT_AND_SURFACE)
