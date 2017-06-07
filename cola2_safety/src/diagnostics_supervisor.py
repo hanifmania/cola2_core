@@ -425,8 +425,6 @@ class Cola2Safety(object):
 
         param_dict = {'min_altitude': 'safe_depth_altitude/min_altitude',
                       'max_depth': 'safe_depth_altitude/max_depth',
-                      'max_temperature_pc': 'safety/max_temperature_pc',
-                      'max_temperature_bat': 'safety/max_temperature_bat',
                       'min_battery_charge': 'safety/min_battery_charge',
                       'min_imu_update': 'safety/min_imu_update',
                       'min_depth_update': 'safety/min_depth_update',
@@ -434,8 +432,7 @@ class Cola2Safety(object):
                       'min_gps_update': 'safety/min_gps_update',
                       'min_dvl_update': 'safety/min_dvl_update',
                       'min_nav_update': 'safety/min_nav_update',
-                      'min_wifi_update': 'safety/min_wifi_update',
-                      'min_distance_to_wall': 'safety/min_distance_to_wall',
+                      'min_wifi_update': 'safety/min_wifi_update', 
                       'working_area_north_origin': 'virtual_cage/north_origin',
                       'working_area_east_origin': 'virtual_cage/east_origin',
                       'working_area_north_length': 'virtual_cage/north_longitude',
