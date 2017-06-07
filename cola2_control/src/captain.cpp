@@ -62,7 +62,7 @@ private:
     // Class attributes
     bool _is_waypoint_running;
     bool _is_section_running;
-    bool _is_trajectory_disabled;
+    bool _is_trajectory_disabled; // TODO: Redundant?
     bool _is_mission_running;
 
     ros::MultiThreadedSpinner _spinner;
@@ -280,7 +280,7 @@ Captain::update_nav(const ros::MessageEvent<auv_msgs::NavSts const> & msg)
     _nav.yaw = msg.getMessage()->orientation.yaw;
     _nav.altitude = msg.getMessage()->altitude;
 
-    if (_is_section_running) {
+    if (_is_mission_running) {
         _diagnostic.add("trajectory_enabled", "True");
         _diagnostic.setLevel(diagnostic_msgs::DiagnosticStatus::OK);
     }
@@ -897,7 +897,8 @@ void Captain::run_trajectory()
         }
 
         if (!_is_trajectory_disabled) {
-            _is_section_running = true;
+            _is_mission_running = true;
+
             // Create section
             cola2_msgs::WorldSectionReqGoal section;
             section.priority = auv_msgs::GoalDescriptor::PRIORITY_NORMAL;
@@ -924,7 +925,7 @@ void Captain::run_trajectory()
             }
 
             unsigned int i = 1;
-            while (i < _trajectory.x.size() &&  _is_section_running) {
+            while (i < _trajectory.x.size() &&  _is_mission_running) { //TODO: Check
                 // For each pair of waypoints:
                 // ...initial point of the section
 
@@ -1004,8 +1005,7 @@ void Captain::run_trajectory()
                 // Move to next waypoint
                 i++;
             }
-            if(_is_section_running){
-                _is_section_running = false;
+            if(_is_mission_running){
                 // Move to final waypoint on surface if necessary
                 if (_trajectory.force_initial_final_waypoints_at_surface) {
                     req.priority = auv_msgs::GoalDescriptor::PRIORITY_NORMAL;
@@ -1025,6 +1025,7 @@ void Captain::run_trajectory()
                     req.reference = cola2_msgs::Goto::Request::REFERENCE_NED;
                     enable_goto(req, res);
                     ROS_ASSERT_MSG(res.success, "Impossible to reach final waypoint");
+                    _is_mission_running = false;
                 }
             }
         }
@@ -1050,11 +1051,15 @@ Captain::disable_trajectory(std_srvs::Empty::Request&,
         _is_trajectory_disabled = true;
         _waypoint_client->cancelGoal();
     }
-    else if(_is_section_running) {
+    if(_is_section_running) {
         _is_section_running = false;
+        _is_trajectory_disabled = true;
         _section_client->cancelGoal();
     }
-    _is_mission_running = false;
+    if(_is_mission_running) {
+        _is_mission_running = false;
+        _is_trajectory_disabled = true;
+    }
     return true;
 }
 
@@ -1247,7 +1252,6 @@ Captain::playMission(cola2_msgs::String::Request &req,
 
         for (unsigned int i = 0; i < mission.size(); i++) {
             if (!_is_mission_running) {
-                ROS_WARN_STREAM(_name << ": mission has been disabled.");
                 break;
             }
             // Mission Status
@@ -1292,6 +1296,10 @@ Captain::playMission(cola2_msgs::String::Request &req,
             ROS_INFO_STREAM(_name << ": Mission finalized.");
             _is_mission_running = false;
         }
+        else
+        {
+          ROS_WARN_STREAM(_name << ": mission has been disabled.");
+        }
 
         // Set mission status to missioin disabled
         _mission_status.current_wp = 0;
@@ -1301,11 +1309,8 @@ Captain::playMission(cola2_msgs::String::Request &req,
         _mission_status.altitude_mode = 0.0;
         _mission_status.wp_depth_altitude = 0.0;
     }
-
     return true;
 }
-
-
 
 
 // if (step->step_type == MISSION_CONFIGURATION) {
@@ -1418,6 +1423,7 @@ Captain::worldSection(const MissionSection sec)
     section.final_surge = sec.speed;
     section.altitude_mode = sec.initial_position.altitude_mode;
 
+    _is_section_running = true;
     _section_client->sendGoal(section);
 
     // Compute timeout
@@ -1433,6 +1439,7 @@ Captain::worldSection(const MissionSection sec)
     double timeout = (2*distance_to_end_section) / min_vel;
     ROS_INFO_STREAM(_name << ": Section timeout = " << timeout << "\n");
     _section_client->waitForResult(ros::Duration(timeout));
+    _is_section_running = false;
     return true;
 }
 
@@ -1468,13 +1475,17 @@ Captain::park(const MissionPark park)
     // Call goto
     if (enable_goto(goto_req, goto_res))
     {
-      std::cout << "Execute mission park: Wait for " << park.time << " seconds\n";
-      goto_req.keep_position = true;
-      goto_req.position_tolerance.x = 0.0;
-      goto_req.position_tolerance.y = 0.0;
-      goto_req.position_tolerance.z = 0.0;
-      goto_req.timeout = park.time;
-      return enable_goto(goto_req, goto_res);
+      if(_is_mission_running)
+      {
+        std::cout << "Execute mission park: Wait for " << park.time << " seconds\n";
+        goto_req.keep_position = true;
+        goto_req.position_tolerance.x = 0.0;
+        goto_req.position_tolerance.y = 0.0;
+        goto_req.position_tolerance.z = 0.0;
+        goto_req.timeout = park.time;
+        return enable_goto(goto_req, goto_res);
+      }
+      return true;
     }
     return false;
 }
