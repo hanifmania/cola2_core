@@ -126,6 +126,11 @@ void IAUVController::setThrusterAllocator(const bool is_enabled)
   _is_thruster_allocator_enable = is_enabled;
 }
 
+bool IAUVController::getThrusterAllocator() const
+{
+  return _is_thruster_allocator_enable;
+}
+
 bool IAUVController::isThrusterAllocatorEnable() const
 {
   return _is_thruster_allocator_enable;

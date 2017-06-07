@@ -10,6 +10,8 @@
 #include <cola2_msgs/Setpoints.h>
 #include <std_msgs/Float32.h>
 #include <std_msgs/Float64.h>
+#include <std_msgs/Bool.h>
+
 
 #include <algorithm>
 #include <cmath>
@@ -76,6 +78,7 @@ class IAUVROSController
   ros::Publisher _pub_merged_twist;
   ros::Publisher _pub_thrusters_setpoint;
   ros::Publisher _pub_fins_setpoint;
+  ros::Publisher _pub_thrusters_state;
 
   // Subscriber
   ros::Subscriber _sub_nav_data;

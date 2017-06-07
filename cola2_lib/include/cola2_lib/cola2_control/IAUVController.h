@@ -48,6 +48,8 @@ class IAUVController
   void setPoseController(const bool is_enabled);
   void setVelocityController(const bool is_enabled);
   void setThrusterAllocator(const bool is_enabled);
+  bool getThrusterAllocator() const;
+
   void setFinAllocator(const bool is_enabled);
 
   bool isThrusterAllocatorEnable() const;
