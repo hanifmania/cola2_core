@@ -67,7 +67,7 @@ private:
 
     ros::MultiThreadedSpinner _spinner;
     Trajectory _trajectory;
-    Ned *_ned;
+    // Ned *_ned;
     control::Nav _nav;
     CaptainConfig _config;
     bool _is_holonomic_keep_pose_enabled;
@@ -360,12 +360,12 @@ Captain::get_config() {
     config.section_server_name = "section_server";
     double ned_latitude;
     double ned_longitude;
-    // Load NED origin
+    // Check that NED origin is defined
     if (!ros::param::getCached("navigator/ned_latitude", ned_latitude) ||
         !ros::param::getCached("navigator/ned_longitude", ned_longitude)){
       ROS_ASSERT_MSG(false, "NED origin not found in param server");
     }
-    _ned = new Ned(ned_latitude, ned_longitude, 0.0);
+    // _ned = new Ned(ned_latitude, ned_longitude, 0.0);
     cola2::rosutil::getParam("/captain/max_distance_to_waypoint", _config.max_distance_to_waypoint, 300.0);
     std::vector<double> tolerance;
     cola2::rosutil::loadVector("/captain/tolerance", tolerance);
@@ -412,7 +412,15 @@ Captain::enable_goto(cola2_msgs::Goto::Request &req,
         }
         else if (req.reference == cola2_msgs::GotoRequest::REFERENCE_GLOBAL){
             double north, east, depth;
-            _ned->geodetic2Ned(req.position.x, req.position.y, 0.0,
+            double ned_latitude;
+            double ned_longitude;
+            // Load NED origin. It can be modified at any time
+            if (!ros::param::getCached("navigator/ned_latitude", ned_latitude) ||
+                !ros::param::getCached("navigator/ned_longitude", ned_longitude)){
+              ROS_ASSERT_MSG(false, "NED origin not found in param server");
+            }
+            Ned ned(ned_latitude, ned_longitude, 0.0);
+            ned.geodetic2Ned(req.position.x, req.position.y, 0.0,
                                north, east, depth);
             waypoint.position.north = north;
             waypoint.position.east = east;
@@ -645,10 +653,18 @@ Captain::set_trajectory(cola2_msgs::SetTrajectory::Request &req,
     {
         ROS_INFO_STREAM(_name << ": global trajectory");
         double north, east, depth;
+        double ned_latitude;
+        double ned_longitude;
+        // Load NED origin, it can be modified at any time
+        if (!ros::param::getCached("navigator/ned_latitude", ned_latitude) ||
+            !ros::param::getCached("navigator/ned_longitude", ned_longitude)){
+          ROS_ASSERT_MSG(false, "NED origin not found in param server");
+        }
+        Ned ned(ned_latitude, ned_longitude, 0.0);
         for (unsigned int i = 0; i < trajectory.x.size(); i++)
         {
-            _ned->geodetic2Ned(trajectory.x.at(i), trajectory.y.at(i), 0.0,
-                               north, east, depth);
+            ned.geodetic2Ned(trajectory.x.at(i), trajectory.y.at(i), 0.0,
+                             north, east, depth);
             trajectory.x.at(i) = north;
             trajectory.y.at(i) = east;
         }
@@ -756,9 +772,17 @@ Captain::load_trajectory(std_srvs::Empty::Request &req,
     // If the trajectory is defined globally, tranform from lat/lon to NED.
     if(is_trajectory_global){
         double north, east, depth;
+        double ned_latitude;
+        double ned_longitude;
+        // Load NED origin, it can be modified at any time
+        if (!ros::param::getCached("navigator/ned_latitude", ned_latitude) ||
+            !ros::param::getCached("navigator/ned_longitude", ned_longitude)){
+          ROS_ASSERT_MSG(false, "NED origin not found in param server");
+        }
+        Ned ned(ned_latitude, ned_longitude, 0.0);
         for(unsigned int i = 0; i < trajectory.x.size(); i++){
-            _ned->geodetic2Ned(trajectory.x.at(i), trajectory.y.at(i), 0.0,
-                               north, east, depth);
+            ned.geodetic2Ned(trajectory.x.at(i), trajectory.y.at(i), 0.0,
+                             north, east, depth);
             trajectory.x.at(i) = north;
             trajectory.y.at(i) = east;
         }
@@ -1173,14 +1197,25 @@ Captain::create_path_from_mission(Mission mission)
     nav_msgs::Path path;
     path.header.stamp = ros::Time::now();
     path.header.frame_id = "/world";
-
+    double ned_latitude;
+    double ned_longitude;
+    // Load NED origin, it can be modified at any time
+    if (!ros::param::getCached("navigator/ned_latitude", ned_latitude) ||
+        !ros::param::getCached("navigator/ned_longitude", ned_longitude)){
+      ROS_ASSERT_MSG(false, "NED origin not found in param server");
+    }
+    Ned ned(ned_latitude, ned_longitude, 0.0);
+    double x, y, z;
     for (unsigned int i = 0; i < mission.size(); ++i)
     {
-        // TODO: passar de lat-lon a NED
         geometry_msgs::PoseStamped pose;
         pose.header.frame_id = path.header.frame_id;
-        pose.pose.position.x = mission.getStep(i)->getManeuver()->x();
-        pose.pose.position.y = mission.getStep(i)->getManeuver()->y();
+        ned.geodetic2Ned(mission.getStep(i)->getManeuver()->x(),
+                         mission.getStep(i)->getManeuver()->y(),
+                         0.0,
+                         x, y, z);
+        pose.pose.position.x = x;
+        pose.pose.position.y = y;
         pose.pose.position.z = mission.getStep(i)->getManeuver()->z();
         path.poses.push_back(pose);
     }
@@ -1356,8 +1391,17 @@ Captain::worldSection(const MissionSection sec)
     section.tolerance.z = sec.tolerance.z;
 
     double initial_north, initial_east, initial_depth;
-    _ned->geodetic2Ned(sec.initial_position.latitude, sec.initial_position.longitude, 0.0,
-                       initial_north, initial_east, initial_depth);
+    double ned_latitude;
+    double ned_longitude;
+    // Load NED origin, it can be modified at any time
+    if (!ros::param::getCached("navigator/ned_latitude", ned_latitude) ||
+        !ros::param::getCached("navigator/ned_longitude", ned_longitude)){
+      ROS_ASSERT_MSG(false, "NED origin not found in param server");
+    }
+    Ned ned(ned_latitude, ned_longitude, 0.0);
+
+    ned.geodetic2Ned(sec.initial_position.latitude, sec.initial_position.longitude, 0.0,
+                     initial_north, initial_east, initial_depth);
     section.initial_position.x = initial_north;
     section.initial_position.y = initial_east;
     section.initial_position.z = sec.initial_position.z;
@@ -1365,8 +1409,8 @@ Captain::worldSection(const MissionSection sec)
     section.initial_surge = sec.speed;
 
     double final_north, final_east, final_depth;
-    _ned->geodetic2Ned(sec.final_position.latitude, sec.final_position.longitude, 0.0,
-                       final_north, final_east, final_depth);
+    ned.geodetic2Ned(sec.final_position.latitude, sec.final_position.longitude, 0.0,
+                     final_north, final_east, final_depth);
     section.final_position.x = final_north;
     section.final_position.y = final_east;
     section.final_position.z = sec.final_position.z;
