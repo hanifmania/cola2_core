@@ -130,6 +130,7 @@ private:
     void get_config();
 
     nav_msgs::Path create_path_from_trajectory(Trajectory trajectory);
+    nav_msgs::Path create_path_from_mission(Mission mission);
 
     double distance_to(const double, const double, const double, const double, const bool);
 
@@ -1166,6 +1167,26 @@ Captain::create_path_from_trajectory(Trajectory trajectory)
     return path;
 }
 
+nav_msgs::Path
+Captain::create_path_from_mission(Mission mission)
+{
+    nav_msgs::Path path;
+    path.header.stamp = ros::Time::now();
+    path.header.frame_id = "/world";
+
+    for (unsigned int i = 0; i < mission.size(); ++i)
+    {
+        // TODO: passar de lat-lon a NED
+        geometry_msgs::PoseStamped pose;
+        pose.header.frame_id = path.header.frame_id;
+        pose.pose.position.x = mission.getStep(i)->getManeuver()->x();
+        pose.pose.position.y = mission.getStep(i)->getManeuver()->y();
+        pose.pose.position.z = mission.getStep(i)->getManeuver()->z();
+        path.poses.push_back(pose);
+    }
+    return path;
+}
+
 // ------------------ MISSION RELATED METHODS -------------------
 
 bool
@@ -1176,8 +1197,17 @@ Captain::playMission(cola2_msgs::String::Request &req,
         std::string mission_path = _config.mission_path + "/" + req.mystring;
         std::cout << "Load mission: " << mission_path << std::endl;
         Mission mission;
-        mission.loadMission(mission_path);
+        if(mission.loadMission(mission_path) < 0)
+        {
+            std::cout << "Problem loading mission.\n";
+            return false;
+        }
         std::cout << "Mission loaded!\n";
+
+        // Publish mission path
+        nav_msgs::Path path = create_path_from_mission(mission);
+        _pub_path.publish(path);
+
         _is_mission_running = true;
 
         for (unsigned int i = 0; i < mission.size(); i++) {
@@ -1189,7 +1219,7 @@ Captain::playMission(cola2_msgs::String::Request &req,
             _mission_status.current_wp = i + 1;
             _mission_status.total_wp = mission.size();
             // TODO: Pass north, east, down values
-            
+
             MissionStep *step = mission.getStep(i);
             std::cout << "Step " << i << std::endl;
 

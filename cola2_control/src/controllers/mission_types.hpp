@@ -37,6 +37,24 @@ public:
         return _maneuver_type;
     }
 
+	virtual double
+	x()
+	{
+		return 0.0;
+	}
+
+	virtual double
+	y()
+	{
+		return 0.0;
+	}
+
+	virtual double
+	z()
+	{
+		return 0.0;
+	}
+
 private:
     unsigned int _maneuver_type;
 };
@@ -129,6 +147,24 @@ public:
         std::cout << *this;
     }
 
+    double
+    x()
+    {
+        return position.latitude;
+    }
+
+    double
+    y()
+    {
+        return position.longitude;
+    }
+
+    double
+    z()
+    {
+        return position.z;
+    }
+
     MissionPosition position;
     double speed;
     MissionTolerance tolerance;
@@ -159,6 +195,24 @@ public:
     void show()
     {
         std::cout << *this;
+    }
+
+    double
+    x()
+    {
+        return final_position.latitude;
+    }
+
+    double
+    y()
+    {
+        return final_position.longitude;
+    }
+
+    double
+    z()
+    {
+        return final_position.z;
     }
 
     MissionPosition initial_position;
@@ -193,6 +247,24 @@ public:
         std::cout << *this;
     }
 
+    double
+    x()
+    {
+        return position.latitude;
+    }
+
+    double
+    y()
+    {
+        return position.longitude;
+    }
+
+    double
+    z()
+    {
+        return position.z;
+    }
+    
     MissionPosition position;
     unsigned int time;
     MissionTolerance tolerance;
