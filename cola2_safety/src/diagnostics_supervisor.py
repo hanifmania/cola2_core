@@ -143,6 +143,10 @@ class Cola2Safety(object):
         """ Update ERROR CODE with the mission status information. """
 
         current_wp = bin(mission_status.current_wp % 256)
+        # delete previous bits
+        for b in range(8):
+            self.error_code[cola2_lib.ErrorCode.CURRENT_WAYPOINT_BASE - b] = '0'
+        # Fill current waypoint
         for b in range(len(current_wp) - 2):
             self.error_code[cola2_lib.ErrorCode.CURRENT_WAYPOINT_BASE - b] = current_wp[-(1+b)]
 
@@ -431,7 +435,7 @@ class Cola2Safety(object):
                       'min_gps_update': 'safety/min_gps_update',
                       'min_dvl_update': 'safety/min_dvl_update',
                       'min_nav_update': 'safety/min_nav_update',
-                      'min_wifi_update': 'safety/min_wifi_update', 
+                      'min_wifi_update': 'safety/min_wifi_update',
                       'working_area_north_origin': 'virtual_cage/north_origin',
                       'working_area_east_origin': 'virtual_cage/east_origin',
                       'working_area_north_length': 'virtual_cage/north_longitude',
