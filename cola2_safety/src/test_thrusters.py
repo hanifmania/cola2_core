@@ -62,7 +62,7 @@ class TestThrusters:
         rospy.loginfo(self.name + ": test thrusters with " +
                       str(data.setpoints) + "\n")
         rate = rospy.Rate(10)
-        for i in range(20):
+        for i in range(30):
             data.header.stamp = rospy.Time.now()
             self.pub_thrusters_data.publish(data)
             rate.sleep()
