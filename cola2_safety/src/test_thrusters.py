@@ -53,7 +53,7 @@ class TestThrusters:
 
     def test(self, req):
         """Test service."""
-        self.enable_thrusters(EmptyRequest())
+        self.disable_thrusters(EmptyRequest())
 
         data = ThrustersData()
         for p in req.param:
