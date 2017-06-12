@@ -4,6 +4,7 @@
 #include <cola2_msgs/WorldSectionReqAction.h>
 #include <cola2_msgs/WorldWaypointReqAction.h>
 #include <boost/shared_ptr.hpp>
+#include <std_msgs/Bool.h>
 #include <cola2_msgs/String.h>
 #include <cola2_msgs/Goto.h>
 #include <cola2_msgs/Submerge.h>
@@ -81,6 +82,8 @@ private:
     // Publishers
     ros::Publisher _pub_path;
     ros::Publisher _pub_mission_status;
+    ros::Publisher _pub_keep_position_enabled;
+
 
     // Services
     ros::ServiceServer _enable_goto_srv;
@@ -216,6 +219,7 @@ Captain::Captain():
     // Init publishers
     _pub_path = _n.advertise<nav_msgs::Path>("/cola2_control/trajectory_path", 1, true);
     _pub_mission_status = _n.advertise<cola2_msgs::MissionStatus>("/cola2_control/mission_status", 1, true);
+    _pub_keep_position_enabled = _n.advertise<std_msgs::Bool>("/cola2_control/keep_position_enabled", 1, true);
 
     // Actionlib client. Smart pointer is used so that client construction is
     // delayed after configuration is loaded
@@ -279,6 +283,18 @@ Captain::update_nav(const ros::MessageEvent<auv_msgs::NavSts const> & msg)
     _nav.z = msg.getMessage()->position.depth;
     _nav.yaw = msg.getMessage()->orientation.yaw;
     _nav.altitude = msg.getMessage()->altitude;
+
+    if (_is_holonomic_keep_pose_enabled)
+    {
+        _diagnostic.add("keep_position_enabled", "True");
+    }
+    else
+    {
+        _diagnostic.add("keep_position_enabled", "False");
+    }
+    std_msgs::Bool value;
+    value.data = _is_holonomic_keep_pose_enabled;
+    _pub_keep_position_enabled.publish(value);
 
     if (_is_mission_running) {
         _diagnostic.add("trajectory_enabled", "True");
