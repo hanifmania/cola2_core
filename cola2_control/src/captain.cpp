@@ -1266,48 +1266,53 @@ Captain::playMission(cola2_msgs::String::Request &req,
 
         _is_mission_running = true;
 
-        for (unsigned int i = 0; i < mission.size(); i++) {
-            if (!_is_mission_running) {
-                break;
-            }
-            // Mission Status
-            _mission_status.current_wp = i + 1;
-            _mission_status.total_wp = mission.size();
+        for (unsigned int i = 0; i < mission.size(); i++)
+        {
             // TODO: Pass north, east, down values
-
             MissionStep *step = mission.getStep(i);
             std::cout << "Step " << i << std::endl;
 
-			// Play mission step maneuver
-            if (step->getManeuver()->getManeuverType() == WAYPOINT_MANEUVER) {
-                MissionWaypoint *wp = dynamic_cast<MissionWaypoint*>(step->getManeuver());
-                // std::cout << *wp << std::endl;
-                if (!this->worldWaypoint(*wp)) {
-                    ROS_WARN_STREAM(_name << "Impossible to reach waypoint. Move to next mission step.");
-                }
+            if (!_is_mission_running) {
+                ROS_WARN_STREAM(_name << ": disabling mission: executing all remaining actions.");
             }
-            else if (step->getManeuver()->getManeuverType() == SECTION_MANEUVER) {
-                MissionSection *sec = dynamic_cast<MissionSection*>(step->getManeuver());
-                // std::cout << *sec << std::endl;
-                if (!this->worldSection(*sec)) {
-                    ROS_WARN_STREAM(_name << "Impossible to reach section. Move to next mission step.");
-                }
-            }
-            else if (step->getManeuver()->getManeuverType() == PARK_MANEUVER) {
-                MissionPark *park = dynamic_cast<MissionPark*>(step->getManeuver());
-                // std::cout << *park << std::endl;
-                if (!this->park(*park)) {
-                    ROS_WARN_STREAM(_name << "Impossible to reach park waypoint. Move to next mission step.");
-                }
-            }
+            else
+            {
+                // Mission Status
+                _mission_status.current_wp = i + 1;
+                _mission_status.total_wp = mission.size();
 
+    			// Play mission step maneuver
+                if (step->getManeuver()->getManeuverType() == WAYPOINT_MANEUVER) {
+                    MissionWaypoint *wp = dynamic_cast<MissionWaypoint*>(step->getManeuver());
+                    // std::cout << *wp << std::endl;
+                    if (!this->worldWaypoint(*wp)) {
+                        ROS_WARN_STREAM(_name << "Impossible to reach waypoint. Move to next mission step.");
+                    }
+                }
+                else if (step->getManeuver()->getManeuverType() == SECTION_MANEUVER) {
+                    MissionSection *sec = dynamic_cast<MissionSection*>(step->getManeuver());
+                    // std::cout << *sec << std::endl;
+                    if (!this->worldSection(*sec)) {
+                        ROS_WARN_STREAM(_name << "Impossible to reach section. Move to next mission step.");
+                    }
+                }
+                else if (step->getManeuver()->getManeuverType() == PARK_MANEUVER) {
+                    MissionPark *park = dynamic_cast<MissionPark*>(step->getManeuver());
+                    // std::cout << *park << std::endl;
+                    if (!this->park(*park)) {
+                        ROS_WARN_STREAM(_name << "Impossible to reach park waypoint. Move to next mission step.");
+                    }
+                }
+            }
             // Play mission_step actions
             std::vector<MissionAction> actions = step->getActions();
             for (std::vector<MissionAction>::iterator action = actions.begin(); action != actions.end(); ++action)
             {
                 this->callAction(action->_is_empty, action->action_id, action->parameters);
+                usleep(2000000);
             }
         }
+
         if (_is_mission_running) {
             ROS_INFO_STREAM(_name << ": Mission finalized.");
             _is_mission_running = false;
@@ -1315,9 +1320,10 @@ Captain::playMission(cola2_msgs::String::Request &req,
         else
         {
           ROS_WARN_STREAM(_name << ": mission has been disabled.");
+
         }
 
-        // Set mission status to missioin disabled
+        // Set mission status to mission disabled
         _mission_status.current_wp = 0;
         _mission_status.total_wp = 0;
         _mission_status.wp_north = 0.0;
