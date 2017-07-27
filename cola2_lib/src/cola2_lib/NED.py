@@ -1,11 +1,11 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 # Copyright (c) 2017 Iqua Robotics SL - All Rights Reserved
 #
 # This file is subject to the terms and conditions defined in file
 # 'LICENSE.txt', which is part of this source code package.
 
 
-# -*- coding: utf-8 -*-
 """
 Created on Mon Nov  5 17:24:01 2012
 
