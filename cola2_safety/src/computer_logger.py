@@ -1,4 +1,10 @@
 #!/usr/bin/env python
+# Copyright (c) 2017 Iqua Robotics SL - All Rights Reserved
+#
+# This file is subject to the terms and conditions defined in file
+# 'LICENSE.txt', which is part of this source code package.
+
+
 """
 Copyright (c) 2014, 'CIRS - Universitat de Girona'
 All rights reserved.
@@ -11,7 +17,7 @@ names, logos, or trademarks of contributors.
 """
 
 
-"""@@Computer logger is used to record valuable data from the computer.@@"""
+"""@@>Computer logger is used to record valuable data from the vehicle computer.<@@"""
 
 
 # ROS imports

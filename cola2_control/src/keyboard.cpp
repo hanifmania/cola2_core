@@ -1,3 +1,11 @@
+
+/*
+ * Copyright (c) 2017 Iqua Robotics SL - All Rights Reserved
+ *
+ * This file is subject to the terms and conditions defined in file
+ * 'LICENSE.txt', which is part of this source code package.
+ */
+
 /*
  * keyboard.cpp
  *
@@ -5,7 +13,7 @@
  *      Author: Eduard
  */
 
-/*@@This node is used to drive the AUV in real time, just from a linux terminal.@@*/
+/*@@>This node is used to drive the AUV from a linux terminal using keyboard commands.<@@*/
 
 #include "ros/ros.h"
 #include "std_msgs/String.h"

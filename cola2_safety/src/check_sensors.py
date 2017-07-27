@@ -1,7 +1,15 @@
 #!/usr/bin/env python
+# Copyright (c) 2017 Iqua Robotics SL - All Rights Reserved
+#
+# This file is subject to the terms and conditions defined in file
+# 'LICENSE.txt', which is part of this source code package.
 
-"""@@This node check AUV depth and altitude, and is mainly
-   used to avoid collisions.@@"""
+
+
+"""
+@@>This node check AUV depth and altitude, and is mainly
+   used to avoid collisions.<@@
+"""
 
 """
 Created on Mar 2015

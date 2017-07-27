@@ -1,4 +1,12 @@
 #!/usr/bin/env python
+# Copyright (c) 2017 Iqua Robotics SL - All Rights Reserved
+#
+# This file is subject to the terms and conditions defined in file
+# 'LICENSE.txt', which is part of this source code package.
+
+
+
+"""@@>This class prevents an AUV to move beyond some given virtual limits.<@@"""
 
 """
 Created on 02/13/2014
@@ -20,7 +28,7 @@ from dynamic_reconfigure.server import Server
 from cola2_msgs.cfg import VirtualCageInfoConfig
 
 class VirtualCage(object):
-    """ @@This class prevents an AUV to move beyond a virtual limits.@@"""
+
 
     def __init__(self, name):
         """ Init the class. """

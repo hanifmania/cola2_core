@@ -1,9 +1,17 @@
 #!/usr/bin/env python
+# Copyright (c) 2017 Iqua Robotics SL - All Rights Reserved
+#
+# This file is subject to the terms and conditions defined in file
+# 'LICENSE.txt', which is part of this source code package.
 
-"""@@This node uses simulated data of the actuators to compute the AUV dynamic
+
+
+"""
+@@>This node uses simulated data of the actuators to compute the AUV dynamic
 behavior. This node can be used to simulate real AUV behavior and its interaction
 with the environtment. User can add currents and a preliminary version of collision
-detection has been implemented.@@"""
+detection has been implemented.<@@
+"""
 
 
 """

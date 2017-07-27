@@ -5,13 +5,13 @@
   <description>The cola2_core meta package</description>
 
   <!-- One maintainer tag required, multiple allowed, one person per tag -->
-  <maintainer email="npalomer@eia.udg.edu">narcis</maintainer>
+  <maintainer email="software@iquarobotics.com">Iqua Robotics</maintainer>
 
 
   <!-- One license tag required, multiple allowed, one license per tag -->
   <!-- Commonly used license strings: -->
   <!--   BSD, MIT, Boost Software License, GPLv2, GPLv3, LGPLv2.1, LGPLv3 -->
-  <license>BSD</license>
+  <license>Iqua Robotics</license>
 
 
   <!-- Url tags are optional, but mutiple are allowed, one per tag -->

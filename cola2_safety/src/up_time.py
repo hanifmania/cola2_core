@@ -1,6 +1,15 @@
 #!/usr/bin/env python
-"""@@Safety node used to check an absolute timeout. It also checks if navigator
-is publishing data.@@"""
+# Copyright (c) 2017 Iqua Robotics SL - All Rights Reserved
+#
+# This file is subject to the terms and conditions defined in file
+# 'LICENSE.txt', which is part of this source code package.
+
+
+
+"""
+@@>Safety node used to check an absolute timeout. It also checks if navigator
+is publishing data.<@@
+"""
 
 # ROS imports
 import roslib

@@ -1,3 +1,15 @@
+
+/*
+ * Copyright (c) 2017 Iqua Robotics SL - All Rights Reserved
+ *
+ * This file is subject to the terms and conditions defined in file
+ * 'LICENSE.txt', which is part of this source code package.
+ */
+
+
+/*@@>Directed by the captain, publishes position and velocity
+setpoints to the position and velocity controllers.<@@*/
+
 #include <ros/ros.h>
 #include <string>
 #include <vector>

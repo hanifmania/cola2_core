@@ -1,6 +1,10 @@
 #!/usr/bin/env python
-"""@@This node is subscribed to the map_ack output message. It is used to
-   compute position and velocity setpoints out of the input joy message.@@"""
+# Copyright (c) 2017 Iqua Robotics SL - All Rights Reserved
+#
+# This file is subject to the terms and conditions defined in file
+# 'LICENSE.txt', which is part of this source code package.
+
+
 
 # ROS imports
 import rospy

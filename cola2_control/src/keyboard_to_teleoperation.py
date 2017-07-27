@@ -1,9 +1,15 @@
-#! /usr/bin/env python
+#!/usr/bin/env python
+# Copyright (c) 2017 Iqua Robotics SL - All Rights Reserved
+#
+# This file is subject to the terms and conditions defined in file
+# 'LICENSE.txt', which is part of this source code package.
+
+
 import rospy
 from cola2_lib.JoystickBase import JoystickBase
 
 class KeyboardToTeleoperation(JoystickBase):
-    """ This class inherent from JoystickBase. It has to overload the 
+    """ This class inherits from JoystickBase. It has to overload the 
     method update_joy(self, joy) that receives a sensor_msgs/Joy 
     message and fill the var self.joy_msg as described in the class
     JoystickBase. 
