@@ -522,8 +522,18 @@ public:
                 position.z = atof(pElem->GetText());
                 z_ = true;
             }
-            else if (wp_tag == "altitude_mode") {
-                position.altitude_mode = pElem->GetText() == "true";
+            else if (wp_tag == "altitude_mode")
+            {
+                std::string mode = pElem->GetText();
+                std::cout << "ALTITUDE MODE: " << mode << "\n";
+                if(mode == "true" || mode == "True")
+                {
+                    position.altitude_mode = true;
+                }
+                else
+                {
+                    position.altitude_mode = false;
+                }
                 mode = true;
             }
         }
@@ -600,9 +610,11 @@ public:
             std::string wp_tag = pElem->Value();
             if (wp_tag == "initial_position") {
                 initial_position = loadPosition(TiXmlHandle(pElem), section.initial_position);
+                // std::cout << "initial_position.mode: " << section.initial_position.altitude_mode << "\n";
             }
             else if (wp_tag == "final_position") {
                 final_position = loadPosition(TiXmlHandle(pElem), section.final_position);
+                // std::cout << "final_position.mode: " << section.initial_position.altitude_mode << "\n";
             }
             else if (wp_tag == "speed") {
                 section.speed = atof(pElem->GetText());
@@ -664,6 +676,7 @@ public:
                 step.setManeuver(waypoint);
             }
             else if (attribute == "section") {
+                std::cout << "Section maneuver found " << std::endl;
                 MissionSection *section = new MissionSection();
                 loadManeuverSection(TiXmlHandle(pElem), *section);
                 step.setManeuver(section);
@@ -736,7 +749,7 @@ public:
             }
             else
             {
-                std::cout << "Error readind mission step. Found " << m_name << ".\n";
+                std::cout << "Error reading mission step. Found " << m_name << ".\n";
             }
         }
         return 0;
