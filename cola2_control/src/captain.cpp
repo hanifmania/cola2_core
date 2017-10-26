@@ -77,7 +77,7 @@ private:
     bool _is_section_running;
     bool _is_trajectory_disabled; // TODO: Redundant?
     bool _is_mission_running;
-
+    bool _is_mission_paused;
     ros::MultiThreadedSpinner _spinner;
     Trajectory _trajectory;
     // Ned *_ned;
@@ -111,6 +111,8 @@ private:
     ros::ServiceServer _enable_keep_position_non_holonomic_srv;
     ros::ServiceServer _disable_keep_position_srv;
     ros::Subscriber _2D_nav_goal;
+    ros::ServiceServer _pause_mission_srv;
+    ros::ServiceServer _resume_mission_srv;
 
     // mission related services
     ros::ServiceServer _play_mission_srv;
@@ -192,6 +194,14 @@ private:
     // Mission related functions
     void run_trajectory();
 
+    bool pause(std_srvs::Empty::Request &req,
+               std_srvs::Empty::Response &res);
+
+
+    bool resume(std_srvs::Empty::Request &req,
+                std_srvs::Empty::Response &res);
+
+
     bool playMission(cola2_msgs::String::Request&,
                      cola2_msgs::String::Response&);
 
@@ -217,6 +227,7 @@ Captain::Captain():
     _is_section_running(false),
     _is_trajectory_disabled(false),
     _is_mission_running(false),
+    _is_mission_paused(false),
     _spinner(2),
     _is_holonomic_keep_pose_enabled(false),
     _diagnostic(_n, ros::this_node::getName(), "soft")
@@ -263,6 +274,8 @@ Captain::Captain():
     _enable_keep_position_non_holonomic_srv = _n.advertiseService("/cola2_control/enable_keep_position_3dof", &Captain::enable_keep_position_non_holonomic, this);
     _disable_keep_position_srv = _n.advertiseService("/cola2_control/disable_keep_position", &Captain::disable_keep_position, this);
     _play_mission_srv = _n.advertiseService("/mission_manager/play", &Captain::playMission, this);
+    _pause_mission_srv = _n.advertiseService("/mission_manager/pause", &Captain::pause, this);
+    _resume_mission_srv = _n.advertiseService("/mission_manager/resume", &Captain::resume, this);
 
     // Subscribers
     _sub_nav = _n.subscribe("/cola2_navigation/nav_sts", 1, &Captain::update_nav, this);
@@ -1256,6 +1269,23 @@ Captain::create_path_from_mission(Mission mission)
 }
 
 // ------------------ MISSION RELATED METHODS -------------------
+bool
+Captain::pause(std_srvs::Empty::Request &req,
+               std_srvs::Empty::Response &res) {
+    _waypoint_client->cancelGoal();
+    _section_client->cancelGoal();
+    _is_mission_paused = true;
+    return true;
+}
+
+
+bool
+Captain::resume(std_srvs::Empty::Request &req,
+                std_srvs::Empty::Response &res) {
+    _is_mission_paused = false;
+    return true;
+}
+
 
 bool
 Captain::playMission(cola2_msgs::String::Request &req,
@@ -1280,6 +1310,17 @@ Captain::playMission(cola2_msgs::String::Request &req,
 
         for (unsigned int i = 0; i < mission.size(); i++)
         {
+            if (_is_mission_paused) {
+                ROS_WARN_STREAM(_name << ": MISSION PAUSED\n");
+                while (_is_mission_paused && _is_mission_running) {
+                    ros::Duration(1.0).sleep();
+                }
+                if (_is_mission_running) {
+                    ROS_WARN_STREAM(_name << ": MISSION RESUMED\n");
+                    if (i > 0) --i;
+                }
+            }
+
             // TODO: Pass north, east, down values
             MissionStep *step = mission.getStep(i);
             std::cout << "Step " << i << std::endl;
@@ -1342,6 +1383,7 @@ Captain::playMission(cola2_msgs::String::Request &req,
         _mission_status.wp_east = 0.0;
         _mission_status.altitude_mode = 0.0;
         _mission_status.wp_depth_altitude = 0.0;
+        _is_mission_paused = false;
     }
     return true;
 }
