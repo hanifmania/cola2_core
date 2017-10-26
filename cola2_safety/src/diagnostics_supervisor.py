@@ -4,7 +4,13 @@
 # This file is subject to the terms and conditions defined in file
 # 'LICENSE.txt', which is part of this source code package.
 
-
+"""@@>The diagnostics supervisor is in charge of receiving the aggregated 
+diagnostics message and apply a set of rules aimed at detecting errors in 
+the system (a sensor not giving data, low battery level, detection from 
+water leak sensors, etc.). These rules are based on the configuration values
+set on the cola2_s2/config/safety.yaml file. If any of the rule checks is 
+triggered, the diagnostics supervisor calls a recovery action, which acts
+appropriately depending on the type of error.<@@"""
 
 """
 Created on 02/19/2015
