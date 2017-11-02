@@ -4,7 +4,10 @@
 # This file is subject to the terms and conditions defined in file
 # 'LICENSE.txt', which is part of this source code package.
 
-
+"""
+@@>This nodes takes the data coming from a joystick device and generates a World Waypoint Request
+or a Body Velocity Request. <@@
+"""
 
 # ROS imports
 import rospy

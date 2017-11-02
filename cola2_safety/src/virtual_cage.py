@@ -6,7 +6,7 @@
 
 
 
-"""@@>This class prevents an AUV to move beyond some given virtual limits.<@@"""
+"""@@>This node prevents an AUV to move beyond some given virtual limits.<@@"""
 
 """
 Created on 02/13/2014

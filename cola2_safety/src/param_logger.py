@@ -7,7 +7,7 @@
 
 # -*- coding: utf-8 -*-
 
-"""@@>Publishes all parameters to be saved in a bag.<@@"""
+"""@@>Publishes all parameters in a topic for logging/debugging purposes.<@@"""
 
 import rospy
 from std_msgs.msg import String
