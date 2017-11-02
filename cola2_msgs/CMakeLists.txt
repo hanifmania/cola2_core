@@ -107,6 +107,7 @@ add_service_files(
   SetTrajectory.srv
   Action.srv
   Float.srv
+  SetVesselPose.srv
 )
 
 ## Generate actions in the 'action' folder
