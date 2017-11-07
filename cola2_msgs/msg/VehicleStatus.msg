@@ -4,6 +4,7 @@ Header header
 float64 latitude
 float64 longitude
 float32 depth
+float32 altitude
 float32 heading
 
 # Safety
@@ -26,18 +27,15 @@ float32 wifi_data_age
 
 # Running controller
 uint8 CONTROLLER_NONE = 0
-uint8 CONTROLLER_GOTO = 1
+uint8 CONTROLLER_WAYPOINT = 1
 uint8 CONTROLLER_SECTION = 2
-uint8 CONTROLLER_KEEP_POSITION = 3
-uint8 CONTROLLER_MISSION = 4
+uint8 CONTROLLER_PARK = 3
 uint8 active_controller
 
 # Thrusters enabled
 bool thrusters_enabled
 
 # Mission status
-int32 current_waypoint
-int32 total_waypoints
-float64 waypoint_latitude
-float64 waypoint_longitude
-float32 waypoint_z
+bool is_mission_active
+int32 current_step
+int32 total_steps
