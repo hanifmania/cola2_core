@@ -9,6 +9,6 @@ uint8 active_controller
 bool altitude_mode
 
 # Mission status
-bool is_mission_active
+bool mission_active
 int32 current_step
 int32 total_steps

@@ -23,6 +23,7 @@
 #include <cola2_msgs/SetTrajectory.h>
 #include <cola2_msgs/Action.h>
 #include <cola2_msgs/MissionStatus.h>
+#include <cola2_msgs/CaptainStatus.h>
 #include <std_srvs/Empty.h>
 #include <auv_msgs/GoalDescriptor.h>
 #include <nav_msgs/Path.h>
@@ -75,7 +76,7 @@ private:
     // Class attributes
     bool _is_waypoint_running;
     bool _is_section_running;
-    bool _is_trajectory_disabled; // TODO: Redundant?
+    bool _is_trajectory_disabled; // Note: redundant flag with different name for old trajectory system
     bool _is_mission_running;
     bool _is_mission_paused;
     ros::MultiThreadedSpinner _spinner;
@@ -87,6 +88,7 @@ private:
     double _min_goto_vel;
     double _min_loscte_vel;
     cola2_msgs::MissionStatus _mission_status;
+    cola2_msgs::CaptainStatus _captain_status;
 
     // Diagnostics
     cola2::rosutils::DiagnosticHelper _diagnostic ;
@@ -95,7 +97,7 @@ private:
     ros::Publisher _pub_path;
     ros::Publisher _pub_mission_status;
     ros::Publisher _pub_keep_position_enabled;
-
+    ros::Publisher _pub_captain_status;
 
     // Services
     ros::ServiceServer _enable_goto_srv;
@@ -122,6 +124,7 @@ private:
 
     // Timer
     ros::Timer _mission_status_timer;
+    ros::Timer _captain_status_timer;
 
     // Actionlib client
     boost::shared_ptr<actionlib::SimpleActionClient<
@@ -219,6 +222,7 @@ private:
     bool park(const MissionPark park);
 
     void mission_status_timer(const ros::TimerEvent&);
+    void captain_status_timer(const ros::TimerEvent&);
 };
 
 
@@ -243,6 +247,7 @@ Captain::Captain():
     _pub_path = _n.advertise<nav_msgs::Path>("/cola2_control/trajectory_path", 1, true);
     _pub_mission_status = _n.advertise<cola2_msgs::MissionStatus>("/cola2_control/mission_status", 1, true);
     _pub_keep_position_enabled = _n.advertise<std_msgs::Bool>("/cola2_control/keep_position_enabled", 1, true);
+    _pub_captain_status = _n.advertise<cola2_msgs::CaptainStatus>("/cola2_control/captain_status", 1, true);
 
     // Actionlib client. Smart pointer is used so that client construction is
     // delayed after configuration is loaded
@@ -290,6 +295,14 @@ Captain::Captain():
     _mission_status.wp_depth_altitude = 0.0;
     _mission_status_timer = _n.createTimer(ros::Duration(2.0), &Captain::mission_status_timer, this);
 
+    //Captain Status
+    _captain_status.active_controller = 0;
+    _captain_status.altitude_mode = false;
+    _captain_status.mission_active = false;
+    _captain_status.current_step = 0;
+    _captain_status.total_steps = 0;
+    _captain_status_timer = _n.createTimer(ros::Duration(2.0), &Captain::captain_status_timer, this);
+
     // test();
     _spinner.spin();
 }
@@ -299,6 +312,14 @@ Captain::mission_status_timer(const ros::TimerEvent & event)
 {
     _pub_mission_status.publish(_mission_status);
 }
+
+void
+Captain::captain_status_timer(const ros::TimerEvent & event)
+{
+    _captain_status.mission_active = _is_mission_running;
+    _pub_captain_status.publish(_captain_status);
+}
+
 
 void
 Captain::update_nav(const ros::MessageEvent<auv_msgs::NavSts const> & msg)
@@ -554,14 +575,25 @@ Captain::enable_goto(cola2_msgs::Goto::Request &req,
             ROS_INFO_STREAM(_name << ": Keep position TRUE but timeout GOTO request value is 0. Set timeout to 3600\n");
             waypoint.timeout = 3600;
           }
+          // Set active controller to park
+          _captain_status.active_controller = 3;
+        }
+        else
+        {
+            // Set active controller to waypoint
+            _captain_status.active_controller = 1;
         }
 
         if (waypoint.altitude_mode) {
             ROS_INFO_STREAM(_name << ": Send WorldWaypointRequest at " << waypoint.position.north << ", "  << waypoint.position.east << ", " << waypoint.altitude << " altitude. Timeout = " << waypoint.timeout << "\n");
+            _captain_status.altitude_mode = true;
         }
         else {
             ROS_INFO_STREAM(_name << ": Send WorldWaypointRequest at " << waypoint.position.north << ", "  << waypoint.position.east << ", " << waypoint.position.depth << " depth. Timeout = " << waypoint.timeout << "\n");
+            _captain_status.altitude_mode = false;
         }
+
+
 
         _waypoint_client->sendGoal(waypoint);
         res.success = true;
@@ -1089,16 +1121,19 @@ Captain::disable_trajectory(std_srvs::Empty::Request&,
 {
     if(_is_waypoint_running) {
         _is_waypoint_running = false;
+        _captain_status.active_controller = 0;
         _is_trajectory_disabled = true;
         _waypoint_client->cancelGoal();
     }
     if(_is_section_running) {
         _is_section_running = false;
+        _captain_status.active_controller = 0;
         _is_trajectory_disabled = true;
         _section_client->cancelGoal();
     }
     if(_is_mission_running) {
         _is_mission_running = false;
+        _captain_status.mission_active = false;
         _is_trajectory_disabled = true;
     }
     return true;
@@ -1202,6 +1237,7 @@ Captain::wait_waypoint()
 {
     _waypoint_client->waitForResult();
     _is_waypoint_running = false;
+    _captain_status.active_controller = 0;
     ROS_INFO_STREAM(_name << ": World Waypoint Request finalized");
 }
 
@@ -1307,6 +1343,7 @@ Captain::playMission(cola2_msgs::String::Request &req,
         _pub_path.publish(path);
 
         _is_mission_running = true;
+        _captain_status.mission_active = true;
 
         for (unsigned int i = 0; i < mission.size(); i++)
         {
@@ -1334,10 +1371,15 @@ Captain::playMission(cola2_msgs::String::Request &req,
                 _mission_status.current_wp = i + 1;
                 _mission_status.total_wp = mission.size();
 
+                // Captain Status
+                _captain_status.current_step = i + 1;
+                _captain_status.total_steps = mission.size();
+
     			// Play mission step maneuver
                 if (step->getManeuver()->getManeuverType() == WAYPOINT_MANEUVER) {
                     MissionWaypoint *wp = dynamic_cast<MissionWaypoint*>(step->getManeuver());
                     // std::cout << *wp << std::endl;
+                    _captain_status.active_controller = 1;
                     if (!this->worldWaypoint(*wp)) {
                         ROS_WARN_STREAM(_name << "Impossible to reach waypoint. Move to next mission step.");
                     }
@@ -1345,6 +1387,7 @@ Captain::playMission(cola2_msgs::String::Request &req,
                 else if (step->getManeuver()->getManeuverType() == SECTION_MANEUVER) {
                     MissionSection *sec = dynamic_cast<MissionSection*>(step->getManeuver());
                     // std::cout << *sec << std::endl;
+                    _captain_status.active_controller = 2;
                     if (!this->worldSection(*sec)) {
                         ROS_WARN_STREAM(_name << "Impossible to reach section. Move to next mission step.");
                     }
@@ -1352,6 +1395,7 @@ Captain::playMission(cola2_msgs::String::Request &req,
                 else if (step->getManeuver()->getManeuverType() == PARK_MANEUVER) {
                     MissionPark *park = dynamic_cast<MissionPark*>(step->getManeuver());
                     // std::cout << *park << std::endl;
+                    _captain_status.active_controller = 3;
                     if (!this->park(*park)) {
                         ROS_WARN_STREAM(_name << "Impossible to reach park waypoint. Move to next mission step.");
                     }
@@ -1369,6 +1413,7 @@ Captain::playMission(cola2_msgs::String::Request &req,
         if (_is_mission_running) {
             ROS_INFO_STREAM(_name << ": Mission finalized.");
             _is_mission_running = false;
+             _captain_status.mission_active = false;
         }
         else
         {
@@ -1384,6 +1429,14 @@ Captain::playMission(cola2_msgs::String::Request &req,
         _mission_status.altitude_mode = 0.0;
         _mission_status.wp_depth_altitude = 0.0;
         _is_mission_paused = false;
+
+        // Reset captain status
+        _captain_status.active_controller = 0;
+        _captain_status.altitude_mode = false;
+        _captain_status.mission_active = false;
+        _captain_status.current_step = 0;
+        _captain_status.total_steps = 0;
+
     }
     return true;
 }
@@ -1500,6 +1553,7 @@ Captain::worldSection(const MissionSection sec)
     section.altitude_mode = sec.initial_position.altitude_mode;
 
     _is_section_running = true;
+    _captain_status.altitude_mode = section.altitude_mode;
     _section_client->sendGoal(section);
 
     // Compute timeout
