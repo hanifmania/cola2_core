@@ -6,12 +6,14 @@ float64 longitude
 float32 depth
 float32 altitude
 float32 heading
+bool at_surface
 
 # Safety
 float32 up_time
 bool vehicle_initialized
 bool water_detected
 float32 battery_charge
+float32 battery_voltage
 float32[] internal_temperature
 
 # Safety: data age
