@@ -22,7 +22,6 @@
 #include <cola2_msgs/Submerge.h>
 #include <cola2_msgs/SetTrajectory.h>
 #include <cola2_msgs/Action.h>
-#include <cola2_msgs/MissionStatus.h>
 #include <cola2_msgs/CaptainStatus.h>
 #include <std_srvs/Empty.h>
 #include <auv_msgs/GoalDescriptor.h>
@@ -87,7 +86,6 @@ private:
     bool _is_holonomic_keep_pose_enabled;
     double _min_goto_vel;
     double _min_loscte_vel;
-    cola2_msgs::MissionStatus _mission_status;
     cola2_msgs::CaptainStatus _captain_status;
 
     // Diagnostics
@@ -95,7 +93,6 @@ private:
 
     // Publishers
     ros::Publisher _pub_path;
-    ros::Publisher _pub_mission_status;
     ros::Publisher _pub_keep_position_enabled;
     ros::Publisher _pub_captain_status;
 
@@ -123,7 +120,6 @@ private:
     ros::Subscriber _sub_nav;
 
     // Timer
-    ros::Timer _mission_status_timer;
     ros::Timer _captain_status_timer;
 
     // Actionlib client
@@ -221,7 +217,6 @@ private:
 
     bool park(const MissionPark park);
 
-    void mission_status_timer(const ros::TimerEvent&);
     void captain_status_timer(const ros::TimerEvent&);
 };
 
@@ -245,7 +240,6 @@ Captain::Captain():
 
     // Init publishers
     _pub_path = _n.advertise<nav_msgs::Path>("/cola2_control/trajectory_path", 1, true);
-    _pub_mission_status = _n.advertise<cola2_msgs::MissionStatus>("/cola2_control/mission_status", 1, true);
     _pub_keep_position_enabled = _n.advertise<std_msgs::Bool>("/cola2_control/keep_position_enabled", 1, true);
     _pub_captain_status = _n.advertise<cola2_msgs::CaptainStatus>("/cola2_control/captain_status", 1, true);
 
@@ -286,15 +280,6 @@ Captain::Captain():
     _sub_nav = _n.subscribe("/cola2_navigation/nav_sts", 1, &Captain::update_nav, this);
     _2D_nav_goal = _n.subscribe("/move_base_simple/goal", 1, &Captain::nav_goal, this);
 
-    // Mission Status
-    _mission_status.current_wp = 0;
-    _mission_status.total_wp = 0;
-    _mission_status.wp_north = 0.0;
-    _mission_status.wp_east = 0.0;
-    _mission_status.altitude_mode = 0.0;
-    _mission_status.wp_depth_altitude = 0.0;
-    _mission_status_timer = _n.createTimer(ros::Duration(2.0), &Captain::mission_status_timer, this);
-
     //Captain Status
     _captain_status.active_controller = 0;
     _captain_status.altitude_mode = false;
@@ -305,12 +290,6 @@ Captain::Captain():
 
     // test();
     _spinner.spin();
-}
-
-void
-Captain::mission_status_timer(const ros::TimerEvent & event)
-{
-    _pub_mission_status.publish(_mission_status);
 }
 
 void
@@ -905,12 +884,6 @@ Captain::enable_trajectory(std_srvs::Empty::Request&,
 void Captain::run_trajectory()
 {
     if(check_no_request_running() && _trajectory.valid_trajectory){
-        // Mission Status
-        _mission_status.current_wp = 1;
-        _mission_status.total_wp = _trajectory.x.size();
-        _mission_status.wp_north = _trajectory.x.at(0);
-        _mission_status.wp_east = _trajectory.y.at(0);
-        _mission_status.wp_depth_altitude = _trajectory.z.at(0);
 
         _is_trajectory_disabled = false;
         cola2_msgs::Goto::Request req;
@@ -930,13 +903,11 @@ void Captain::run_trajectory()
         if (_trajectory.force_initial_final_waypoints_at_surface) {
           req.altitude_mode = false;
           req.position.z = 0.0;
-          _mission_status.altitude_mode = false;
         }
         else {
           req.altitude_mode = _trajectory.altitude_mode.at(0);
           req.position.z = _trajectory.z.at(0);
           req.altitude = _trajectory.z.at(0);
-          _mission_status.altitude_mode = true;
         }
         if (_trajectory.tolerance.size() == 0) {
             req.position_tolerance.x = _config.tolerance.x * 3.0;
@@ -1056,15 +1027,6 @@ void Captain::run_trajectory()
                 double timeout = 10 + (2*distance_to_end_section) / min_vel;
                 ROS_INFO_STREAM(_name << ": Section timeout = " << timeout << "\n");
 
-                // Fill mission_status message
-                _mission_status.current_wp = i + 1;
-                _mission_status.total_wp = _trajectory.z.size();
-                _mission_status.wp_north = _trajectory.x.at(i);
-                _mission_status.wp_east = _trajectory.y.at(i);
-                _mission_status.altitude_mode = _trajectory.altitude_mode.at(i);
-                _mission_status.wp_depth_altitude = _trajectory.z.at(i);
-                // _mission_status.wp_remaining_time = self.trajectory.wait[i]
-
                 _section_client->waitForResult(ros::Duration(timeout));
 
                 if (_trajectory.wait.at(i) > 0)
@@ -1102,13 +1064,7 @@ void Captain::run_trajectory()
                 }
             }
         }
-        // Mission finalized
-        _mission_status.current_wp = 0;
-        _mission_status.total_wp = 0;
-        _mission_status.wp_north = 0.0;
-        _mission_status.wp_east = 0.0;
-        _mission_status.altitude_mode = 0.0;
-        _mission_status.wp_depth_altitude = 0.0;
+
     }
     else {
         ROS_WARN_STREAM(_name << ": Is trajectory loaded?");
@@ -1367,10 +1323,6 @@ Captain::playMission(cola2_msgs::String::Request &req,
             }
             else
             {
-                // Mission Status
-                _mission_status.current_wp = i + 1;
-                _mission_status.total_wp = mission.size();
-
                 // Captain Status
                 _captain_status.current_step = i + 1;
                 _captain_status.total_steps = mission.size();
@@ -1421,13 +1373,6 @@ Captain::playMission(cola2_msgs::String::Request &req,
 
         }
 
-        // Set mission status to mission disabled
-        _mission_status.current_wp = 0;
-        _mission_status.total_wp = 0;
-        _mission_status.wp_north = 0.0;
-        _mission_status.wp_east = 0.0;
-        _mission_status.altitude_mode = 0.0;
-        _mission_status.wp_depth_altitude = 0.0;
         _is_mission_paused = false;
 
         // Reset captain status
@@ -1441,15 +1386,6 @@ Captain::playMission(cola2_msgs::String::Request &req,
     return true;
 }
 
-
-// if (step->step_type == MISSION_CONFIGURATION) {
-// 	MissionConfiguration *conf = dynamic_cast<MissionConfiguration*>(step);
-// 	this->addParamToParamServer(conf->key, conf->value);
-// }
-// else if (step->step_type == MISSION_ACTION) {
-// 	MissionAction *act = dynamic_cast<MissionAction*>(step);
-// 	this->callAction(act->_is_empty, act->action_id, act->parameters);
-// }
 
 void
 Captain::addParamToParamServer(const std::string key,
