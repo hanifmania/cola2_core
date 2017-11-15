@@ -72,12 +72,9 @@ class UpTime(object):
             self.diagnostic.add("last_nav_data",
                                 str(rospy.Time.now().to_sec() - self.last_navigator_callback))
 
-        if self.init_navigator_check and (rospy.Time.now().to_sec() - self.last_navigator_callback) > 2.0: 
-            self.diagnostic.setLevel(DiagnosticStatus.WARN, 'No navigation data!')
-        else:
-            self.diagnostic.setLevel(DiagnosticStatus.OK)
+        self.diagnostic.setLevel(DiagnosticStatus.OK)
 
-         # Publish total time
+        # Publish total time
         msg = TotalTime()
         msg.total_time = int(rospy.Time.now().to_sec() - self.init_time)
         self.pub_total_time.publish(msg)
