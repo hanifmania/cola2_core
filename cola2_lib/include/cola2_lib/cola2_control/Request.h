@@ -31,7 +31,7 @@ class Request
   void setRequester(std::string name);
   std::string getRequester() const;
 
-  double getStamp();
+  double getStamp() const;
 
   unsigned int getPriority() const;
   void setPriority(const unsigned int priority);

@@ -145,7 +145,7 @@ std::string Request::getRequester() const
   return _requester;
 }
 
-double Request::getStamp()
+double Request::getStamp() const
 {
   return _stamp;
 }
