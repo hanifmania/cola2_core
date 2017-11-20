@@ -1,4 +1,10 @@
 #!/usr/bin/env python
+# Copyright (c) 2017 Iqua Robotics SL - All Rights Reserved
+#
+# This file is subject to the terms and conditions defined in file
+# 'LICENSE.txt', which is part of this source code package.
+
+
 """
 Copyright (c) 2014, 'CIRS - Universitat de Girona'
 All rights reserved.
@@ -11,7 +17,7 @@ names, logos, or trademarks of contributors.
 """
 
 
-"""@@Computer logger is used to record valuable data from the computer.@@"""
+"""@@>Computer logger is used to record valuable data from the vehicle computer.<@@"""
 
 
 # ROS imports
@@ -19,6 +25,8 @@ import rospy
 import subprocess
 import sys
 import psutil
+from cola2_lib.diagnostic_helper import DiagnosticHelper
+from diagnostic_msgs.msg import DiagnosticStatus
 from cola2_msgs.msg import ComputerData
 
 
@@ -29,6 +37,9 @@ class ComputerLogger(object):
         """ Constructor """
         # Init class vars
         self.name = name
+
+        # Set up diagnostics
+        self.diagnostic = DiagnosticHelper(self.name, "soft")
 
         # Publisher
         self.pub_computer_data = rospy.Publisher(
@@ -50,6 +61,7 @@ class ComputerLogger(object):
             p = subprocess.Popen(['sensors'],
                                  stdout=subprocess.PIPE,
                                  stderr=subprocess.PIPE)
+
             out, err = p.communicate()
             splitted = out.split("\n")
 
@@ -73,9 +85,13 @@ class ComputerLogger(object):
                     if temp > max_core_temp:
                         max_core_temp = temp
 
+
             # Use psutil to get cpu and ram usage
             cpu_usage = psutil.cpu_percent()
             ram_usage = ram = psutil.virtual_memory().percent
+
+            self.diagnostic.add("cpu_temperature", str(max_core_temp))
+            self.diagnostic.setLevel(DiagnosticStatus.OK)
 
             msg = ComputerData()
             msg.header.stamp = rospy.Time.now()

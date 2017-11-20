@@ -1,3 +1,11 @@
+
+/*
+ * Copyright (c) 2017 Iqua Robotics SL - All Rights Reserved
+ *
+ * This file is subject to the terms and conditions defined in file
+ * 'LICENSE.txt', which is part of this source code package.
+ */
+
 #include "cola2_lib/cola2_navigation/Ned.h"
 
 Ned::Ned(const double lat, const double lon, const double height)

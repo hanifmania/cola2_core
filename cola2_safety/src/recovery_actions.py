@@ -1,6 +1,14 @@
 #!/usr/bin/env python
-"""@@Recovery actions node is used to handle requests for recovery actions coming
-from any node@@"""
+# Copyright (c) 2017 Iqua Robotics SL - All Rights Reserved
+#
+# This file is subject to the terms and conditions defined in file
+# 'LICENSE.txt', which is part of this source code package.
+
+
+
+"""
+@@>Used to handle requests for recovery actions coming from all nodes<@@
+"""
 
 """
 Created on Mar 25 2013

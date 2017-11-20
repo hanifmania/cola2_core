@@ -1,6 +1,15 @@
 #!/usr/bin/env python
-"""@@If the robot is deep enough and teleoperation is giving only disabled setpoints,
-this node tells the robot to keep velocities to zero.@@"""
+# Copyright (c) 2017 Iqua Robotics SL - All Rights Reserved
+#
+# This file is subject to the terms and conditions defined in file
+# 'LICENSE.txt', which is part of this source code package.
+
+
+
+"""
+@@>If the robot is below a configured depth and teleoperation is giving only disabled setpoints,
+this node tells the vehicle to keep velocities at zero.<@@
+"""
 
 """
 Created on Fri Mar 22 2013
@@ -27,7 +36,7 @@ from cola2_lib import cola2_ros_lib
 class SetZeroVelocity(object):
     """ This class generates several BodyVelocityReq set at 0 enabling
         only the axis selected in the configuration file when the vehicle
-        is below a configured depth. This provoques that the vehicle keeps
+        is below a configured depth. This causes that the vehicle keeps
         its velocity at 0 below the desired depth. As the priority of this
         behavior is minimum and it can send commands for each DoF indepen-
         dently, it is easy to merge with other pose or velocity requests.

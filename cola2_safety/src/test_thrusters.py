@@ -1,11 +1,18 @@
 #!/usr/bin/env python
+# Copyright (c) 2017 Iqua Robotics SL - All Rights Reserved
+#
+# This file is subject to the terms and conditions defined in file
+# 'LICENSE.txt', which is part of this source code package.
+
+
 # ROS imports
 import rospy
 from std_srvs.srv import Empty, EmptyRequest
 from cola2_msgs.msg import ThrustersData
 from cola2_msgs.srv import Action
 
-"""@@Test thrusters from an Action service.@@"""
+"""@@>Test thrusters from an Action service.<@@"""
+
 """
 Created on Jan 2017
 @author: narcis palomeras

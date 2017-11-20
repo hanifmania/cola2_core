@@ -1,4 +1,10 @@
 #!/usr/bin/env python
+# Copyright (c) 2017 Iqua Robotics SL - All Rights Reserved
+#
+# This file is subject to the terms and conditions defined in file
+# 'LICENSE.txt', which is part of this source code package.
+
+
 import rospy
 from auv_msgs.msg import BodyVelocityReq, GoalDescriptor
 from std_srvs.srv import Empty, EmptyResponse, EmptyRequest

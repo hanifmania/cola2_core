@@ -1,3 +1,11 @@
+
+/*
+ * Copyright (c) 2017 Iqua Robotics SL - All Rights Reserved
+ *
+ * This file is subject to the terms and conditions defined in file
+ * 'LICENSE.txt', which is part of this source code package.
+ */
+
 #include "cola2_lib/cola2_control/IAUVController.h"
 
 IAUVController::IAUVController(double period, int n_dof, int n_thrusters, int n_fins):
