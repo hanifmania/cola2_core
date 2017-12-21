@@ -37,7 +37,6 @@
 #include "cola2_lib/cola2_rosutils/DiagnosticHelper.h"
 #include <string>
 #include <vector>
-#include <boost/thread.hpp>
 #include <unistd.h>
 
 typedef struct {
@@ -68,6 +67,7 @@ public:
 private:
     // Node handle
     ros::NodeHandle _n;
+    ros::NodeHandle _n_private;
 
     // Node name
     std::string _name;
@@ -112,6 +112,8 @@ private:
     ros::Subscriber _2D_nav_goal;
     ros::ServiceServer _pause_mission_srv;
     ros::ServiceServer _resume_mission_srv;
+    ros::ServiceServer _enable_external_mission_srv;
+    ros::ServiceServer _disable_external_mission_srv;
 
     // mission related services
     ros::ServiceServer _play_mission_srv;
@@ -200,6 +202,11 @@ private:
     bool resume(std_srvs::Empty::Request &req,
                 std_srvs::Empty::Response &res);
 
+    bool enable_external_mission(std_srvs::Empty::Request &req,
+                                 std_srvs::Empty::Response &res);
+
+    bool disable_external_mission(std_srvs::Empty::Request &req,
+                                  std_srvs::Empty::Response &res);
 
     bool playMission(cola2_msgs::String::Request&,
                      cola2_msgs::String::Response&);
@@ -222,6 +229,7 @@ private:
 
 
 Captain::Captain():
+    _n_private("~"),
     _is_waypoint_running(false),
     _is_section_running(false),
     _is_trajectory_disabled(false),
@@ -275,6 +283,8 @@ Captain::Captain():
     _play_mission_srv = _n.advertiseService("/mission_manager/play", &Captain::playMission, this);
     _pause_mission_srv = _n.advertiseService("/mission_manager/pause", &Captain::pause, this);
     _resume_mission_srv = _n.advertiseService("/mission_manager/resume", &Captain::resume, this);
+    _enable_external_mission_srv = _n_private.advertiseService("enable_external_mission", &Captain::enable_external_mission, this);
+    _disable_external_mission_srv = _n_private.advertiseService("disable_external_mission", &Captain::disable_external_mission, this);
 
     // Subscribers
     _sub_nav = _n.subscribe("/cola2_navigation/nav_sts", 1, &Captain::update_nav, this);
@@ -1331,7 +1341,7 @@ Captain::playMission(cola2_msgs::String::Request &req,
                 if (step->getManeuver()->getManeuverType() == WAYPOINT_MANEUVER) {
                     MissionWaypoint *wp = dynamic_cast<MissionWaypoint*>(step->getManeuver());
                     // std::cout << *wp << std::endl;
-                    _captain_status.active_controller = 1;
+                    _captain_status.active_controller = cola2_msgs::CaptainStatus::CONTROLLER_WAYPOINT;
                     if (!this->worldWaypoint(*wp)) {
                         ROS_WARN_STREAM(_name << "Impossible to reach waypoint. Move to next mission step.");
                     }
@@ -1339,7 +1349,7 @@ Captain::playMission(cola2_msgs::String::Request &req,
                 else if (step->getManeuver()->getManeuverType() == SECTION_MANEUVER) {
                     MissionSection *sec = dynamic_cast<MissionSection*>(step->getManeuver());
                     // std::cout << *sec << std::endl;
-                    _captain_status.active_controller = 2;
+                    _captain_status.active_controller = cola2_msgs::CaptainStatus::CONTROLLER_SECTION;
                     if (!this->worldSection(*sec)) {
                         ROS_WARN_STREAM(_name << "Impossible to reach section. Move to next mission step.");
                     }
@@ -1347,7 +1357,7 @@ Captain::playMission(cola2_msgs::String::Request &req,
                 else if (step->getManeuver()->getManeuverType() == PARK_MANEUVER) {
                     MissionPark *park = dynamic_cast<MissionPark*>(step->getManeuver());
                     // std::cout << *park << std::endl;
-                    _captain_status.active_controller = 3;
+                    _captain_status.active_controller = cola2_msgs::CaptainStatus::CONTROLLER_PARK;
                     if (!this->park(*park)) {
                         ROS_WARN_STREAM(_name << "Impossible to reach park waypoint. Move to next mission step.");
                     }
@@ -1376,7 +1386,7 @@ Captain::playMission(cola2_msgs::String::Request &req,
         _is_mission_paused = false;
 
         // Reset captain status
-        _captain_status.active_controller = 0;
+        _captain_status.active_controller = cola2_msgs::CaptainStatus::CONTROLLER_NONE;
         _captain_status.altitude_mode = false;
         _captain_status.mission_active = false;
         _captain_status.current_step = 0;
@@ -1555,6 +1565,34 @@ Captain::park(const MissionPark park)
     }
     return false;
 }
+
+bool
+Captain::enable_external_mission(std_srvs::Empty::Request &req, std_srvs::Empty::Response &res) {
+    // The only way to know if the mission is controlled by an external process is checking the total_steps
+    // Add extra information in captainStatus msg?
+    ROS_INFO_STREAM("enable_external_mission service called.");
+    if (check_no_request_running()) {
+        _is_mission_running = true;
+        _captain_status.mission_active = true;
+        _captain_status.current_step = -1;
+        _captain_status.total_steps = -1;
+    }
+    return true;
+}
+
+bool
+Captain::disable_external_mission(std_srvs::Empty::Request &req, std_srvs::Empty::Response &res) {
+    ROS_INFO_STREAM("disable_external_mission service called.");
+    if (_captain_status.mission_active && _captain_status.total_steps == -1) {
+        _captain_status.active_controller = cola2_msgs::CaptainStatus::CONTROLLER_NONE;
+        _is_mission_running = false;
+        _captain_status.mission_active = false;
+        _captain_status.current_step = 0;
+        _captain_status.total_steps = 0;
+    }
+    return true;
+}
+
 
 int main(int argc, char **argv) {
     ros::init(argc, argv, "captain_new");
