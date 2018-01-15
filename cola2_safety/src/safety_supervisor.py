@@ -118,9 +118,6 @@ class Cola2Safety(object):
                          self.name)
             rospy.signal_shutdown('Error creating reset timeout client')
 
-        # Create dynamic reconfigure service
-        self.dynamic_reconfigure_srv = Server(SafetyConfig,
-                                              self.dynamic_reconfigure_callback)
 
         # Create service
         self.reload_params_srv = rospy.Service('/cola2_safety/reload_safety_params',
@@ -133,17 +130,10 @@ class Cola2Safety(object):
         self.get_config()
         return EmptyResponse()
 
-    def dynamic_reconfigure_callback(self, config, level):
-        rospy.loginfo("""Reconfigure Request: {timeout}""".format(**config))
-        self.timeout_reset = 10
-        self.timeout = config.timeout
-        self.reset_timeout_srv(EmptyRequest())
-        return config
-
-    def compute_error_byte(self):
+    def compute_error_byte(self, current_step):
         """ Update ERROR CODE with the captain status information. """
 
-        current_step = bin(self.status.current_step % 256)
+        current_step = bin(current_step % 256)
         # delete previous bits
         for b in range(8):
             self.error_code[cola2_lib.ErrorCode.CURRENT_WAYPOINT_BASE - b] = '0'
@@ -309,6 +299,8 @@ class Cola2Safety(object):
         else:
             rospy.loginfo("%s: up_time (%s) < timeout (%s)", self.name, up_time, self.timeout)
             self.timeout_reset = self.timeout_reset - 1
+
+        self.compute_error_byte(vehicle_status.current_step)
 
         # Publish error code
         self.publishErrorCode()
