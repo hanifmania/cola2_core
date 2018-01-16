@@ -1,7 +1,14 @@
 #!/usr/bin/env python
-"""@@If the robot is deep enough,
-this node tells the robot to keep some DoF to a specific pose.
-This functionality use to be used for keeping an specific Pitch or Roll.@@"""
+# Copyright (c) 2017 Iqua Robotics SL - All Rights Reserved
+#
+# This file is subject to the terms and conditions defined in file
+# 'LICENSE.txt', which is part of this source code package.
+
+
+"""
+@@>This node tells the robot to keep some DoF to a specific pose, provided that it is deep enough.
+This functionality use to be used for keeping an specific Pitch or Roll.<@@
+"""
 
 """
 Created on Fri Mar 11 20134

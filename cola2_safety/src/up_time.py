@@ -1,6 +1,15 @@
 #!/usr/bin/env python
-"""@@Safety node used to check an absolute timeout. It also checks if navigator
-is publishing data.@@"""
+# Copyright (c) 2017 Iqua Robotics SL - All Rights Reserved
+#
+# This file is subject to the terms and conditions defined in file
+# 'LICENSE.txt', which is part of this source code package.
+
+
+
+"""
+@@>Safety node used to check an absolute timeout. It also checks if navigator
+is publishing data.<@@
+"""
 
 # ROS imports
 import roslib
@@ -63,12 +72,9 @@ class UpTime(object):
             self.diagnostic.add("last_nav_data",
                                 str(rospy.Time.now().to_sec() - self.last_navigator_callback))
 
-        if self.init_navigator_check and (rospy.Time.now().to_sec() - self.last_navigator_callback) > 2.0: 
-            self.diagnostic.setLevel(DiagnosticStatus.WARN, 'No navigation data!')
-        else:
-            self.diagnostic.setLevel(DiagnosticStatus.OK)
+        self.diagnostic.setLevel(DiagnosticStatus.OK)
 
-         # Publish total time
+        # Publish total time
         msg = TotalTime()
         msg.total_time = int(rospy.Time.now().to_sec() - self.init_time)
         self.pub_total_time.publish(msg)

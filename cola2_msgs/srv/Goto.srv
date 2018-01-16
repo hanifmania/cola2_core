@@ -26,5 +26,11 @@ auv_msgs/RPY orientation_tolerance
 
 geometry_msgs/Vector3 linear_velocity
 auv_msgs/RPY angular_velocity
+
+# Max timeout to reach position in seconds. If a more restrictive one is
+# computed by the captain using distance and velocity, it will override this one.
+# If keep_position is true, timeout is the time to keep position.
+uint16 timeout
+
 ---
 bool success

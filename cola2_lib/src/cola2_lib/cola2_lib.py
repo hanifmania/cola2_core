@@ -1,4 +1,10 @@
 #!/usr/bin/env python
+# Copyright (c) 2017 Iqua Robotics SL - All Rights Reserved
+#
+# This file is subject to the terms and conditions defined in file
+# 'LICENSE.txt', which is part of this source code package.
+
+
 
 #import pylab
 from math import floor, pi, sqrt
@@ -145,19 +151,19 @@ class Trajectory:
     def load(self, trajectory_type, lat_or_north, lon_or_east, z,
              altitude_mode, mode,  wait, actions):
 
-        assert(len(lat_or_north) == len(lon_or_east) == 
+        assert(len(lat_or_north) == len(lon_or_east) ==
                len(z) == len(altitude_mode))
 
         if len(actions) != 0:
             assert(len(lat_or_north) == len(actions))
         else:
             actions = ['' for i in range(len(lat_or_north))]
-        
+
         if len(wait) != 0:
             assert(len(lat_or_north) == len(wait))
         else:
             wait = [0 for i in range(len(lat_or_north))]
-            
+
         self.trajectory_type = trajectory_type
         if (trajectory_type == 'absolute'):
             self.lat = lat_or_north
@@ -211,9 +217,6 @@ class Trajectory:
 
 
 class ErrorCode:
-    def __init__(self):
-        pass
-
     INIT = 15
     BAT_WARNING = 14
     BAT_ERROR = 13
@@ -222,7 +225,35 @@ class ErrorCode:
     INTERNAL_SENSORS_WARNING = 10
     INTERNAL_SENSORS_ERROR = 9
     DVL_BOTTOM_FAIL = 8
-    CURRENT_WAYPOINT_BASE = 6 # to 1
+    CURRENT_WAYPOINT_BASE = 7 # to 0
+
+    def __init__(self):
+        pass
+
+    def unpack(self, error_code):
+        error_code_string = format(error_code, '016b')
+        
+        init = (error_code_string[ErrorCode.INIT] == '1')
+        bat_warning = (error_code_string[ErrorCode.BAT_WARNING] == '1')
+        bat_error = (error_code_string[ErrorCode.BAT_ERROR] == '1')
+        nav_sts_warning = (error_code_string[ErrorCode.NAV_STS_WARNING] == '1')
+        nav_sts_error = (error_code_string[ErrorCode.NAV_STS_ERROR] == '1')
+        internal_sensors_warning = (error_code_string[ErrorCode.INTERNAL_SENSORS_WARNING] == '1')
+        internal_sensors_error = (error_code_string[ErrorCode.INTERNAL_SENSORS_ERROR] == '1')
+        dvl_bottom_fail = (error_code_string[ErrorCode.DVL_BOTTOM_FAIL] == '1')
+        current_waypoint = int(error_code_string[0:ErrorCode.CURRENT_WAYPOINT_BASE + 1], 2)
+
+        return {'init': init,
+        		'bat_warning': bat_warning,
+        		'bat_error': bat_error,
+        		'nav_sts_warning': nav_sts_warning,
+        		'nav_sts_error': nav_sts_error,
+        		'internal_sensors_warning': internal_sensors_warning,
+        		'internal_sensors_error': internal_sensors_error,
+        		'dvl_bottom_fail': dvl_bottom_fail,
+        		'current_waypoint': current_waypoint}
+
+
 
 
 def saturateVector(v, min_max) :

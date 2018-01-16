@@ -1,7 +1,13 @@
 #!/usr/bin/env python
+# Copyright (c) 2017 Iqua Robotics SL - All Rights Reserved
+#
+# This file is subject to the terms and conditions defined in file
+# 'LICENSE.txt', which is part of this source code package.
+
+
 
 """
-Allows to run and stop file launch/bag.launch from Empty services
+@@>Provides services to run and stop the launch file launch/bag.launch <@@
 """
 
 import rospy
@@ -13,7 +19,7 @@ import time
 
 class LogBag:
     """LogBag class."""
-
+ 
     def __init__(self):
         """Class constructor."""
         self.start_bag = rospy.Service('/enable_logs', Empty, self.enable_logs)

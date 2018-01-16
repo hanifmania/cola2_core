@@ -1,3 +1,11 @@
+
+/*
+ * Copyright (c) 2017 Iqua Robotics SL - All Rights Reserved
+ *
+ * This file is subject to the terms and conditions defined in file
+ * 'LICENSE.txt', which is part of this source code package.
+ */
+
 #include "cola2_lib/cola2_control/IAUVROSController.h"
 
 IAUVROSController::IAUVROSController(const std::string name, const std::string frame_id):
@@ -24,7 +32,7 @@ void IAUVROSController::initBase(IAUVController * auv_controller_ptr, double per
   _pub_merged_twist = _n.advertise<auv_msgs::BodyVelocityReq>("/cola2_control/merged_body_velocity_req", 1);
   _pub_thrusters_setpoint = _n.advertise<cola2_msgs::Setpoints>("/cola2_control/thrusters_data", 1);
   _pub_fins_setpoint = _n.advertise<cola2_msgs::Setpoints>("/cola2_control/fins_data", 1);
-
+  _pub_thrusters_state = _n.advertise<std_msgs::Bool>("/cola2_control/thrusters_enabled", 1);
 
   // Subscribers --> WARNING! The buffer should be at least the size of maximum Request send per iteration/kind
   _sub_nav_data = _n.subscribe("/cola2_navigation/nav_sts", 2, &IAUVROSController::updateNav, this);
@@ -136,6 +144,10 @@ bool IAUVROSController::disableFinAllocator(std_srvs::Empty::Request &req, std_s
 
 void IAUVROSController::checkDiagnostics(const ros::TimerEvent& event)
 {
+  std_msgs::Bool thruster_enabled;
+  thruster_enabled.data = _auv_controller->getThrusterAllocator();
+  _pub_thrusters_state.publish(thruster_enabled);
+
   // for diagnostic purposes
   if (fabs(_diagnostic.getCurrentFreq() - _frequency) > 1.0)
   {

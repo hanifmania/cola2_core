@@ -1,3 +1,11 @@
+
+/*
+ * Copyright (c) 2017 Iqua Robotics SL - All Rights Reserved
+ *
+ * This file is subject to the terms and conditions defined in file
+ * 'LICENSE.txt', which is part of this source code package.
+ */
+
 #include "cola2_lib/cola2_control/Request.h"
 
 Request::Request(std::string requester, const double stamp, const unsigned int priority, const unsigned int n_dof) :
@@ -145,7 +153,7 @@ std::string Request::getRequester() const
   return _requester;
 }
 
-double Request::getStamp()
+double Request::getStamp() const
 {
   return _stamp;
 }

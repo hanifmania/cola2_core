@@ -1,3 +1,11 @@
+
+/*
+ * Copyright (c) 2017 Iqua Robotics SL - All Rights Reserved
+ *
+ * This file is subject to the terms and conditions defined in file
+ * 'LICENSE.txt', which is part of this source code package.
+ */
+
 #ifndef __MISSION_TYPES__
 #define __MISSION_TYPES__
 
@@ -13,31 +21,11 @@
 #define MISSION_CONFIGURATION   1
 #define MISSION_ACTION          2
 
-class MissionStep {
+
+class MissionManeuver
+{
 public:
-    MissionStep(unsigned int step_type_):
-        step_type(step_type_)
-    {}
-
-    friend std::ostream& operator<< (std::ostream& stream,
-                                     const MissionStep& ms)
-    {
-        stream << ms;
-    }
-
-    virtual void show()
-    {
-        std::cout << "MissionStep: To be overrided" << std::endl;
-    }
-
-    unsigned int step_id;
-    unsigned int step_type;
-};
-
-class MissionManeuver: public MissionStep {
-public:
-    MissionManeuver(unsigned int type):
-        MissionStep(MISSION_MANEUVER),
+    MissionManeuver(const unsigned int type):
         _maneuver_type(type)
     {}
 
@@ -56,6 +44,24 @@ public:
     {
         return _maneuver_type;
     }
+
+	virtual double
+	x()
+	{
+		return 0.0;
+	}
+
+	virtual double
+	y()
+	{
+		return 0.0;
+	}
+
+	virtual double
+	z()
+	{
+		return 0.0;
+	}
 
 private:
     unsigned int _maneuver_type;
@@ -149,6 +155,24 @@ public:
         std::cout << *this;
     }
 
+    double
+    x()
+    {
+        return position.latitude;
+    }
+
+    double
+    y()
+    {
+        return position.longitude;
+    }
+
+    double
+    z()
+    {
+        return position.z;
+    }
+
     MissionPosition position;
     double speed;
     MissionTolerance tolerance;
@@ -179,6 +203,24 @@ public:
     void show()
     {
         std::cout << *this;
+    }
+
+    double
+    x()
+    {
+        return final_position.latitude;
+    }
+
+    double
+    y()
+    {
+        return final_position.longitude;
+    }
+
+    double
+    z()
+    {
+        return final_position.z;
     }
 
     MissionPosition initial_position;
@@ -213,20 +255,37 @@ public:
         std::cout << *this;
     }
 
+    double
+    x()
+    {
+        return position.latitude;
+    }
+
+    double
+    y()
+    {
+        return position.longitude;
+    }
+
+    double
+    z()
+    {
+        return position.z;
+    }
+    
     MissionPosition position;
     unsigned int time;
     MissionTolerance tolerance;
 };
 
-class MissionConfiguration: public MissionStep {
+class MissionConfiguration
+{
 public:
-    MissionConfiguration():
-        MissionStep(MISSION_CONFIGURATION)
+    MissionConfiguration()
     {}
 
     MissionConfiguration(std::string key_,
                          std::string value_):
-        MissionStep(MISSION_CONFIGURATION),
         key(key_),
         value(value_)
     {}
@@ -251,15 +310,14 @@ public:
     std::string value;
 };
 
-class MissionAction: public MissionStep {
+class MissionAction
+{
 public:
-    MissionAction():
-        MissionStep(MISSION_ACTION)
+    MissionAction()
     {}
 
     MissionAction(std::string action_id_,
                   std::vector<std::string> parameters_):
-        MissionStep(MISSION_ACTION),
         action_id(action_id_),
         parameters(parameters_),
         _is_empty(true)
@@ -272,7 +330,7 @@ public:
     {
         stream << "Action "<< a.action_id;
         if (!a._is_empty) {
-            stream << ": with " << a.parameters.size() << " params";
+            stream << ": with " << a.parameters.size() << " params: ";
             for (std::vector<std::string>::const_iterator i = a.parameters.begin(); i != a.parameters.end(); i++) {
                 stream << *i << ", ";
             }
@@ -289,13 +347,70 @@ public:
     bool _is_empty;
 };
 
+
+class MissionStep
+{
+public:
+    MissionStep()
+    {}
+
+    friend std::ostream& operator<< (std::ostream& stream,
+                                     const MissionStep& ms)
+    {
+        stream << "????\n";
+    }
+
+    void show()
+    {
+        std::cout << "Maneuver:\n";
+        maneuver_->show();
+        std::cout << std::endl;
+        std::cout << "List of actions:\n";
+        for (std::vector<MissionAction>::iterator action = actions_.begin(); action != actions_.end(); ++action)
+        {
+            action->show();
+            std::cout << std::endl;
+        }
+        // std::cout << *this;
+    }
+
+	MissionManeuver*
+	getManeuver() const
+	{
+		return maneuver_;
+	}
+
+    std::vector<MissionAction>
+    getActions() const
+    {
+        return actions_;
+    }
+
+    void
+    setManeuver(MissionManeuver* maneuver)
+    {
+        maneuver_ = maneuver;
+    }
+
+    void addAction(MissionAction action)
+    {
+        actions_.push_back(action);
+    }
+
+    unsigned int step_id;
+	MissionManeuver* maneuver_;
+	std::vector<MissionAction> actions_;
+};
+
+
 class Mission {
 public:
     Mission():
         _step_size(0)
     {}
 
-    MissionStep* getStep(unsigned int i)
+    MissionStep*
+    getStep(unsigned int i)
     {
         assert(i < _mission.size());
         return _mission.at(i);
@@ -329,6 +444,7 @@ public:
         _mission.push_back(step);
     }
 
+    /*
     int loadConfiguration(TiXmlHandle hDoc, MissionConfiguration &conf) {
         TiXmlElement* pElem;
         pElem = hDoc.FirstChild().Element();
@@ -343,14 +459,25 @@ public:
             std::cout << "Load: " << conf << std::endl;
         }
     }
+    */
 
-    int loadAction(TiXmlHandle hDoc, MissionAction &action) {
+    int
+    loadAction(TiXmlHandle hDoc, MissionAction& action) {
         TiXmlElement* pElem;
         pElem = hDoc.FirstChild().Element();
-        if (!pElem) return -5; // No action element
+        if (!pElem)
+        {
+            std::cerr << "No action element.\n";
+            return -5; // No action element
+        }
         std::string action_tag = pElem->Value();
+        if (action_tag != "action_id")
+        {
+            std::cerr << "Error: action_id expected.\n";
+            return -6; // Invalid action_id tag
+        }
         action.action_id = pElem->GetText();
-        if (action_tag != "action_id") return -6; // Invalid action_id tag
+
 
         // Check params
         pElem = pElem=pElem->NextSiblingElement();
@@ -367,10 +494,11 @@ public:
                 action.parameters.push_back(param);
             }
         }
-         std::cout << "Load: " << action << std::endl;
+        //  std::cout << "Load: " << action << std::endl;
     }
 
-    bool loadPosition(TiXmlHandle hDoc, MissionPosition &position)
+    bool
+    loadPosition(TiXmlHandle hDoc, MissionPosition &position)
     {
         TiXmlElement* pElem;
         pElem = hDoc.FirstChild().Element();
@@ -394,15 +522,26 @@ public:
                 position.z = atof(pElem->GetText());
                 z_ = true;
             }
-            else if (wp_tag == "altitude_mode") {
-                position.altitude_mode = pElem->GetText() == "true";
+            else if (wp_tag == "altitude_mode")
+            {
+                std::string mode = pElem->GetText();
+                std::cout << "ALTITUDE MODE: " << mode << "\n";
+                if(mode == "true" || mode == "True")
+                {
+                    position.altitude_mode = true;
+                }
+                else
+                {
+                    position.altitude_mode = false;
+                }
                 mode = true;
             }
         }
         return (lat && lon && z_ && mode);
     }
 
-    bool loadTolerance(TiXmlHandle hDoc, MissionTolerance &tolerance)
+    bool
+    loadTolerance(TiXmlHandle hDoc, MissionTolerance &tolerance)
     {
         TiXmlElement* pElem;
         pElem = hDoc.FirstChild().Element();
@@ -430,13 +569,14 @@ public:
         return (x_ && y_ && z_);
     }
 
-    bool loadManeuverWaypoint(TiXmlHandle hDoc, MissionWaypoint &waypoint) {
+    bool
+    loadManeuverWaypoint(TiXmlHandle hDoc, MissionWaypoint &waypoint) {
         TiXmlElement* pElem;
         pElem = hDoc.FirstChild().Element();
         bool position = false;
         bool speed = false;
         bool tolerance = false;
-
+        std::cout << "Load maneuver waypoint\n";
         for(pElem; pElem; pElem=pElem->NextSiblingElement())
 		{
             std::string wp_tag = pElem->Value();
@@ -452,11 +592,12 @@ public:
             }
             if (position && speed && tolerance) break;
         }
-        std::cout << "Load: " << waypoint << std::endl;
+        // std::cout << "Loaded!" << std::endl;
         return (position && speed && tolerance);
     }
 
-    bool loadManeuverSection(TiXmlHandle hDoc, MissionSection &section) {
+    bool
+    loadManeuverSection(TiXmlHandle hDoc, MissionSection &section) {
         TiXmlElement* pElem;
         pElem = hDoc.FirstChild().Element();
         bool initial_position = false;
@@ -469,9 +610,11 @@ public:
             std::string wp_tag = pElem->Value();
             if (wp_tag == "initial_position") {
                 initial_position = loadPosition(TiXmlHandle(pElem), section.initial_position);
+                // std::cout << "initial_position.mode: " << section.initial_position.altitude_mode << "\n";
             }
             else if (wp_tag == "final_position") {
                 final_position = loadPosition(TiXmlHandle(pElem), section.final_position);
+                // std::cout << "final_position.mode: " << section.initial_position.altitude_mode << "\n";
             }
             else if (wp_tag == "speed") {
                 section.speed = atof(pElem->GetText());
@@ -482,11 +625,12 @@ public:
             }
             if (initial_position && final_position && speed && tolerance) break;
         }
-        std::cout << "Load: " << section << std::endl;
+        // std::cout << "Loadede " << section << std::endl;
         return (initial_position && final_position && speed && tolerance);
     }
 
-    bool loadManeuverPark(TiXmlHandle hDoc, MissionPark &park) {
+    bool
+    loadManeuverPark(TiXmlHandle hDoc, MissionPark &park) {
         TiXmlElement* pElem;
         pElem = hDoc.FirstChild().Element();
         bool position = false;
@@ -508,15 +652,81 @@ public:
             }
             if (position && time && tolerance) break;
         }
-        std::cout << "Load: " << park << std::endl;
+        // std::cout << "Load: " << park << std::endl;
         return (position && time && tolerance);
     }
 
-    int loadMission(const std::string mission_file_name)
+    int
+    loadStep(TiXmlHandle hDoc, MissionStep &step)
     {
+        TiXmlElement* pElem;
+        pElem = hDoc.FirstChild("maneuver").Element();
+        if (!pElem)
+        {
+            std::cout << "No maneuver element in mission step!\n";
+            return -3; // No key element
+        }
+        else
+        {
+            std::string attribute = pElem->Attribute("type");
+            if (attribute == "waypoint") {
+                std::cout << "Waypoint maneuver found " << std::endl;
+                MissionWaypoint *waypoint = new MissionWaypoint();
+                loadManeuverWaypoint(TiXmlHandle(pElem), *waypoint);
+                step.setManeuver(waypoint);
+            }
+            else if (attribute == "section") {
+                std::cout << "Section maneuver found " << std::endl;
+                MissionSection *section = new MissionSection();
+                loadManeuverSection(TiXmlHandle(pElem), *section);
+                step.setManeuver(section);
+            }
+            else if (attribute == "park") {
+                MissionPark *park = new MissionPark();
+                loadManeuverPark(TiXmlHandle(pElem), *park);
+                step.setManeuver(park);
+            }
+            else {
+                std::cout << "Invalid maneuver type: " << attribute << std::endl;
+            }
+        }
+
+        pElem = hDoc.FirstChild("actions_list").FirstChild().Element();
+        if (!pElem)
+        {
+            std::cout << "No actions found in mission step!\n";
+        }
+        else
+        {
+            std::cout << "Actions found in mission step!\n";
+            for(pElem; pElem; pElem=pElem->NextSiblingElement())
+    		{
+                std::string m_name = pElem->Value();
+                std::cout << "found: " << m_name << std::endl;
+                if (m_name == "action")
+                {
+                    std::cout << "Load action ...\n";
+                    MissionAction action;
+                    loadAction(TiXmlHandle(pElem), action);
+                    step.addAction(action);
+                }
+            }
+        }
+        return 0; // Everything ok
+    }
+
+    int
+    loadMission(const std::string mission_file_name)
+    {
+        std::cout << "Load mission " << mission_file_name << std::endl;
+
         // Load XML document
         TiXmlDocument doc(mission_file_name.c_str());
-	    if (!doc.LoadFile()) return -1; // Invalid/Not found document
+	    if (!doc.LoadFile())
+        {
+            std::cout << "Invalid/Not found document.\n";
+            return -1; // Invalid/Not found document
+        }
 
         TiXmlHandle hDoc(&doc);
         TiXmlElement* pElem;
@@ -526,46 +736,26 @@ public:
 
         // Read all childs of mission tag
         pElem = hDoc.FirstChild("mission").FirstChild().Element();
+        std::string m_name = pElem->Value();
         for(pElem; pElem; pElem=pElem->NextSiblingElement())
 		{
             std::string m_name = pElem->Value();
-            if (m_name == "configuration") {
-                MissionConfiguration *conf = new MissionConfiguration();
-                loadConfiguration(TiXmlHandle(pElem), *conf);
-                addStep(conf);
+            if (m_name == "mission_step")
+            {
+                std::cout << "Mission step found " << std::endl;
+                MissionStep *step = new MissionStep();
+                loadStep(TiXmlHandle(pElem), *step);
+                addStep(step);
             }
-            else if (m_name == "action") {
-                MissionAction *action = new MissionAction();
-                loadAction(TiXmlHandle(pElem), *action);
-                addStep(action);
-            }
-            else if (m_name == "maneuver") {
-                std::string attribute = pElem->Attribute("type");
-                if (attribute == "waypoint") {
-                    MissionWaypoint *waypoint = new MissionWaypoint();
-                    loadManeuverWaypoint(TiXmlHandle(pElem), *waypoint);
-                    addStep(waypoint);
-                }
-                else if (attribute == "section") {
-                    MissionSection *section = new MissionSection();
-                    loadManeuverSection(TiXmlHandle(pElem), *section);
-                    addStep(section);
-                }
-                else if (attribute == "park") {
-                    MissionPark *park = new MissionPark();
-                    loadManeuverPark(TiXmlHandle(pElem), *park);
-                    addStep(park);
-                }
-                else {
-                    std::cout << "Invalid maneuver type: " << attribute << std::endl;
-                }
+            else
+            {
+                std::cout << "Error reading mission step. Found " << m_name << ".\n";
             }
         }
-
-
-        return 0; // Everything ok
+        return 0;
     }
 
+    /*
     int writeConfiguration(TiXmlElement *mission, MissionConfiguration &conf)
     {
         std::cout << "Write: " << conf << std::endl;
@@ -578,10 +768,13 @@ public:
         element->LinkEndChild(value);
         mission->LinkEndChild(element);
     }
+    */
 
-    int writeAction(TiXmlElement *mission, MissionAction &action)
+    int
+    writeAction(TiXmlElement *mission, MissionAction &action)
     {
-        std::cout << "Write: " << action << std::endl;
+        std::cout << "Write: " << action.action_id << std::endl;
+
         TiXmlElement * element = new TiXmlElement("action");
         TiXmlElement * action_id = new TiXmlElement("action_id");
         action_id->LinkEndChild(new TiXmlText(action.action_id));
@@ -596,9 +789,11 @@ public:
             }
         }
         mission->LinkEndChild(element);
+        return 0;
     }
 
-    int writeManeuverPosition(TiXmlElement *maneuver, MissionPosition &p, std::string position_tag)
+    int
+    writeManeuverPosition(TiXmlElement *maneuver, MissionPosition &p, std::string position_tag)
     {
         TiXmlElement *position = new TiXmlElement(position_tag);
         maneuver->LinkEndChild(position);
@@ -618,7 +813,8 @@ public:
         return 0;
     }
 
-    int writeManeuverTolerance(TiXmlElement *maneuver, MissionTolerance &tol)
+    int
+    writeManeuverTolerance(TiXmlElement *maneuver, MissionTolerance &tol)
     {
         TiXmlElement *tolerance = new TiXmlElement("tolerance");
         maneuver->LinkEndChild(tolerance);
@@ -634,8 +830,8 @@ public:
         return 0;
     }
 
-
-    int writeManeuverWaypoint(TiXmlElement *mission, MissionWaypoint &wp)
+    int
+    writeManeuverWaypoint(TiXmlElement *mission, MissionWaypoint &wp)
     {
         std::cout << "Write: " << wp << std::endl;
         TiXmlElement * element = new TiXmlElement("maneuver");
@@ -646,9 +842,11 @@ public:
         TiXmlElement *speed = new TiXmlElement("speed");
         speed->LinkEndChild(new TiXmlText(to_string(wp.speed)));
         element->LinkEndChild(speed);
+        return 0;
     }
 
-    int writeManeuverSection(TiXmlElement *mission, MissionSection &sec)
+    int
+    writeManeuverSection(TiXmlElement *mission, MissionSection &sec)
     {
         std::cout << "Write: " << sec << std::endl;
         TiXmlElement * element = new TiXmlElement("maneuver");
@@ -660,9 +858,11 @@ public:
         TiXmlElement *speed = new TiXmlElement("speed");
         speed->LinkEndChild(new TiXmlText(to_string(sec.speed)));
         element->LinkEndChild(speed);
+        return 0;
     }
 
-    int writeManeuverPark(TiXmlElement *mission, MissionPark &park)
+    int
+    writeManeuverPark(TiXmlElement *mission, MissionPark &park)
     {
         std::cout << "Write: " << park << std::endl;
         TiXmlElement * element = new TiXmlElement("maneuver");
@@ -673,50 +873,71 @@ public:
         TiXmlElement *time = new TiXmlElement("time");
         time->LinkEndChild(new TiXmlText(to_string(park.time)));
         element->LinkEndChild(time);
+        return 0;
     }
 
-    int writeMission(std::string mission_file_name)
+    int
+    writeMissionStep(TiXmlElement *mission, MissionStep &step)
+    {
+        std::cout << "Write: " << step << std::endl;
+        TiXmlElement * mission_step = new TiXmlElement("mission_step");
+
+        // Write mission step maneuver
+        if (step.getManeuver()->getManeuverType() == WAYPOINT_MANEUVER)
+        {
+            std::cout << "Add waypoint\n";
+            MissionWaypoint *wp = dynamic_cast<MissionWaypoint*>(step.getManeuver());
+            writeManeuverWaypoint(mission_step, *wp);
+        }
+        else if (step.getManeuver()->getManeuverType() == SECTION_MANEUVER)
+        {
+            MissionSection *sec = dynamic_cast<MissionSection*>(step.getManeuver());
+            writeManeuverSection(mission_step, *sec);
+        }
+        else if (step.getManeuver()->getManeuverType() == PARK_MANEUVER)
+        {
+            MissionPark *park = dynamic_cast<MissionPark*>(step.getManeuver());
+            writeManeuverPark(mission_step, *park);
+        }
+
+        // Write action_list if available
+        std::vector<MissionAction> actions = step.getActions();
+        if (actions.size() > 0)
+        {
+            TiXmlElement * action_list = new TiXmlElement("actions_list");
+            for (std::vector<MissionAction>::iterator action = actions.begin(); action != actions.end(); ++action)
+            {
+                action->show();
+                writeAction(action_list, *action);
+            }
+            mission_step->LinkEndChild(action_list);
+        }
+        mission->LinkEndChild(mission_step);
+
+        return 0;
+    }
+
+    int
+    writeMission(std::string mission_file_name)
     {
         TiXmlDocument doc;
-        TiXmlElement* msg;
         TiXmlDeclaration* decl = new TiXmlDeclaration("1.0", "", "");
         doc.LinkEndChild(decl);
         TiXmlElement * mission = new TiXmlElement("mission");
         doc.LinkEndChild(mission);
 
-        for (unsigned int i = 0; i < _mission.size(); i++) {
+        for (unsigned int i = 0; i < _mission.size(); i++)
+        {
             MissionStep *step = _mission.at(i);
-            if (step->step_type == MISSION_CONFIGURATION) {
-                MissionConfiguration *conf = dynamic_cast<MissionConfiguration*>(step);
-                writeConfiguration(mission, *conf);
-            }
-            else if (step->step_type == MISSION_ACTION) {
-                MissionAction *act = dynamic_cast<MissionAction*>(step);
-                writeAction(mission, *act);
-            }
-            else if (step->step_type == MISSION_MANEUVER) {
-                MissionManeuver *m = dynamic_cast<MissionManeuver*>(step);
-                if (m->getManeuverType() == WAYPOINT_MANEUVER) {
-                    MissionWaypoint *wp = dynamic_cast<MissionWaypoint*>(m);
-                    writeManeuverWaypoint(mission, *wp);
-                }
-                else if (m->getManeuverType() == SECTION_MANEUVER) {
-                    MissionSection *sec = dynamic_cast<MissionSection*>(m);
-                    writeManeuverSection(mission, *sec);
-                }
-                else if (m->getManeuverType() == PARK_MANEUVER) {
-                    MissionPark *park = dynamic_cast<MissionPark*>(m);
-                    writeManeuverPark(mission, *park);
-                }
-            }
+            writeMissionStep(mission, *step);
         }
         doc.SaveFile(mission_file_name.c_str());
+        return 0;
     }
 
 private:
     unsigned int _step_size;
     std::vector<MissionStep*> _mission;
 };
-
 
 #endif // __MISSION_TYPES__

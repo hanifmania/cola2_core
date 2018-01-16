@@ -1,4 +1,10 @@
 #!/usr/bin/env python
+# Copyright (c) 2017 Iqua Robotics SL - All Rights Reserved
+#
+# This file is subject to the terms and conditions defined in file
+# 'LICENSE.txt', which is part of this source code package.
+
+
 
 import rospy
 from auv_msgs.msg import BodyVelocityReq
@@ -11,8 +17,8 @@ from cola2_lib.diagnostic_helper import DiagnosticHelper
 from diagnostic_msgs.msg import DiagnosticStatus
 
 """
- @@This node check AUV depth and altitude, and is mainly used to avoid
-   collisions.@@
+ @@> Prevents the vehicle to go behind a maximum depth or a minimum altitude 
+by sending a BodyVelocityReq asking a negative heave with maximum priority.<@@
 """
 """
 Created on Fri Mar 22 2013

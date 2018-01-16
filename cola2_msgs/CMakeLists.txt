@@ -79,6 +79,8 @@ find_package(catkin REQUIRED COMPONENTS
    Detection.msg
    RangeDetection.msg
    Section.msg
+   VehicleStatus.msg
+   CaptainStatus.msg
  )
 
 ## Generate services in the 'srv' folder
@@ -106,6 +108,7 @@ add_service_files(
   SetTrajectory.srv
   Action.srv
   Float.srv
+  SetVesselPose.srv
 )
 
 ## Generate actions in the 'action' folder
@@ -142,6 +145,7 @@ generate_dynamic_reconfigure_options(
   cfg/VirtualCageInfo.cfg
   cfg/Safety.cfg
   cfg/tritech_msis.cfg
+  cfg/ImagenexDeltaT.cfg
 )
 
 ###################################

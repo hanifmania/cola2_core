@@ -1,3 +1,11 @@
+
+/*
+ * Copyright (c) 2017 Iqua Robotics SL - All Rights Reserved
+ *
+ * This file is subject to the terms and conditions defined in file
+ * 'LICENSE.txt', which is part of this source code package.
+ */
+
 #include "cola2_lib/cola2_control/IAUVController.h"
 
 IAUVController::IAUVController(double period, int n_dof, int n_thrusters, int n_fins):
@@ -124,6 +132,11 @@ void IAUVController::setVelocityController(const bool is_enabled)
 void IAUVController::setThrusterAllocator(const bool is_enabled)
 {
   _is_thruster_allocator_enable = is_enabled;
+}
+
+bool IAUVController::getThrusterAllocator() const
+{
+  return _is_thruster_allocator_enable;
 }
 
 bool IAUVController::isThrusterAllocatorEnable() const

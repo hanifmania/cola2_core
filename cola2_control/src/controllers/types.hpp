@@ -1,3 +1,11 @@
+
+/*
+ * Copyright (c) 2017 Iqua Robotics SL - All Rights Reserved
+ *
+ * This file is subject to the terms and conditions defined in file
+ * 'LICENSE.txt', which is part of this source code package.
+ */
+
 #ifndef __CONTROLLER_TYPES__
 #define __CONTROLLER_TYPES__
 
@@ -66,6 +74,7 @@ namespace control {
         unsigned int controller_type;
         unsigned int timeout;
         control::vector6d disable_axis;
+		bool keep_position;
 
         Waypoint() {
             requester = "requester_not_defined";
@@ -98,6 +107,7 @@ namespace control {
             angular_velocity.roll = 0.0;
             angular_velocity.pitch = 0.0;
             angular_velocity.yaw = 0.0;
+            keep_position = false;
         }
     };
 

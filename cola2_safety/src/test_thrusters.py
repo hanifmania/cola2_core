@@ -1,11 +1,18 @@
 #!/usr/bin/env python
+# Copyright (c) 2017 Iqua Robotics SL - All Rights Reserved
+#
+# This file is subject to the terms and conditions defined in file
+# 'LICENSE.txt', which is part of this source code package.
+
+
 # ROS imports
 import rospy
 from std_srvs.srv import Empty, EmptyRequest
 from cola2_msgs.msg import ThrustersData
 from cola2_msgs.srv import Action
 
-"""@@Test thrusters from an Action service.@@"""
+"""@@>Test thrusters from an Action service.<@@"""
+
 """
 Created on Jan 2017
 @author: narcis palomeras
@@ -53,7 +60,7 @@ class TestThrusters:
 
     def test(self, req):
         """Test service."""
-        self.enable_thrusters(EmptyRequest())
+        self.disable_thrusters(EmptyRequest())
 
         data = ThrustersData()
         for p in req.param:
@@ -62,7 +69,7 @@ class TestThrusters:
         rospy.loginfo(self.name + ": test thrusters with " +
                       str(data.setpoints) + "\n")
         rate = rospy.Rate(10)
-        for i in range(20):
+        for i in range(30):
             data.header.stamp = rospy.Time.now()
             self.pub_thrusters_data.publish(data)
             rate.sleep()

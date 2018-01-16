@@ -1,15 +1,28 @@
+
+/*
+ * Copyright (c) 2017 Iqua Robotics SL - All Rights Reserved
+ *
+ * This file is subject to the terms and conditions defined in file
+ * 'LICENSE.txt', which is part of this source code package.
+ */
+
+
+/*@@>High level controller that provides control actions and services to load and execute missions, reach waypoints, keep position,...
+ This node mainly translates user requests to pilot action libs.<@@*/
+
 #include <ros/ros.h>
 #include <actionlib/client/simple_action_client.h>
 #include <actionlib/client/terminal_state.h>
 #include <cola2_msgs/WorldSectionReqAction.h>
 #include <cola2_msgs/WorldWaypointReqAction.h>
 #include <boost/shared_ptr.hpp>
+#include <std_msgs/Bool.h>
 #include <cola2_msgs/String.h>
 #include <cola2_msgs/Goto.h>
 #include <cola2_msgs/Submerge.h>
 #include <cola2_msgs/SetTrajectory.h>
 #include <cola2_msgs/Action.h>
-#include <cola2_msgs/MissionStatus.h>
+#include <cola2_msgs/CaptainStatus.h>
 #include <std_srvs/Empty.h>
 #include <auv_msgs/GoalDescriptor.h>
 #include <nav_msgs/Path.h>
@@ -24,7 +37,6 @@
 #include "cola2_lib/cola2_rosutils/DiagnosticHelper.h"
 #include <string>
 #include <vector>
-#include <boost/thread.hpp>
 #include <unistd.h>
 
 typedef struct {
@@ -55,6 +67,7 @@ public:
 private:
     // Node handle
     ros::NodeHandle _n;
+    ros::NodeHandle _n_private;
 
     // Node name
     std::string _name;
@@ -62,25 +75,26 @@ private:
     // Class attributes
     bool _is_waypoint_running;
     bool _is_section_running;
-    bool _is_trajectory_disabled;
+    bool _is_trajectory_disabled; // Note: redundant flag with different name for old trajectory system
     bool _is_mission_running;
-
+    bool _is_mission_paused;
     ros::MultiThreadedSpinner _spinner;
     Trajectory _trajectory;
-    Ned *_ned;
+    // Ned *_ned;
     control::Nav _nav;
     CaptainConfig _config;
     bool _is_holonomic_keep_pose_enabled;
     double _min_goto_vel;
     double _min_loscte_vel;
-    cola2_msgs::MissionStatus _mission_status;
+    cola2_msgs::CaptainStatus _captain_status;
 
     // Diagnostics
     cola2::rosutils::DiagnosticHelper _diagnostic ;
 
     // Publishers
     ros::Publisher _pub_path;
-    ros::Publisher _pub_mission_status;
+    ros::Publisher _pub_keep_position_enabled;
+    ros::Publisher _pub_captain_status;
 
     // Services
     ros::ServiceServer _enable_goto_srv;
@@ -90,11 +104,16 @@ private:
     ros::ServiceServer _set_trajectory_srv;
     ros::ServiceServer _enable_trajectory_srv;
     ros::ServiceServer _enable_trajectory_non_block_srv;
+    ros::ServiceServer _play_default_mission_non_block_srv;
     ros::ServiceServer _disable_trajectory_srv;
     ros::ServiceServer _enable_keep_position_holonomic_srv;
     ros::ServiceServer _enable_keep_position_non_holonomic_srv;
     ros::ServiceServer _disable_keep_position_srv;
     ros::Subscriber _2D_nav_goal;
+    ros::ServiceServer _pause_mission_srv;
+    ros::ServiceServer _resume_mission_srv;
+    ros::ServiceServer _enable_external_mission_srv;
+    ros::ServiceServer _disable_external_mission_srv;
 
     // mission related services
     ros::ServiceServer _play_mission_srv;
@@ -103,7 +122,7 @@ private:
     ros::Subscriber _sub_nav;
 
     // Timer
-    ros::Timer _mission_status_timer;
+    ros::Timer _captain_status_timer;
 
     // Actionlib client
     boost::shared_ptr<actionlib::SimpleActionClient<
@@ -129,6 +148,7 @@ private:
     void get_config();
 
     nav_msgs::Path create_path_from_trajectory(Trajectory trajectory);
+    nav_msgs::Path create_path_from_mission(Mission mission);
 
     double distance_to(const double, const double, const double, const double, const bool);
 
@@ -154,6 +174,9 @@ private:
     bool enable_trajectory_non_block(std_srvs::Empty::Request&,
                                      std_srvs::Empty::Response&);
 
+    bool play_default_mission_non_block(std_srvs::Empty::Request&,
+                                        std_srvs::Empty::Response&);
+
     bool disable_trajectory(std_srvs::Empty::Request&,
                             std_srvs::Empty::Response&);
 
@@ -172,6 +195,19 @@ private:
     // Mission related functions
     void run_trajectory();
 
+    bool pause(std_srvs::Empty::Request &req,
+               std_srvs::Empty::Response &res);
+
+
+    bool resume(std_srvs::Empty::Request &req,
+                std_srvs::Empty::Response &res);
+
+    bool enable_external_mission(std_srvs::Empty::Request &req,
+                                 std_srvs::Empty::Response &res);
+
+    bool disable_external_mission(std_srvs::Empty::Request &req,
+                                  std_srvs::Empty::Response &res);
+
     bool playMission(cola2_msgs::String::Request&,
                      cola2_msgs::String::Response&);
 
@@ -186,17 +222,19 @@ private:
 
     bool worldSection(const MissionSection sec);
 
-    void park(const MissionPark park);
+    bool park(const MissionPark park);
 
-    void mission_status_timer(const ros::TimerEvent&);
+    void captain_status_timer(const ros::TimerEvent&);
 };
 
 
 Captain::Captain():
+    _n_private("~"),
     _is_waypoint_running(false),
     _is_section_running(false),
     _is_trajectory_disabled(false),
     _is_mission_running(false),
+    _is_mission_paused(false),
     _spinner(2),
     _is_holonomic_keep_pose_enabled(false),
     _diagnostic(_n, ros::this_node::getName(), "soft")
@@ -210,7 +248,8 @@ Captain::Captain():
 
     // Init publishers
     _pub_path = _n.advertise<nav_msgs::Path>("/cola2_control/trajectory_path", 1, true);
-    _pub_mission_status = _n.advertise<cola2_msgs::MissionStatus>("/cola2_control/mission_status", 1, true);
+    _pub_keep_position_enabled = _n.advertise<std_msgs::Bool>("/cola2_control/keep_position_enabled", 1, true);
+    _pub_captain_status = _n.advertise<cola2_msgs::CaptainStatus>("/cola2_control/captain_status", 1, true);
 
     // Actionlib client. Smart pointer is used so that client construction is
     // delayed after configuration is loaded
@@ -236,34 +275,40 @@ Captain::Captain():
     _set_trajectory_srv = _n.advertiseService("/cola2_control/set_trajectory", &Captain::set_trajectory, this);
     _enable_trajectory_srv = _n.advertiseService("/cola2_control/enable_trajectory", &Captain::enable_trajectory, this);
     _enable_trajectory_non_block_srv = _n.advertiseService("/cola2_control/enable_trajectory_non_block", &Captain::enable_trajectory_non_block, this);
+    _play_default_mission_non_block_srv = _n.advertiseService("/cola2_control/play_default_mission_non_block", &Captain::play_default_mission_non_block, this);
     _disable_trajectory_srv = _n.advertiseService("/cola2_control/disable_trajectory", &Captain::disable_trajectory, this);
     _enable_keep_position_holonomic_srv = _n.advertiseService("/cola2_control/enable_keep_position_4dof", &Captain::enable_keep_position_holonomic, this);
     _enable_keep_position_non_holonomic_srv = _n.advertiseService("/cola2_control/enable_keep_position_3dof", &Captain::enable_keep_position_non_holonomic, this);
     _disable_keep_position_srv = _n.advertiseService("/cola2_control/disable_keep_position", &Captain::disable_keep_position, this);
     _play_mission_srv = _n.advertiseService("/mission_manager/play", &Captain::playMission, this);
+    _pause_mission_srv = _n.advertiseService("/mission_manager/pause", &Captain::pause, this);
+    _resume_mission_srv = _n.advertiseService("/mission_manager/resume", &Captain::resume, this);
+    _enable_external_mission_srv = _n_private.advertiseService("enable_external_mission", &Captain::enable_external_mission, this);
+    _disable_external_mission_srv = _n_private.advertiseService("disable_external_mission", &Captain::disable_external_mission, this);
 
     // Subscribers
     _sub_nav = _n.subscribe("/cola2_navigation/nav_sts", 1, &Captain::update_nav, this);
     _2D_nav_goal = _n.subscribe("/move_base_simple/goal", 1, &Captain::nav_goal, this);
 
-    // Mission Status
-    _mission_status.current_wp = 0;
-    _mission_status.total_wp = 0;
-    _mission_status.wp_north = 0.0;
-    _mission_status.wp_east = 0.0;
-    _mission_status.altitude_mode = 0.0;
-    _mission_status.wp_depth_altitude = 0.0;
-    _mission_status_timer = _n.createTimer(ros::Duration(2.0), &Captain::mission_status_timer, this);
+    //Captain Status
+    _captain_status.active_controller = 0;
+    _captain_status.altitude_mode = false;
+    _captain_status.mission_active = false;
+    _captain_status.current_step = 0;
+    _captain_status.total_steps = 0;
+    _captain_status_timer = _n.createTimer(ros::Duration(2.0), &Captain::captain_status_timer, this);
 
     // test();
     _spinner.spin();
 }
 
 void
-Captain::mission_status_timer(const ros::TimerEvent & event)
+Captain::captain_status_timer(const ros::TimerEvent & event)
 {
-    _pub_mission_status.publish(_mission_status);
+    _captain_status.mission_active = _is_mission_running;
+    _pub_captain_status.publish(_captain_status);
 }
+
 
 void
 Captain::update_nav(const ros::MessageEvent<auv_msgs::NavSts const> & msg)
@@ -274,7 +319,19 @@ Captain::update_nav(const ros::MessageEvent<auv_msgs::NavSts const> & msg)
     _nav.yaw = msg.getMessage()->orientation.yaw;
     _nav.altitude = msg.getMessage()->altitude;
 
-    if (_is_section_running) {
+    if (_is_holonomic_keep_pose_enabled)
+    {
+        _diagnostic.add("keep_position_enabled", "True");
+    }
+    else
+    {
+        _diagnostic.add("keep_position_enabled", "False");
+    }
+    std_msgs::Bool value;
+    value.data = _is_holonomic_keep_pose_enabled;
+    _pub_keep_position_enabled.publish(value);
+
+    if (_is_mission_running) {
         _diagnostic.add("trajectory_enabled", "True");
         _diagnostic.setLevel(diagnostic_msgs::DiagnosticStatus::OK);
     }
@@ -354,12 +411,12 @@ Captain::get_config() {
     config.section_server_name = "section_server";
     double ned_latitude;
     double ned_longitude;
-    // Load NED origin
+    // Check that NED origin is defined
     if (!ros::param::getCached("navigator/ned_latitude", ned_latitude) ||
         !ros::param::getCached("navigator/ned_longitude", ned_longitude)){
       ROS_ASSERT_MSG(false, "NED origin not found in param server");
     }
-    _ned = new Ned(ned_latitude, ned_longitude, 0.0);
+    // _ned = new Ned(ned_latitude, ned_longitude, 0.0);
     cola2::rosutil::getParam("/captain/max_distance_to_waypoint", _config.max_distance_to_waypoint, 300.0);
     std::vector<double> tolerance;
     cola2::rosutil::loadVector("/captain/tolerance", tolerance);
@@ -406,7 +463,15 @@ Captain::enable_goto(cola2_msgs::Goto::Request &req,
         }
         else if (req.reference == cola2_msgs::GotoRequest::REFERENCE_GLOBAL){
             double north, east, depth;
-            _ned->geodetic2Ned(req.position.x, req.position.y, 0.0,
+            double ned_latitude;
+            double ned_longitude;
+            // Load NED origin. It can be modified at any time
+            if (!ros::param::getCached("navigator/ned_latitude", ned_latitude) ||
+                !ros::param::getCached("navigator/ned_longitude", ned_longitude)){
+              ROS_ASSERT_MSG(false, "NED origin not found in param server");
+            }
+            Ned ned(ned_latitude, ned_longitude, 0.0);
+            ned.geodetic2Ned(req.position.x, req.position.y, 0.0,
                                north, east, depth);
             waypoint.position.north = north;
             waypoint.position.east = east;
@@ -422,6 +487,8 @@ Captain::enable_goto(cola2_msgs::Goto::Request &req,
                                                   req.altitude,
                                                   req.altitude_mode);
 
+		// Reload max_distance to waypoint. User can modify it!
+		cola2::rosutil::getParam("/captain/max_distance_to_waypoint", _config.max_distance_to_waypoint, 300.0);
         if(!(req.disable_axis.x && req.disable_axis.y) && (distance_to_waypoint > _config.max_distance_to_waypoint)) {
             ROS_WARN_STREAM(_name << ": Max distance to waypoint is " <<
                             _config.max_distance_to_waypoint << " requested waypoint is at "
@@ -448,8 +515,9 @@ Captain::enable_goto(cola2_msgs::Goto::Request &req,
         }
 
         // Choose WorldWaypointReq mode taking into account disable axis & tolerance
-        if (req.position_tolerance.x == 0.0 && req.position_tolerance.y == 0.0 && req.position_tolerance.z == 0.0 && !req.disable_axis.x && req.disable_axis.y && !req.disable_axis.yaw) {
+        if (req.keep_position && !req.disable_axis.x && req.disable_axis.y && !req.disable_axis.yaw) {
             // Non holonomic keep position
+            ROS_INFO_STREAM(_name << ": ANCHOR mode on!\n");
             waypoint.controller_type = cola2_msgs::WorldWaypointReqGoal::ANCHOR;
         }
         else if (!req.disable_axis.x && req.disable_axis.y && !req.disable_axis.yaw) {
@@ -465,6 +533,10 @@ Captain::enable_goto(cola2_msgs::Goto::Request &req,
             waypoint.controller_type = cola2_msgs::WorldWaypointReqGoal::GOTO;
         }
 
+        // Is a goto request to keep position?
+        waypoint.keep_position = req.keep_position;
+
+        // Indicate that a waypoint is under execution
         _is_waypoint_running = true;
 
         // Compute timeout
@@ -474,17 +546,43 @@ Captain::enable_goto(cola2_msgs::Goto::Request &req,
         }
         waypoint.timeout = (2.0 * distance_to_waypoint) / min_vel;
         if (waypoint.timeout < 30.0) waypoint.timeout = 30.0;
-        if (req.keep_position) {
-              ROS_INFO_STREAM(_name << ": Keep position TRUE. Setting timeout to 3600s.");
-              waypoint.timeout = 3600;
-            }
+        if (req.timeout > 0 && req.timeout < waypoint.timeout)
+        {
+          std::cout << "Warning! Goto request timeout is " << req.timeout << " while computed timeout is " << waypoint.timeout << ". Override.\n";
+          waypoint.timeout = req.timeout;
+        }
+
+        if (req.keep_position)
+        {
+          if (req.timeout > 0)
+          {
+            ROS_INFO_STREAM(_name << ": Keep position TRUE. Setting timeout to GOTO request value: " << req.timeout << "\n");
+            waypoint.timeout = req.timeout;
+          }
+          else
+          {
+            ROS_INFO_STREAM(_name << ": Keep position TRUE but timeout GOTO request value is 0. Set timeout to 3600\n");
+            waypoint.timeout = 3600;
+          }
+          // Set active controller to park
+          _captain_status.active_controller = 3;
+        }
+        else
+        {
+            // Set active controller to waypoint
+            _captain_status.active_controller = 1;
+        }
 
         if (waypoint.altitude_mode) {
             ROS_INFO_STREAM(_name << ": Send WorldWaypointRequest at " << waypoint.position.north << ", "  << waypoint.position.east << ", " << waypoint.altitude << " altitude. Timeout = " << waypoint.timeout << "\n");
+            _captain_status.altitude_mode = true;
         }
         else {
             ROS_INFO_STREAM(_name << ": Send WorldWaypointRequest at " << waypoint.position.north << ", "  << waypoint.position.east << ", " << waypoint.position.depth << " depth. Timeout = " << waypoint.timeout << "\n");
+            _captain_status.altitude_mode = false;
         }
+
+
 
         _waypoint_client->sendGoal(waypoint);
         res.success = true;
@@ -617,10 +715,18 @@ Captain::set_trajectory(cola2_msgs::SetTrajectory::Request &req,
     {
         ROS_INFO_STREAM(_name << ": global trajectory");
         double north, east, depth;
+        double ned_latitude;
+        double ned_longitude;
+        // Load NED origin, it can be modified at any time
+        if (!ros::param::getCached("navigator/ned_latitude", ned_latitude) ||
+            !ros::param::getCached("navigator/ned_longitude", ned_longitude)){
+          ROS_ASSERT_MSG(false, "NED origin not found in param server");
+        }
+        Ned ned(ned_latitude, ned_longitude, 0.0);
         for (unsigned int i = 0; i < trajectory.x.size(); i++)
         {
-            _ned->geodetic2Ned(trajectory.x.at(i), trajectory.y.at(i), 0.0,
-                               north, east, depth);
+            ned.geodetic2Ned(trajectory.x.at(i), trajectory.y.at(i), 0.0,
+                             north, east, depth);
             trajectory.x.at(i) = north;
             trajectory.y.at(i) = east;
         }
@@ -728,9 +834,17 @@ Captain::load_trajectory(std_srvs::Empty::Request &req,
     // If the trajectory is defined globally, tranform from lat/lon to NED.
     if(is_trajectory_global){
         double north, east, depth;
+        double ned_latitude;
+        double ned_longitude;
+        // Load NED origin, it can be modified at any time
+        if (!ros::param::getCached("navigator/ned_latitude", ned_latitude) ||
+            !ros::param::getCached("navigator/ned_longitude", ned_longitude)){
+          ROS_ASSERT_MSG(false, "NED origin not found in param server");
+        }
+        Ned ned(ned_latitude, ned_longitude, 0.0);
         for(unsigned int i = 0; i < trajectory.x.size(); i++){
-            _ned->geodetic2Ned(trajectory.x.at(i), trajectory.y.at(i), 0.0,
-                               north, east, depth);
+            ned.geodetic2Ned(trajectory.x.at(i), trajectory.y.at(i), 0.0,
+                             north, east, depth);
             trajectory.x.at(i) = north;
             trajectory.y.at(i) = east;
         }
@@ -758,6 +872,18 @@ Captain::enable_trajectory_non_block(std_srvs::Empty::Request&,
 }
 
 bool
+Captain::play_default_mission_non_block(std_srvs::Empty::Request&,
+                                        std_srvs::Empty::Response&)
+{
+    boost::thread *t;
+	cola2_msgs::String::Request req;
+	cola2_msgs::String::Response res;
+	req.mystring = "last_mission.xml";
+    t = new boost::thread(&Captain::playMission, this, req, res);
+    return true;
+}
+
+bool
 Captain::enable_trajectory(std_srvs::Empty::Request&,
                            std_srvs::Empty::Response&)
 {
@@ -768,12 +894,6 @@ Captain::enable_trajectory(std_srvs::Empty::Request&,
 void Captain::run_trajectory()
 {
     if(check_no_request_running() && _trajectory.valid_trajectory){
-        // Mission Status
-        _mission_status.current_wp = 1;
-        _mission_status.total_wp = _trajectory.x.size();
-        _mission_status.wp_north = _trajectory.x.at(0);
-        _mission_status.wp_east = _trajectory.y.at(0);
-        _mission_status.wp_depth_altitude = _trajectory.z.at(0);
 
         _is_trajectory_disabled = false;
         cola2_msgs::Goto::Request req;
@@ -793,13 +913,11 @@ void Captain::run_trajectory()
         if (_trajectory.force_initial_final_waypoints_at_surface) {
           req.altitude_mode = false;
           req.position.z = 0.0;
-          _mission_status.altitude_mode = false;
         }
         else {
           req.altitude_mode = _trajectory.altitude_mode.at(0);
           req.position.z = _trajectory.z.at(0);
           req.altitude = _trajectory.z.at(0);
-          _mission_status.altitude_mode = true;
         }
         if (_trajectory.tolerance.size() == 0) {
             req.position_tolerance.x = _config.tolerance.x * 3.0;
@@ -833,7 +951,8 @@ void Captain::run_trajectory()
         }
 
         if (!_is_trajectory_disabled) {
-            _is_section_running = true;
+            _is_mission_running = true;
+
             // Create section
             cola2_msgs::WorldSectionReqGoal section;
             section.priority = auv_msgs::GoalDescriptor::PRIORITY_NORMAL;
@@ -860,7 +979,7 @@ void Captain::run_trajectory()
             }
 
             unsigned int i = 1;
-            while (i < _trajectory.x.size() &&  _is_section_running) {
+            while (i < _trajectory.x.size() &&  _is_mission_running) { //TODO: Check
                 // For each pair of waypoints:
                 // ...initial point of the section
 
@@ -918,15 +1037,6 @@ void Captain::run_trajectory()
                 double timeout = 10 + (2*distance_to_end_section) / min_vel;
                 ROS_INFO_STREAM(_name << ": Section timeout = " << timeout << "\n");
 
-                // Fill mission_status message
-                _mission_status.current_wp = i + 1;
-                _mission_status.total_wp = _trajectory.z.size();
-                _mission_status.wp_north = _trajectory.x.at(i);
-                _mission_status.wp_east = _trajectory.y.at(i);
-                _mission_status.altitude_mode = _trajectory.altitude_mode.at(i);
-                _mission_status.wp_depth_altitude = _trajectory.z.at(i);
-                // _mission_status.wp_remaining_time = self.trajectory.wait[i]
-
                 _section_client->waitForResult(ros::Duration(timeout));
 
                 if (_trajectory.wait.at(i) > 0)
@@ -940,8 +1050,7 @@ void Captain::run_trajectory()
                 // Move to next waypoint
                 i++;
             }
-            if(_is_section_running){
-                _is_section_running = false;
+            if(_is_mission_running){
                 // Move to final waypoint on surface if necessary
                 if (_trajectory.force_initial_final_waypoints_at_surface) {
                     req.priority = auv_msgs::GoalDescriptor::PRIORITY_NORMAL;
@@ -961,16 +1070,11 @@ void Captain::run_trajectory()
                     req.reference = cola2_msgs::Goto::Request::REFERENCE_NED;
                     enable_goto(req, res);
                     ROS_ASSERT_MSG(res.success, "Impossible to reach final waypoint");
+                    _is_mission_running = false;
                 }
             }
         }
-        // Mission finalized
-        _mission_status.current_wp = 0;
-        _mission_status.total_wp = 0;
-        _mission_status.wp_north = 0.0;
-        _mission_status.wp_east = 0.0;
-        _mission_status.altitude_mode = 0.0;
-        _mission_status.wp_depth_altitude = 0.0;
+
     }
     else {
         ROS_WARN_STREAM(_name << ": Is trajectory loaded?");
@@ -983,14 +1087,21 @@ Captain::disable_trajectory(std_srvs::Empty::Request&,
 {
     if(_is_waypoint_running) {
         _is_waypoint_running = false;
+        _captain_status.active_controller = 0;
         _is_trajectory_disabled = true;
         _waypoint_client->cancelGoal();
     }
-    else if(_is_section_running) {
+    if(_is_section_running) {
         _is_section_running = false;
+        _captain_status.active_controller = 0;
+        _is_trajectory_disabled = true;
         _section_client->cancelGoal();
     }
-    _is_mission_running = false;
+    if(_is_mission_running) {
+        _is_mission_running = false;
+        _captain_status.mission_active = false;
+        _is_trajectory_disabled = true;
+    }
     return true;
 }
 
@@ -1092,6 +1203,7 @@ Captain::wait_waypoint()
 {
     _waypoint_client->waitForResult();
     _is_waypoint_running = false;
+    _captain_status.active_controller = 0;
     ROS_INFO_STREAM(_name << ": World Waypoint Request finalized");
 }
 
@@ -1127,7 +1239,55 @@ Captain::create_path_from_trajectory(Trajectory trajectory)
     return path;
 }
 
+nav_msgs::Path
+Captain::create_path_from_mission(Mission mission)
+{
+    nav_msgs::Path path;
+    path.header.stamp = ros::Time::now();
+    path.header.frame_id = "/world";
+    double ned_latitude;
+    double ned_longitude;
+    // Load NED origin, it can be modified at any time
+    if (!ros::param::getCached("navigator/ned_latitude", ned_latitude) ||
+        !ros::param::getCached("navigator/ned_longitude", ned_longitude)){
+      ROS_ASSERT_MSG(false, "NED origin not found in param server");
+    }
+    Ned ned(ned_latitude, ned_longitude, 0.0);
+    double x, y, z;
+    for (unsigned int i = 0; i < mission.size(); ++i)
+    {
+        geometry_msgs::PoseStamped pose;
+        pose.header.frame_id = path.header.frame_id;
+        ned.geodetic2Ned(mission.getStep(i)->getManeuver()->x(),
+                         mission.getStep(i)->getManeuver()->y(),
+                         0.0,
+                         x, y, z);
+        pose.pose.position.x = x;
+        pose.pose.position.y = y;
+        pose.pose.position.z = mission.getStep(i)->getManeuver()->z();
+        path.poses.push_back(pose);
+    }
+    return path;
+}
+
 // ------------------ MISSION RELATED METHODS -------------------
+bool
+Captain::pause(std_srvs::Empty::Request &req,
+               std_srvs::Empty::Response &res) {
+    _waypoint_client->cancelGoal();
+    _section_client->cancelGoal();
+    _is_mission_paused = true;
+    return true;
+}
+
+
+bool
+Captain::resume(std_srvs::Empty::Request &req,
+                std_srvs::Empty::Response &res) {
+    _is_mission_paused = false;
+    return true;
+}
+
 
 bool
 Captain::playMission(cola2_msgs::String::Request &req,
@@ -1137,53 +1297,105 @@ Captain::playMission(cola2_msgs::String::Request &req,
         std::string mission_path = _config.mission_path + "/" + req.mystring;
         std::cout << "Load mission: " << mission_path << std::endl;
         Mission mission;
-        mission.loadMission(mission_path);
+        if(mission.loadMission(mission_path) < 0)
+        {
+            std::cout << "Problem loading mission.\n";
+            return false;
+        }
+        std::cout << "Mission loaded!\n";
+
+        // Publish mission path
+        nav_msgs::Path path = create_path_from_mission(mission);
+        _pub_path.publish(path);
 
         _is_mission_running = true;
-        for (unsigned int i = 0; i < mission.size(); i++) {
-            if (!_is_mission_running) {
-                ROS_WARN_STREAM(_name << ": mission has been disabled.");
-                break;
+        _captain_status.mission_active = true;
+
+        for (unsigned int i = 0; i < mission.size(); i++)
+        {
+            if (_is_mission_paused) {
+                ROS_WARN_STREAM(_name << ": MISSION PAUSED\n");
+                while (_is_mission_paused && _is_mission_running) {
+                    ros::Duration(1.0).sleep();
+                }
+                if (_is_mission_running) {
+                    ROS_WARN_STREAM(_name << ": MISSION RESUMED\n");
+                    if (i > 0) --i;
+                }
             }
+
+            // TODO: Pass north, east, down values
             MissionStep *step = mission.getStep(i);
-            if (step->step_type == MISSION_CONFIGURATION) {
-                MissionConfiguration *conf = dynamic_cast<MissionConfiguration*>(step);
-                this->addParamToParamServer(conf->key, conf->value);
+            std::cout << "Step " << i << std::endl;
+
+            if (!_is_mission_running) {
+                ROS_WARN_STREAM(_name << ": disabling mission: executing all remaining actions.");
             }
-            else if (step->step_type == MISSION_ACTION) {
-                MissionAction *act = dynamic_cast<MissionAction*>(step);
-                this->callAction(act->_is_empty, act->action_id, act->parameters);
-            }
-            else if (step->step_type == MISSION_MANEUVER) {
-                MissionManeuver *m = dynamic_cast<MissionManeuver*>(step);
-                if (m->getManeuverType() == WAYPOINT_MANEUVER) {
-                    MissionWaypoint *wp = dynamic_cast<MissionWaypoint*>(m);
-                    std::cout << *wp << std::endl;
+            else
+            {
+                // Captain Status
+                _captain_status.current_step = i + 1;
+                _captain_status.total_steps = mission.size();
+
+    			// Play mission step maneuver
+                if (step->getManeuver()->getManeuverType() == WAYPOINT_MANEUVER) {
+                    MissionWaypoint *wp = dynamic_cast<MissionWaypoint*>(step->getManeuver());
+                    // std::cout << *wp << std::endl;
+                    _captain_status.active_controller = cola2_msgs::CaptainStatus::CONTROLLER_WAYPOINT;
                     if (!this->worldWaypoint(*wp)) {
                         ROS_WARN_STREAM(_name << "Impossible to reach waypoint. Move to next mission step.");
                     }
                 }
-                else if (m->getManeuverType() == SECTION_MANEUVER) {
-                    MissionSection *sec = dynamic_cast<MissionSection*>(m);
-                    std::cout << *sec << std::endl;
+                else if (step->getManeuver()->getManeuverType() == SECTION_MANEUVER) {
+                    MissionSection *sec = dynamic_cast<MissionSection*>(step->getManeuver());
+                    // std::cout << *sec << std::endl;
+                    _captain_status.active_controller = cola2_msgs::CaptainStatus::CONTROLLER_SECTION;
                     if (!this->worldSection(*sec)) {
                         ROS_WARN_STREAM(_name << "Impossible to reach section. Move to next mission step.");
                     }
                 }
-                else if (m->getManeuverType() == PARK_MANEUVER) {
-                    MissionPark *park = dynamic_cast<MissionPark*>(m);
-                    std::cout << *park << std::endl;
-                    this->park(*park);
+                else if (step->getManeuver()->getManeuverType() == PARK_MANEUVER) {
+                    MissionPark *park = dynamic_cast<MissionPark*>(step->getManeuver());
+                    // std::cout << *park << std::endl;
+                    _captain_status.active_controller = cola2_msgs::CaptainStatus::CONTROLLER_PARK;
+                    if (!this->park(*park)) {
+                        ROS_WARN_STREAM(_name << "Impossible to reach park waypoint. Move to next mission step.");
+                    }
                 }
             }
+            // Play mission_step actions
+            std::vector<MissionAction> actions = step->getActions();
+            for (std::vector<MissionAction>::iterator action = actions.begin(); action != actions.end(); ++action)
+            {
+                this->callAction(action->_is_empty, action->action_id, action->parameters);
+                usleep(2000000);
+            }
         }
+
         if (_is_mission_running) {
             ROS_INFO_STREAM(_name << ": Mission finalized.");
             _is_mission_running = false;
+             _captain_status.mission_active = false;
         }
+        else
+        {
+          ROS_WARN_STREAM(_name << ": mission has been disabled.");
+
+        }
+
+        _is_mission_paused = false;
+
+        // Reset captain status
+        _captain_status.active_controller = cola2_msgs::CaptainStatus::CONTROLLER_NONE;
+        _captain_status.altitude_mode = false;
+        _captain_status.mission_active = false;
+        _captain_status.current_step = 0;
+        _captain_status.total_steps = 0;
+
     }
     return true;
 }
+
 
 void
 Captain::addParamToParamServer(const std::string key,
@@ -1217,6 +1429,8 @@ Captain::callAction(const bool is_empty,
 bool
 Captain::worldWaypoint(const MissionWaypoint wp)
 {
+    std::cout << "Execute mission waypoint\n";
+
     // Define waypoint attributes
     cola2_msgs::Goto::Request goto_req;
     cola2_msgs::Goto::Response goto_res;
@@ -1257,8 +1471,17 @@ Captain::worldSection(const MissionSection sec)
     section.tolerance.z = sec.tolerance.z;
 
     double initial_north, initial_east, initial_depth;
-    _ned->geodetic2Ned(sec.initial_position.latitude, sec.initial_position.longitude, 0.0,
-                       initial_north, initial_east, initial_depth);
+    double ned_latitude;
+    double ned_longitude;
+    // Load NED origin, it can be modified at any time
+    if (!ros::param::getCached("navigator/ned_latitude", ned_latitude) ||
+        !ros::param::getCached("navigator/ned_longitude", ned_longitude)){
+      ROS_ASSERT_MSG(false, "NED origin not found in param server");
+    }
+    Ned ned(ned_latitude, ned_longitude, 0.0);
+
+    ned.geodetic2Ned(sec.initial_position.latitude, sec.initial_position.longitude, 0.0,
+                     initial_north, initial_east, initial_depth);
     section.initial_position.x = initial_north;
     section.initial_position.y = initial_east;
     section.initial_position.z = sec.initial_position.z;
@@ -1266,8 +1489,8 @@ Captain::worldSection(const MissionSection sec)
     section.initial_surge = sec.speed;
 
     double final_north, final_east, final_depth;
-    _ned->geodetic2Ned(sec.final_position.latitude, sec.final_position.longitude, 0.0,
-                       final_north, final_east, final_depth);
+    ned.geodetic2Ned(sec.final_position.latitude, sec.final_position.longitude, 0.0,
+                     final_north, final_east, final_depth);
     section.final_position.x = final_north;
     section.final_position.y = final_east;
     section.final_position.z = sec.final_position.z;
@@ -1275,6 +1498,8 @@ Captain::worldSection(const MissionSection sec)
     section.final_surge = sec.speed;
     section.altitude_mode = sec.initial_position.altitude_mode;
 
+    _is_section_running = true;
+    _captain_status.altitude_mode = section.altitude_mode;
     _section_client->sendGoal(section);
 
     // Compute timeout
@@ -1290,14 +1515,84 @@ Captain::worldSection(const MissionSection sec)
     double timeout = (2*distance_to_end_section) / min_vel;
     ROS_INFO_STREAM(_name << ": Section timeout = " << timeout << "\n");
     _section_client->waitForResult(ros::Duration(timeout));
+    _is_section_running = false;
     return true;
 }
 
-void
+bool
 Captain::park(const MissionPark park)
 {
-    ROS_WARN_STREAM(_name << ": Park not implemented!");
+    std::cout << "Execute mission park: Reaching park waypoint\n";
+
+    // Define waypoint attributes
+    cola2_msgs::Goto::Request goto_req;
+    cola2_msgs::Goto::Response goto_res;
+
+    goto_req.altitude = park.position.z;
+    goto_req.altitude_mode = park.position.altitude_mode;
+    goto_req.linear_velocity.x = 0.3; // Fixed velocity when reaching park waypoint
+    goto_req.position.x = park.position.latitude;
+    goto_req.position.y = park.position.longitude;
+    goto_req.position.z = park.position.z;
+    goto_req.position_tolerance.x = 3.0;
+    goto_req.position_tolerance.y = 3.0;
+    goto_req.position_tolerance.z = 1.5;
+    goto_req.blocking = true;
+    goto_req.keep_position = false;
+    goto_req.disable_axis.x = false;
+    goto_req.disable_axis.y = true;
+    goto_req.disable_axis.z = false;
+    goto_req.disable_axis.roll = true;
+    goto_req.disable_axis.yaw = false;
+    goto_req.disable_axis.pitch = true;
+    goto_req.priority = auv_msgs::GoalDescriptor::PRIORITY_NORMAL;
+    goto_req.reference = cola2_msgs::Goto::Request::REFERENCE_GLOBAL;
+
+    // Call goto
+    if (enable_goto(goto_req, goto_res))
+    {
+      if(_is_mission_running)
+      {
+        std::cout << "Execute mission park: Wait for " << park.time << " seconds\n";
+        goto_req.keep_position = true;
+        goto_req.position_tolerance.x = 0.0;
+        goto_req.position_tolerance.y = 0.0;
+        goto_req.position_tolerance.z = 0.0;
+        goto_req.timeout = park.time;
+        return enable_goto(goto_req, goto_res);
+      }
+      return true;
+    }
+    return false;
 }
+
+bool
+Captain::enable_external_mission(std_srvs::Empty::Request &req, std_srvs::Empty::Response &res) {
+    // The only way to know if the mission is controlled by an external process is checking the total_steps
+    // Add extra information in captainStatus msg?
+    ROS_INFO_STREAM("enable_external_mission service called.");
+    if (check_no_request_running()) {
+        _is_mission_running = true;
+        _captain_status.mission_active = true;
+        _captain_status.current_step = -1;
+        _captain_status.total_steps = -1;
+    }
+    return true;
+}
+
+bool
+Captain::disable_external_mission(std_srvs::Empty::Request &req, std_srvs::Empty::Response &res) {
+    ROS_INFO_STREAM("disable_external_mission service called.");
+    if (_captain_status.mission_active && _captain_status.total_steps == -1) {
+        _captain_status.active_controller = cola2_msgs::CaptainStatus::CONTROLLER_NONE;
+        _is_mission_running = false;
+        _captain_status.mission_active = false;
+        _captain_status.current_step = 0;
+        _captain_status.total_steps = 0;
+    }
+    return true;
+}
+
 
 int main(int argc, char **argv) {
     ros::init(argc, argv, "captain_new");
