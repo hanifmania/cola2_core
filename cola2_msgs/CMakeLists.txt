@@ -81,6 +81,8 @@ find_package(catkin REQUIRED COMPONENTS
    Section.msg
    VehicleStatus.msg
    CaptainStatus.msg
+   RecoveryAction.msg
+   SafetySupervisorStatus.msg
  )
 
 ## Generate services in the 'srv' folder
@@ -88,7 +90,7 @@ add_service_files(
   FILES
   DigitalOutput.srv
   Submerge.srv
-  RecoveryAction.srv
+  Recovery.srv
   SimulatedCurrents.srv
   Goto.srv
   GotoWithYaw.srv
