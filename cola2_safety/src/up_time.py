@@ -7,8 +7,8 @@
 
 
 """
-@@>Safety node used to check an absolute timeout. It also checks if navigator
-is publishing data.<@@
+@@>Node to keep track of the cola2 running time, used by the safety supervisor to check it against the safety timeout.
+It also checks if navigator is publishing data.<@@
 """
 
 # ROS imports
@@ -24,7 +24,11 @@ from cola2_lib import cola2_ros_lib
 
 
 class UpTime(object):
-    """ This node is used to generate a mission timeout """
+    """ This node keeps track of the cola2 running time.
+     Counts the up time since the architecture started (actually since the start of this node)
+     or since the last time reset, which can be done through a provided service.
+     Publishes the current up time together with the value of the safety timeout parameter. """
+
 
     def __init__(self, name):
         """ Constructor """
@@ -32,6 +36,9 @@ class UpTime(object):
         
         # Initial time
         self.init_time = rospy.Time.now().to_sec()
+
+        # Initial timeout
+        self.timeout = 3600
 
         # Set up diagnostics
         self.diagnostic = DiagnosticHelper(self.name, "soft")
@@ -46,8 +53,11 @@ class UpTime(object):
                                         Empty,
                                         self.reset_timeout)
         
-        # Timer to publish timeout
+        # Timer to publish time since init (or last time reset)
         rospy.Timer(rospy.Duration(1.0), self.check_timeout)
+
+        # Timer to reload timeout param from param server
+        rospy.Timer(rospy.Duration(10.0), self.reload_timeout)
 
         # Check navigator --> This should not be in this node
         self.nav = NavSts()
@@ -77,6 +87,8 @@ class UpTime(object):
         # Publish total time
         msg = TotalTime()
         msg.total_time = int(rospy.Time.now().to_sec() - self.init_time)
+        # publish also the value of the safety timeout parameter
+        msg.timeout = self.timeout
         self.pub_total_time.publish(msg)
 
 
@@ -85,6 +97,10 @@ class UpTime(object):
         rospy.loginfo("%s: Reset Timeout!", self.name)
         self.init_time = rospy.Time.now().to_sec()
         return EmptyResponse()
+
+    def reload_timeout(self, event):
+        """ Timer callback for periodically reloading safety timeout parameter from param server"""
+        self.timeout = rospy.get_param('safety/timeout', 3600)
 
 
     def update_nav_sts(self, data):
