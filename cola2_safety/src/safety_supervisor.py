@@ -94,18 +94,6 @@ class Cola2Safety(object):
                                               SafetySupervisorStatus,
                                               queue_size = 2)
 
-        # Subscriber
-        rospy.Subscriber("/cola2_safety/vehicle_status",
-                         VehicleStatus,
-                         self.check_vehicle_status,
-                         queue_size=1)
-
-        # To handle recovery actions that have not been called from safety_supervisor
-        rospy.Subscriber("/cola2_safety/external_recovery_action",
-                         RecoveryAction,
-                         self.external_recovery_action,
-                         queue_size=1)
-
         # Init Service Client
         try:
             rospy.wait_for_service('/cola2_safety/recovery_action', 20)
@@ -126,6 +114,18 @@ class Cola2Safety(object):
                          self.name)
             rospy.signal_shutdown('Error creating reset timeout client')
 
+
+        # Subscriber
+        rospy.Subscriber("/cola2_safety/vehicle_status",
+                         VehicleStatus,
+                         self.check_vehicle_status,
+                         queue_size=1)
+
+        # To handle recovery actions that have not been called from safety_supervisor
+        rospy.Subscriber("/cola2_safety/external_recovery_action",
+                         RecoveryAction,
+                         self.external_recovery_action,
+                         queue_size=1)
 
         # Create service
         self.reload_params_srv = rospy.Service('/cola2_safety/reload_safety_params',
@@ -402,7 +402,7 @@ class Cola2Safety(object):
                              level=RecoveryAction.INFORMATIVE):
 
         self.is_recovery_enabled = True
-        print('--> recovery action!!: ', self.vehicle_init)
+        print '--> recovery action!!: ', self.vehicle_init
         self.diagnostic.setLevel(DiagnosticStatus.ERROR, str_err)
 
         if self.vehicle_init:
