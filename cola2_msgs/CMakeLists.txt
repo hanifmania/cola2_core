@@ -80,6 +80,9 @@ find_package(catkin REQUIRED COMPONENTS
    RangeDetection.msg
    Section.msg
    VehicleStatus.msg
+   CaptainStatus.msg
+   RecoveryAction.msg
+   SafetySupervisorStatus.msg
  )
 
 ## Generate services in the 'srv' folder
@@ -87,7 +90,7 @@ add_service_files(
   FILES
   DigitalOutput.srv
   Submerge.srv
-  RecoveryAction.srv
+  Recovery.srv
   SimulatedCurrents.srv
   Goto.srv
   GotoWithYaw.srv
@@ -144,6 +147,7 @@ generate_dynamic_reconfigure_options(
   cfg/VirtualCageInfo.cfg
   cfg/Safety.cfg
   cfg/tritech_msis.cfg
+  cfg/ImagenexDeltaT.cfg
 )
 
 ###################################

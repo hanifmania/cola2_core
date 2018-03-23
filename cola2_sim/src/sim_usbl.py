@@ -40,6 +40,7 @@ class SimUSBL:
 
         # Get tf of usbl wrt vessel reference point from config
         self.usbl_tf = rospy.get_param('sim_usbl/tf', [0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+        self.usbl_addr = rospy.get_param('sim_usbl/addr', 2) # 2 for sparus, 3 for girona
         self.gps_tf = rospy.get_param('sim_gps/tf', [0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
 
         # Subscribers
@@ -144,7 +145,7 @@ class SimUSBL:
 
         curr_time = ""
         measure_time = ""
-        remote_addr = 2 # 2 for sparus, 3 for girona
+        remote_addr = self.usbl_addr
         x = 0.0
         y = 0.0
         z = 0.0

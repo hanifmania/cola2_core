@@ -22,8 +22,8 @@ import rospy
 
 from std_srvs.srv import Empty, EmptyRequest
 from cola2_msgs.srv import Submerge, SubmergeRequest
-from cola2_msgs.srv import RecoveryAction, RecoveryActionRequest, RecoveryActionResponse
-from cola2_msgs.msg import ThrustersData
+from cola2_msgs.srv import Recovery, RecoveryRequest, RecoveryResponse
+from cola2_msgs.msg import ThrustersData, RecoveryAction
 from cola2_lib import cola2_ros_lib
 
 
@@ -42,6 +42,10 @@ class RecoveryActions(object):
         # Create publisher
         self.pub_thrusters = rospy.Publisher("/cola2_control/thrusters_data",
                                              ThrustersData,
+                                             queue_size = 2)
+
+        self.pub_external_ra = rospy.Publisher("/cola2_safety/external_recovery_action",
+                                             RecoveryAction,
                                              queue_size = 2)
 
         # Init service clients
@@ -100,7 +104,7 @@ class RecoveryActions(object):
 
         # Create service
         self.recovery_srv = rospy.Service('/cola2_safety/recovery_action',
-                                        RecoveryAction,
+                                        Recovery,
                                         self.recovery_action_srv)
 
         # Show message
@@ -110,33 +114,45 @@ class RecoveryActions(object):
     def recovery_action_srv(self, req):
         """ Callback of recovery action service """
         rospy.loginfo('%s: received recovery action', self.name)
-        self.recovery_action(req.error_level)
-        ret = RecoveryActionResponse()
+        who = req._connection_header['callerid']
+        if who != "/safety_supervisor":
+            # Timestamp might not be included if service call was from command line, repack recovery action to add it
+            if req.requested_action.header.stamp.secs == 0:
+                ra = RecoveryAction()
+                ra.header.stamp = rospy.Time.now()
+                ra.error_level = req.requested_action.error_level
+                ra.error_string = req.requested_action.error_string
+                self.pub_external_ra.publish(ra)
+            else:
+                self.pub_external_ra.publish(req.requested_action)
+        #Call to handle the requested action
+        self.recovery_action(req.requested_action.error_level)
+        ret = RecoveryResponse()
         ret.attempted = True
         return ret
 
 
     def recovery_action(self, error):
         """ This method calls the appropiate method to handle the input code """
-        if error == RecoveryActionRequest.INFORMATIVE:
+        if error == RecoveryAction.INFORMATIVE:
             rospy.loginfo("%s: recovery action %s: INFORMATIVE",
                           self.name, error)
             # TODO: send message through modem?
-        elif error == RecoveryActionRequest.ABORT_MISSION:
+        elif error == RecoveryAction.ABORT_MISSION:
             rospy.loginfo("%s: recovery action %s: ABORT_MISSION",
                           self.name, error)
             self.abort_mission()
-        elif error == RecoveryActionRequest.ABORT_AND_SURFACE:
+        elif error == RecoveryAction.ABORT_AND_SURFACE:
             rospy.loginfo("%s: recovery action %s: ABORT_AND_SURFACE",
                           self.name, error)
             self.abort_mission()
             self.surface()
-        elif error == RecoveryActionRequest.EMERGENCY_SURFACE:
+        elif error == RecoveryAction.EMERGENCY_SURFACE:
             rospy.loginfo("%s: recovery action %s: EMERGENCY_SURFACE",
                           self.name, error)
             self.abort_mission()
             self.emergency_surface()
-        elif error == RecoveryActionRequest.STOP_THRUSTERS:
+        elif error == RecoveryAction.STOP_THRUSTERS:
             rospy.loginfo("%s: recovery action %s: STOP_THRUSTERS",
                           self.name, error)
             # Disable thrusters
