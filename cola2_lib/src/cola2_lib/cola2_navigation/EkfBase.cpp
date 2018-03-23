@@ -131,7 +131,8 @@ bool EkfBase::applyNonLinearUpdate(const Eigen::VectorXd innovation,
 
     // Compute updated covariance matrix
     unsigned int I_size = _x.size();
-    _P = (Eigen::MatrixXd::Identity(I_size, I_size) - K * H) * _P_;
+    Eigen::MatrixXd IKH = Eigen::MatrixXd::Identity(I_size, I_size) - K * H;
+    _P = IKH * _P_ * IKH.transpose() + K*r*K.transpose();
 
     // Check integrity
     checkIntegrity();
